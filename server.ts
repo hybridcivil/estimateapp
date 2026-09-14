@@ -202,23 +202,18 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/projects", (_req, res) => {
   try {
     const projects = readProjects();
-    const summaries = projects.map((p) => {
-      const totalCost = p.estimates.reduce((sum, est) => sum + (Number(est.totalCost) || 0), 0);
+    const enriched = projects.map((p) => {
+      const estimates = Array.isArray(p.estimates) ? p.estimates : [];
+      const totalCost = estimates.reduce((sum, est) => sum + (Number(est.totalCost) || 0), 0);
       return {
-        id: p.id,
-        name: p.name,
-        client: p.client,
-        location: p.location,
-        engineer: p.engineer,
-        notes: p.notes,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        estimatesCount: p.estimates.length,
+        ...p,
+        estimates,
+        estimatesCount: estimates.length,
         totalCost,
-        estimateTypes: Array.from(new Set(p.estimates.map((e) => e.type))),
+        estimateTypes: Array.from(new Set(estimates.map((e) => e.type))),
       };
     });
-    res.json(summaries);
+    res.json(enriched);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

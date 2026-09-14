@@ -44,9 +44,10 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
 
-  const relevantEstimates = activeProject
-    ? activeProject.estimates.filter((e) => e.type === type)
-    : [];
+  const relevantEstimates =
+    activeProject && Array.isArray(activeProject.estimates)
+      ? activeProject.estimates.filter((e) => e.type === type)
+      : [];
 
   const handleSaveClick = async () => {
     if (!activeProject) {

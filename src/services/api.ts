@@ -25,26 +25,43 @@ export async function fetchProjects(): Promise<Project[]> {
     const res = await fetch("/api/projects");
     if (res.ok) {
       const data = await res.json();
-      saveLocalProjects(data);
-      return data;
+      const normalized = (Array.isArray(data) ? data : []).map((p: any) => ({
+        ...p,
+        estimates: Array.isArray(p.estimates) ? p.estimates : [],
+      }));
+      saveLocalProjects(normalized);
+      return normalized;
     }
   } catch (err) {
     console.warn("Backend fetch failed, using local cache", err);
   }
-  return getLocalProjects();
+  const local = getLocalProjects();
+  return (Array.isArray(local) ? local : []).map((p: any) => ({
+    ...p,
+    estimates: Array.isArray(p.estimates) ? p.estimates : [],
+  }));
 }
 
 export async function fetchProject(id: string): Promise<Project | null> {
   try {
     const res = await fetch(`/api/projects/${id}`);
     if (res.ok) {
-      return await res.json();
+      const p = await res.json();
+      return {
+        ...p,
+        estimates: Array.isArray(p.estimates) ? p.estimates : [],
+      };
     }
   } catch (err) {
     console.warn("Backend fetch failed, searching local cache", err);
   }
   const local = getLocalProjects();
-  return local.find((p) => p.id === id) || null;
+  const found = local.find((p) => p.id === id);
+  if (!found) return null;
+  return {
+    ...found,
+    estimates: Array.isArray(found.estimates) ? found.estimates : [],
+  };
 }
 
 export async function createProject(data: {

@@ -42,7 +42,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   activeProject,
 }) => {
   const getEstimateCountForTab = (type: EstimateType) => {
-    if (!activeProject || type === "dashboard") return 0;
+    if (!activeProject || type === "dashboard" || !Array.isArray(activeProject.estimates)) return 0;
     return activeProject.estimates.filter((e) => e.type === type).length;
   };
 

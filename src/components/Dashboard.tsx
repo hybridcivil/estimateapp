@@ -54,18 +54,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Compute portfolio statistics
   const totalProjects = projects.length;
   const totalEstimates = projects.reduce(
-    (sum, p) => sum + (p.estimates ? p.estimates.length : 0),
+    (sum, p) => sum + (Array.isArray(p.estimates) ? p.estimates.length : 0),
     0
   );
   const totalPortfolioBudget = projects.reduce((sum, p) => {
-    const estSum = p.estimates
+    const estSum = Array.isArray(p.estimates)
       ? p.estimates.reduce((s, e) => s + (e.totalCost || 0), 0)
       : 0;
     return sum + estSum;
   }, 0);
 
   // Compute Active Project BOQ aggregates
-  const estimates = activeProject?.estimates || [];
+  const estimates = Array.isArray(activeProject?.estimates)
+    ? activeProject.estimates
+    : [];
   const filteredEstimates =
     filterType === "all"
       ? estimates
@@ -640,8 +642,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {calculatorCards.map((card) => {
             const Icon = card.icon;
             const count =
-              activeProject?.estimates?.filter((e) => e.type === card.type)
-                .length || 0;
+              (Array.isArray(activeProject?.estimates)
+                ? activeProject.estimates.filter((e) => e.type === card.type)
+                : []
+              ).length || 0;
 
             return (
               <div
