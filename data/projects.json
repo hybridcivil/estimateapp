@@ -1,0 +1,170 @@
+[
+  {
+    "id": "proj_default_1",
+    "name": "Ashraf Tower (G+6 Story Residential)",
+    "client": "Engr. Ashraf & Associates",
+    "location": "Dhanmondi, Dhaka",
+    "engineer": "Engr. Ashraf",
+    "notes": "Complete structural & civil estimation with 1:1.5:3 concrete mix and 500W rebar.",
+    "createdAt": "2026-09-14T19:45:52.991Z",
+    "updatedAt": "2026-09-14T19:45:52.991Z",
+    "estimates": [
+      {
+        "id": "est_beam_01",
+        "type": "beam",
+        "name": "Ground Floor Grade Beams (GB1-GB8)",
+        "date": "2026-09-14T19:45:52.991Z",
+        "totalCost": 184500,
+        "summary": {
+          "cementBags": 68,
+          "sandCft": 128,
+          "aggCft": 255,
+          "totalSteelKg": 1140,
+          "wetVolCft": 165.5,
+          "dryVolCft": 267.4,
+          "totalCost": 184500,
+          "currency": "৳"
+        },
+        "data": {
+          "beams": [
+            {
+              "nos": 8,
+              "name": "GB1",
+              "width": 12,
+              "depth": 18,
+              "length": 22,
+              "stirrupSpacing": 6,
+              "mix": "1:1.5:3",
+              "mainBars": [
+                {
+                  "dia": 16,
+                  "qty": 3
+                },
+                {
+                  "dia": 20,
+                  "qty": 2
+                }
+              ],
+              "extraTopBars": {
+                "nos": 2,
+                "dia": 16,
+                "length": 7.33
+              },
+              "extraBottomBars": {
+                "nos": 2,
+                "dia": 16,
+                "length": 11
+              }
+            }
+          ],
+          "rates": {
+            "cementRate": 550,
+            "sandRate": 45,
+            "aggRate": 120,
+            "steelRate": 95
+          },
+          "baseType": "none"
+        }
+      },
+      {
+        "id": "est_col_01",
+        "type": "column",
+        "name": "Main Columns C1-C12 (12x15)",
+        "date": "2026-09-14T19:45:52.991Z",
+        "totalCost": 215400,
+        "summary": {
+          "cementBags": 74,
+          "sandCft": 139,
+          "aggCft": 278,
+          "totalSteelKg": 1380,
+          "wetVolCft": 180,
+          "dryVolCft": 291,
+          "totalCost": 215400,
+          "currency": "৳"
+        },
+        "data": {
+          "columns": [
+            {
+              "nos": 12,
+              "name": "C1",
+              "type": "rectangular",
+              "category": "long",
+              "size": "12x15",
+              "height": 10,
+              "rebars": [
+                {
+                  "dia": 16,
+                  "nos": 4
+                },
+                {
+                  "dia": 20,
+                  "nos": 4
+                }
+              ],
+              "mix": "1:1.5:3",
+              "stirrupDia": 10,
+              "stirrupSpacing": 6
+            }
+          ],
+          "rates": {
+            "cementRate": 550,
+            "sandRate": 45,
+            "aggRate": 120,
+            "steelRate": 95
+          },
+          "baseType": "none"
+        }
+      },
+      {
+        "id": "est_footing_01",
+        "type": "footing",
+        "name": "Isolated Footings F1-F8",
+        "date": "2026-09-14T19:45:52.991Z",
+        "totalCost": 268900,
+        "summary": {
+          "cementBags": 112,
+          "sandCft": 210,
+          "aggCft": 420,
+          "totalSteelKg": 1420,
+          "wetVolCft": 272,
+          "dryVolCft": 440,
+          "totalCost": 268900,
+          "currency": "৳"
+        },
+        "data": {
+          "footings": [
+            {
+              "nos": 8,
+              "name": "F1",
+              "length": 7.5,
+              "breadth": 7.5,
+              "thickness": 1.5,
+              "cover": 0.25,
+              "hook": 0.5,
+              "mix": "1:1.5:3",
+              "rebars": [
+                {
+                  "role": "bottom",
+                  "dia": 16,
+                  "spacing": 5
+                },
+                {
+                  "role": "top",
+                  "dia": 12,
+                  "spacing": 6
+                }
+              ]
+            }
+          ],
+          "rates": {
+            "cementRate": 550,
+            "sandRate": 45,
+            "aggRate": 120,
+            "steelRate": 95
+          },
+          "baseType": "none"
+        }
+      }
+    ]
+  }
+]
