@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { RotateCcw, Building2, Layers, DollarSign } from "lucide-react";
 
 interface StructuralCalculatorProps {
@@ -256,23 +257,21 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Number of Storeys</label>
-              <input
-                type="number"
+              <NumericInput
                 value={floors}
                 min="1"
-                onChange={(e) => setFloors(parseInt(e.target.value) || 1)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={(v) => setFloors(Math.max(1, v))}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Plinth Area / Floor (sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={plinthArea}
                 step="50"
-                onChange={(e) => setPlinthArea(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setPlinthArea}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -304,12 +303,11 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Labour Rate (৳/sqft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={labourRateSqft}
                 step="5"
-                onChange={(e) => setLabourRateSqft(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setLabourRateSqft}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -322,12 +320,11 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
                   onChange={(e) => setIncludeFinishing(e.target.checked)}
                   className="w-4 h-4 accent-[#00c2c7]"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   value={finishingPercent}
                   disabled={!includeFinishing}
-                  onChange={(e) => setFinishingPercent(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white disabled:opacity-50"
+                  onChange={setFinishingPercent}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white disabled:opacity-50 outline-none"
                 />
               </div>
             </div>
@@ -339,56 +336,51 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Steel (kg/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelFactor}
                 step="0.1"
-                onChange={(e) => setSteelFactor(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelFactor}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (bags/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementFactor}
                 step="0.01"
-                onChange={(e) => setCementFactor(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementFactor}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (cft/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandFactor}
                 step="0.05"
-                onChange={(e) => setSandFactor(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandFactor}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (cft/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggFactor}
                 step="0.05"
-                onChange={(e) => setAggFactor(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggFactor}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Bricks (pcs/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={brickFactor}
                 step="1"
-                onChange={(e) => setBrickFactor(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setBrickFactor}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -411,51 +403,46 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Steel (৳/kg)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelRate}
-                onChange={(e) => setSteelRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (৳/cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggRate}
-                onChange={(e) => setAggRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick (৳/pcs)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={brickRate}
-                onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setBrickRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
           </div>

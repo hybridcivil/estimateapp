@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { RotateCcw } from "lucide-react";
 
 interface StairCalculatorProps {
@@ -319,21 +320,20 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft — in)</label>
               <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="number"
+                <NumericInput
                   placeholder="ft"
                   value={lengthFeet}
                   step="0.1"
-                  onChange={(e) => setLengthFeet(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setLengthFeet}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   placeholder="in"
                   value={lengthInches}
                   step="0.5"
-                  onChange={(e) => setLengthInches(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  allowZero={true}
+                  onChange={setLengthInches}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
               </div>
             </div>
@@ -341,33 +341,31 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft — in)</label>
               <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="number"
+                <NumericInput
                   placeholder="ft"
                   value={widthFeet}
                   step="0.1"
-                  onChange={(e) => setWidthFeet(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setWidthFeet}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   placeholder="in"
                   value={widthInches}
                   step="0.5"
-                  onChange={(e) => setWidthInches(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  allowZero={true}
+                  onChange={setWidthInches}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
               </div>
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Waist Thickness (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={thicknessIn}
                 step="0.25"
-                onChange={(e) => setThicknessIn(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setThicknessIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -390,45 +388,41 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">No. of Risers</label>
-              <input
-                type="number"
+              <NumericInput
                 value={risers}
                 min="1"
-                onChange={(e) => handleRisersChange(parseInt(e.target.value) || 1)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={(v) => handleRisersChange(Math.max(1, v))}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">No. of Treads</label>
-              <input
-                type="number"
+              <NumericInput
                 value={treads}
                 min="1"
-                onChange={(e) => setTreads(parseInt(e.target.value) || 1)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={(v) => setTreads(Math.max(1, v))}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Riser Height (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={riserHeightIn}
                 step="0.01"
-                onChange={(e) => setRiserHeightIn(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setRiserHeightIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Tread Width (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={treadWidthIn}
                 step="0.25"
-                onChange={(e) => setTreadWidthIn(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setTreadWidthIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -439,43 +433,39 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Main Bar Ø (mm)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={mainBar}
-                onChange={(e) => setMainBar(parseFloat(e.target.value) || 12)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setMainBar}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Main Spacing (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={mainSpacingIn}
                 step="0.5"
-                onChange={(e) => setMainSpacingIn(parseFloat(e.target.value) || 5)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setMainSpacingIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Dist Bar Ø (mm)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={distBar}
-                onChange={(e) => setDistBar(parseFloat(e.target.value) || 10)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setDistBar}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Dist Spacing (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={distSpacingIn}
                 step="0.5"
-                onChange={(e) => setDistSpacingIn(parseFloat(e.target.value) || 5)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setDistSpacingIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -498,20 +488,18 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
               <>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Picket Rate (৳/pcs)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={brickRate}
-                    onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBrickRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Pcs per cft</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={bricksPerCft}
-                    onChange={(e) => setBricksPerCft(parseFloat(e.target.value) || 10)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBricksPerCft}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
               </>
@@ -523,38 +511,34 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggRate}
-                onChange={(e) => setAggRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelRate}
-                onChange={(e) => setSteelRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { RotateCcw } from "lucide-react";
 
 interface BrickCalculatorProps {
@@ -299,56 +300,51 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={length}
                 step="0.1"
-                onChange={(e) => setLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setLength}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={width}
                 step="0.1"
-                onChange={(e) => setWidth(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setWidth}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Spans along Length</label>
-              <input
-                type="number"
+              <NumericInput
                 value={lengthSpans}
                 min="1"
-                onChange={(e) => setLengthSpans(parseInt(e.target.value) || 1)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={(v) => setLengthSpans(Math.max(1, v))}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Spans along Width</label>
-              <input
-                type="number"
+              <NumericInput
                 value={widthSpans}
                 min="1"
-                onChange={(e) => setWidthSpans(parseInt(e.target.value) || 1)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={(v) => setWidthSpans(Math.max(1, v))}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div className="col-span-2">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Wall Height (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={height}
                 step="0.1"
-                onChange={(e) => setHeight(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setHeight}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -359,62 +355,58 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">No. of Windows</label>
-              <input
-                type="number"
+              <NumericInput
                 value={windowCount}
                 min="0"
-                onChange={(e) => setWindowCount(parseInt(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setWindowCount}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Window W × H (ft)</label>
               <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="number"
+                <NumericInput
                   value={windowWidth}
                   step="0.1"
-                  onChange={(e) => setWindowWidth(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setWindowWidth}
+                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   value={windowHeight}
                   step="0.1"
-                  onChange={(e) => setWindowHeight(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setWindowHeight}
+                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
               </div>
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">No. of Doors</label>
-              <input
-                type="number"
+              <NumericInput
                 value={doorCount}
                 min="0"
-                onChange={(e) => setDoorCount(parseInt(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setDoorCount}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Door W × H (ft)</label>
               <div className="grid grid-cols-2 gap-1.5">
-                <input
-                  type="number"
+                <NumericInput
                   value={doorWidth}
                   step="0.1"
-                  onChange={(e) => setDoorWidth(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setDoorWidth}
+                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   value={doorHeight}
                   step="0.1"
-                  onChange={(e) => setDoorHeight(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                  onChange={setDoorHeight}
+                  className="w-full h-8 px-1.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
               </div>
             </div>
@@ -439,26 +431,23 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick L×W×H (in)</label>
               <div className="grid grid-cols-3 gap-1">
-                <input
-                  type="number"
+                <NumericInput
                   value={brickLengthIn}
                   step="0.1"
-                  onChange={(e) => setBrickLengthIn(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white"
+                  onChange={setBrickLengthIn}
+                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   value={brickWidthIn}
                   step="0.1"
-                  onChange={(e) => setBrickWidthIn(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white"
+                  onChange={setBrickWidthIn}
+                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white outline-none"
                 />
-                <input
-                  type="number"
+                <NumericInput
                   value={brickHeightIn}
                   step="0.1"
-                  onChange={(e) => setBrickHeightIn(parseFloat(e.target.value) || 0)}
-                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white"
+                  onChange={setBrickHeightIn}
+                  className="w-full h-8 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-[11px] text-white outline-none"
                 />
               </div>
             </div>
@@ -498,12 +487,11 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
             <div className="col-span-2">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Plaster Thickness (mm)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={plasterThicknessMm}
                 step="0.5"
-                onChange={(e) => setPlasterThicknessMm(parseFloat(e.target.value) || 12)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setPlasterThicknessMm}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -514,31 +502,28 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick Rate (৳/pcs)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={brickRate}
-                onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setBrickRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div className="col-span-2">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 

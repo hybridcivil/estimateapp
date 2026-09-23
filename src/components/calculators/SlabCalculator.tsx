@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { RotateCcw, Calculator } from "lucide-react";
 
 interface SlabCalculatorProps {
@@ -283,34 +284,31 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={length}
                 step="0.1"
-                onChange={(e) => setLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setLength}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={width}
                 step="0.1"
-                onChange={(e) => setWidth(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setWidth}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Thickness (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={thicknessIn}
                 step="0.1"
-                onChange={(e) => setThicknessIn(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setThicknessIn}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -343,12 +341,11 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Spacing (in c/c)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={spacingIn}
                 step="0.5"
-                onChange={(e) => setSpacingIn(parseFloat(e.target.value) || 6)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSpacingIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -369,12 +366,11 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Spacing (in c/c)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={distSpacingIn}
                 step="0.5"
-                onChange={(e) => setDistSpacingIn(parseFloat(e.target.value) || 6)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setDistSpacingIn}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -395,12 +391,12 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Nos of Sets</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraBarsNum}
                 min="0"
-                onChange={(e) => setExtraBarsNum(parseInt(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setExtraBarsNum}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div className="col-span-2 bg-[#00c2c7]/10 border-l-2 border-[#00c2c7] p-2 rounded text-[11px] text-[#8ba3c1]">
@@ -426,20 +422,18 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
               <>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Picket Rate (৳/pcs)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={brickRate}
-                    onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBrickRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Pcs per cft</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={bricksPerCft}
-                    onChange={(e) => setBricksPerCft(parseFloat(e.target.value) || 10)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBricksPerCft}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
               </>
@@ -451,38 +445,34 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggRate}
-                onChange={(e) => setAggRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelRate}
-                onChange={(e) => setSteelRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 

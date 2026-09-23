@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem, FootingItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { Plus, Minus, Trash2, RotateCcw } from "lucide-react";
 
 interface FootingCalculatorProps {
@@ -358,11 +359,10 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
             <div className="col-span-2 sm:col-span-1">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Nos of Footings</label>
-              <input
-                type="number"
+              <NumericInput
                 value={ftNos}
                 min="1"
-                onChange={(e) => setFtNos(parseInt(e.target.value) || 1)}
+                onChange={(v) => setFtNos(Math.max(1, v))}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
@@ -385,45 +385,41 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={length}
                 step="0.1"
-                onChange={(e) => setLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setLength}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Breadth (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={breadth}
                 step="0.1"
-                onChange={(e) => setBreadth(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setBreadth}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Thickness (inch)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={thicknessIn}
                 step="0.5"
-                onChange={(e) => setThicknessIn(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setThicknessIn}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cover (inch)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={coverIn}
                 step="0.25"
-                onChange={(e) => setCoverIn(parseFloat(e.target.value) || 3)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setCoverIn}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -431,12 +427,11 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
               <label className="text-[10px] text-[#8ba3c1] block mb-1">
                 Hook / Bend (inch — each side)
               </label>
-              <input
-                type="number"
+              <NumericInput
                 value={hookIn}
                 step="0.5"
-                onChange={(e) => setHookIn(parseFloat(e.target.value) || 6)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setHookIn}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -467,29 +462,27 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
                     {r.role}
                   </div>
                   <div className="flex-1">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={r.dia}
                       placeholder="Ø mm"
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...rebars];
-                        next[idx].dia = parseFloat(e.target.value) || 0;
+                        next[idx].dia = v;
                         setRebars(next);
                       }}
-                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                     />
                   </div>
                   <div className="flex-1">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={r.spacing}
                       placeholder="Spacing (in)"
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...rebars];
-                        next[idx].spacing = parseFloat(e.target.value) || 0;
+                        next[idx].spacing = v;
                         setRebars(next);
                       }}
-                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                     />
                   </div>
                   {rebars.length > 1 && (
@@ -524,20 +517,18 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
               <>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Picket Rate (৳/pcs)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={brickRate}
-                    onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBrickRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Pcs per cft</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={bricksPerCft}
-                    onChange={(e) => setBricksPerCft(parseFloat(e.target.value) || 10)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBricksPerCft}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
               </>
@@ -549,38 +540,34 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggRate}
-                onChange={(e) => setAggRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelRate}
-                onChange={(e) => setSteelRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 

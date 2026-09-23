@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { RotateCcw } from "lucide-react";
 
 interface TileCalculatorProps {
@@ -229,12 +230,11 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Price (৳/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={tilePrice}
                 step="1"
-                onChange={(e) => setTilePrice(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setTilePrice}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -255,23 +255,21 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={length}
                 step="0.1"
-                onChange={(e) => setLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setLength}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={width}
                 step="0.1"
-                onChange={(e) => setWidth(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
+                onChange={setWidth}
+                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
@@ -303,22 +301,20 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
               <>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Skirting Ht (in)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={skirtingHeight}
                     step="0.5"
-                    onChange={(e) => setSkirtingHeight(parseFloat(e.target.value) || 4)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setSkirtingHeight}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Skirting Price (৳/sft)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={skirtingPrice}
                     step="1"
-                    onChange={(e) => setSkirtingPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setSkirtingPrice}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
               </>
@@ -331,62 +327,57 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Mortar (inch)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={mortarTh}
                 step="0.1"
-                onChange={(e) => setMortarTh(parseFloat(e.target.value) || 0.5)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setMortarTh}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Wastage (%)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={wastage}
-                onChange={(e) => setWastage(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setWastage}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Labour (৳/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={labour}
-                onChange={(e) => setLabour(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setLabour}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Coating (৳/sft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={coatingCost}
-                onChange={(e) => setCoatingCost(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCoatingCost}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementCost}
-                onChange={(e) => setCementCost(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementCost}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandCost}
-                onChange={(e) => setSandCost(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandCost}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 

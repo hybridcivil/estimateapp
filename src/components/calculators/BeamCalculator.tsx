@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
+import { NumericInput } from "../common/NumericInput";
 import { Plus, Minus, Trash2, RotateCcw, Calculator } from "lucide-react";
 
 interface BeamItem {
@@ -361,11 +362,10 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
             <div className="col-span-2 sm:col-span-1">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Nos of Beams</label>
-              <input
-                type="number"
+              <NumericInput
                 value={numberOfBeams}
                 min="1"
-                onChange={(e) => setNumberOfBeams(parseInt(e.target.value) || 1)}
+                onChange={(v) => setNumberOfBeams(Math.max(1, v))}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white focus:border-[#00c2c7] outline-none"
               />
             </div>
@@ -388,44 +388,40 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={beamWidth}
                 step="0.5"
-                onChange={(e) => setBeamWidth(parseFloat(e.target.value) || 0)}
+                onChange={setBeamWidth}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Depth (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={beamDepth}
                 step="0.5"
-                onChange={(e) => setBeamDepth(parseFloat(e.target.value) || 0)}
+                onChange={setBeamDepth}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={beamLength}
                 step="0.1"
-                onChange={(e) => setBeamLength(parseFloat(e.target.value) || 0)}
+                onChange={setBeamLength}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
 
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Stirrup Spacing (in)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={stirrupSpacing}
                 step="0.5"
-                onChange={(e) => setStirrupSpacing(parseFloat(e.target.value) || 0)}
+                onChange={setStirrupSpacing}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
               />
             </div>
@@ -446,29 +442,27 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               {mainRebars.map((bar, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <div className="flex-1">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={bar.dia}
                       placeholder="Ø mm"
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...mainRebars];
-                        next[idx].dia = parseFloat(e.target.value) || 0;
+                        next[idx].dia = v;
                         setMainRebars(next);
                       }}
-                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                     />
                   </div>
                   <div className="flex-1">
-                    <input
-                      type="number"
+                    <NumericInput
                       value={bar.qty}
                       placeholder="Nos"
-                      onChange={(e) => {
+                      onChange={(v) => {
                         const next = [...mainRebars];
-                        next[idx].qty = parseInt(e.target.value) || 0;
+                        next[idx].qty = Math.round(v);
                         setMainRebars(next);
                       }}
-                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                     />
                   </div>
                   {mainRebars.length > 1 && (
@@ -490,30 +484,28 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Nos (per support)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraTopNos}
-                onChange={(e) => setExtraTopNos(parseInt(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setExtraTopNos}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Dia (mm)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraTopDia}
-                onChange={(e) => setExtraTopDia(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setExtraTopDia}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div className="col-span-2">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft) — auto = L/3</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraTopLength}
                 step="0.01"
-                onChange={(e) => setExtraTopLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setExtraTopLength}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -523,30 +515,28 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Nos</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraBottomNos}
-                onChange={(e) => setExtraBottomNos(parseInt(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                allowZero={true}
+                onChange={setExtraBottomNos}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Dia (mm)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraBottomDia}
-                onChange={(e) => setExtraBottomDia(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setExtraBottomDia}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div className="col-span-2">
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft) — auto = L/2</label>
-              <input
-                type="number"
+              <NumericInput
                 value={extraBottomLength}
                 step="0.01"
-                onChange={(e) => setExtraBottomLength(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setExtraBottomLength}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
@@ -569,20 +559,18 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               <>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Picket Rate (৳/pcs)</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={brickRate}
-                    onChange={(e) => setBrickRate(parseFloat(e.target.value) || 0)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBrickRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Pcs per cft</label>
-                  <input
-                    type="number"
+                  <NumericInput
                     value={bricksPerCft}
-                    onChange={(e) => setBricksPerCft(parseFloat(e.target.value) || 10)}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                    onChange={setBricksPerCft}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                   />
                 </div>
                 <div className="col-span-2 bg-[#00c2c7]/10 border-l-2 border-[#00c2c7] p-2 rounded text-[11px] text-[#8ba3c1]">
@@ -597,38 +585,34 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={cementRate}
-                onChange={(e) => setCementRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setCementRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={sandRate}
-                onChange={(e) => setSandRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={aggRate}
-                onChange={(e) => setAggRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setAggRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
-              <input
-                type="number"
+              <NumericInput
                 value={steelRate}
-                onChange={(e) => setSteelRate(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
+                onChange={setSteelRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
 
