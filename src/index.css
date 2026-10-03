@@ -1,1 +1,142 @@
 @import "tailwindcss";
+
+/* ----------------------------------------------------
+   Print & PDF Margin / Padding Styling Rules
+   ---------------------------------------------------- */
+@media print {
+  @page {
+    size: var(--pdf-page-size, A4 portrait);
+    margin: var(--pdf-page-margin, 12mm 14mm 14mm 14mm);
+  }
+
+  html,
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: var(--pdf-base-font-size, 11px) !important;
+    line-height: 1.4 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide app shell headers, navs, floating controls */
+  header,
+  nav,
+  aside,
+  #root > div > header,
+  #root > div > nav,
+  #root > div > main:not(.print-active-main),
+  .print-hide,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset outer modal overlays for print */
+  .report-modal-backdrop {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    z-index: auto !important;
+  }
+
+  .report-modal-card {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .report-printable-content {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: var(--pdf-inner-padding, 0mm) !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  /* Table rules for PDF generation */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tbody {
+    display: table-row-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th,
+  td {
+    padding: var(--pdf-cell-padding, 5px 8px) !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid #64748b !important;
+  }
+
+  /* Prevent awkward page break cuts */
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-force-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Borders and backgrounds in print */
+  .print-border-light {
+    border-color: #e2e8f0 !important;
+  }
+
+  .print-bg-light {
+    background-color: #f8fafc !important;
+  }
+}
