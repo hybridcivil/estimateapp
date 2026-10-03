@@ -113,10 +113,27 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
     });
     if (res.ok) {
       const updated = await res.json();
+      const local = getLocalProjects();
+      const idx = local.findIndex((p) => p.id === id);
+      if (idx !== -1) {
+        local[idx] = { ...local[idx], ...updated };
+        saveLocalProjects(local);
+      }
       return updated;
     }
   } catch (err) {
-    console.warn("Backend update failed", err);
+    console.warn("Backend update failed, updating local cache", err);
+  }
+  const local = getLocalProjects();
+  const idx = local.findIndex((p) => p.id === id);
+  if (idx !== -1) {
+    local[idx] = {
+      ...local[idx],
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    saveLocalProjects(local);
+    return local[idx];
   }
   return null;
 }
@@ -135,6 +152,48 @@ export async function deleteProject(id: string): Promise<boolean> {
   const local = getLocalProjects().filter((p) => p.id !== id);
   saveLocalProjects(local);
   return true;
+}
+
+export async function renameEstimate(
+  projectId: string,
+  estimateId: string,
+  newName: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/projects/${projectId}/estimates/${estimateId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+    if (res.ok) {
+      const local = getLocalProjects();
+      const proj = local.find((p) => p.id === projectId);
+      if (proj) {
+        const est = proj.estimates.find((e) => e.id === estimateId);
+        if (est) {
+          est.name = newName.trim();
+          proj.updatedAt = new Date().toISOString();
+          saveLocalProjects(local);
+        }
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn("Backend rename failed, updating locally", err);
+  }
+  // Local fallback
+  const local = getLocalProjects();
+  const proj = local.find((p) => p.id === projectId);
+  if (proj) {
+    const est = proj.estimates.find((e) => e.id === estimateId);
+    if (est) {
+      est.name = newName.trim();
+      proj.updatedAt = new Date().toISOString();
+      saveLocalProjects(local);
+      return true;
+    }
+  }
+  return false;
 }
 
 export async function saveEstimateToProject(
@@ -156,6 +215,17 @@ export async function saveEstimateToProject(
     });
     if (res.ok) {
       const result = await res.json();
+      if (result.estimate) {
+        const local = getLocalProjects();
+        const proj = local.find((p) => p.id === projectId);
+        if (proj) {
+          const existing = proj.estimates.findIndex((e) => e.id === result.estimate.id);
+          if (existing !== -1) proj.estimates[existing] = result.estimate;
+          else proj.estimates.unshift(result.estimate);
+          proj.updatedAt = new Date().toISOString();
+          saveLocalProjects(local);
+        }
+      }
       return result;
     }
   } catch (err) {
@@ -192,9 +262,25 @@ export async function deleteEstimateFromProject(projectId: string, estimateId: s
     const res = await fetch(`/api/projects/${projectId}/estimates/${estimateId}`, {
       method: "DELETE",
     });
-    if (res.ok) return true;
+    if (res.ok) {
+      const local = getLocalProjects();
+      const proj = local.find((p) => p.id === projectId);
+      if (proj) {
+        proj.estimates = proj.estimates.filter((e) => e.id !== estimateId);
+        proj.updatedAt = new Date().toISOString();
+        saveLocalProjects(local);
+      }
+      return true;
+    }
   } catch (err) {
     console.warn("Backend delete estimate failed", err);
+  }
+  const local = getLocalProjects();
+  const proj = local.find((p) => p.id === projectId);
+  if (proj) {
+    proj.estimates = proj.estimates.filter((e) => e.id !== estimateId);
+    proj.updatedAt = new Date().toISOString();
+    saveLocalProjects(local);
   }
   return true;
 }

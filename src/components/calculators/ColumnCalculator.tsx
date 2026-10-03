@@ -6,7 +6,10 @@ import { Plus, Minus, Trash2, RotateCcw } from "lucide-react";
 
 interface ColumnCalculatorProps {
   activeProject: Project | null;
+  loadedEstimate?: ProjectEstimateItem | null;
+  onClearLoadedEstimate?: () => void;
   onSaveEstimate: (data: {
+    id?: string;
     type: string;
     name: string;
     totalCost: number;
@@ -18,10 +21,13 @@ interface ColumnCalculatorProps {
 
 export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
   activeProject,
+  loadedEstimate,
+  onClearLoadedEstimate,
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
   const [estimateName, setEstimateName] = useState("Column Estimate");
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
   const [columns, setColumns] = useState<ColumnItem[]>([
     {
       nos: 4,
@@ -70,6 +76,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
 
   const [errorMsg, setErrorMsg] = useState("");
   const [results, setResults] = useState<any>(null);
+  const [editingColIndex, setEditingColIndex] = useState<number | null>(0);
 
   const addRebarRow = () => {
     setRebars([...rebars, { dia: 16, nos: 4 }]);
@@ -81,110 +88,97 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     }
   };
 
-  const addColumn = () => {
+  const getCurrentFormColumn = (): ColumnItem => {
+    const validRebars = rebars.filter((r) => r.dia > 0 && r.nos > 0);
+    let size = "";
+    if (colType === "rectangular") {
+      size = `${colX}x${colY}`;
+    } else {
+      size = `⌀${colDia}`;
+    }
+    return {
+      nos: Math.max(1, colNos),
+      name: colName.trim() || `C${columns.length + 1}`,
+      type: colType,
+      category: colCategory,
+      size,
+      height: colHeight,
+      rebars: validRebars.length > 0 ? validRebars : [{ dia: 16, nos: 8 }],
+      mix: mixRatio,
+      stirrupDia,
+      stirrupSpacing,
+    };
+  };
+
+  const loadColIntoForm = (c: ColumnItem, idx: number) => {
+    setEditingColIndex(idx);
+    setColName(c.name);
+    setColNos(c.nos);
+    setColType(c.type);
+    setColCategory(c.category);
+    setColHeight(c.height);
+    setMixRatio(c.mix || "1:1.5:3");
+    setStirrupDia(c.stirrupDia || 10);
+    setStirrupSpacing(c.stirrupSpacing || 6);
+    if (c.type === "rectangular" && c.size) {
+      const parts = c.size.split("x");
+      if (parts[0]) setColX(parseFloat(parts[0]) || 12);
+      if (parts[1]) setColY(parseFloat(parts[1]) || 12);
+    } else if (c.size) {
+      const d = parseFloat(c.size.replace("⌀", "")) || 12;
+      setColDia(d);
+    }
+    if (Array.isArray(c.rebars) && c.rebars.length > 0) {
+      setRebars(c.rebars);
+    }
+  };
+
+  const saveColFromForm = () => {
     setErrorMsg("");
     const validRebars = rebars.filter((r) => r.dia > 0 && r.nos > 0);
     if (validRebars.length === 0) {
       setErrorMsg("Add at least one valid main rebar.");
       return;
     }
-    if (stirrupDia <= 0 || stirrupSpacing <= 0) {
-      setErrorMsg("Enter valid stirrup details.");
-      return;
-    }
-
-    let size = "";
-    if (colType === "rectangular") {
-      if (colX <= 0 || colY <= 0) {
-        setErrorMsg("Enter valid X & Y dimensions.");
-        return;
-      }
-      size = `${colX}x${colY}`;
+    const current = getCurrentFormColumn();
+    let nextList = [...columns];
+    if (editingColIndex !== null && editingColIndex >= 0 && editingColIndex < nextList.length) {
+      nextList[editingColIndex] = current;
     } else {
-      if (colDia <= 0) {
-        setErrorMsg("Enter valid diameter.");
-        return;
-      }
-      size = `⌀${colDia}`;
+      nextList.push(current);
+      setEditingColIndex(nextList.length - 1);
     }
-
-    const name = colName.trim() || `C${columns.length + 1}`;
-    const nos = Math.max(1, colNos);
-
-    const nextList = [...columns];
-
-    if (colCategory === "short") {
-      if (shortHeight <= 0 || longHeight <= 0) {
-        setErrorMsg("Enter both short and long heights.");
-        return;
-      }
-      let shortSize = size;
-      if (colType === "rectangular") {
-        shortSize = `${colX + 3}x${colY + 3}`;
-      } else {
-        shortSize = `⌀${colDia + 3}`;
-      }
-      nextList.push({
-        nos,
-        name,
-        type: colType,
-        category: "short",
-        size: shortSize,
-        height: shortHeight,
-        rebars: validRebars,
-        mix: mixRatio,
-        stirrupDia,
-        stirrupSpacing,
-      });
-      nextList.push({
-        nos,
-        name,
-        type: colType,
-        category: "long",
-        size,
-        height: longHeight,
-        rebars: validRebars,
-        mix: mixRatio,
-        stirrupDia,
-        stirrupSpacing,
-      });
-    } else {
-      if (colHeight <= 0) {
-        setErrorMsg("Enter valid column height.");
-        return;
-      }
-      nextList.push({
-        nos,
-        name,
-        type: colType,
-        category: colCategory,
-        size,
-        height: colHeight,
-        rebars: validRebars,
-        mix: mixRatio,
-        stirrupDia,
-        stirrupSpacing,
-      });
-    }
-
     setColumns(nextList);
-    setColName(`C${nextList.length + 1}`);
     calculate(nextList);
+  };
+
+  const addColAsNew = () => {
+    setEditingColIndex(null);
+    setColName(`C${columns.length + 1}`);
+    setColNos(1);
   };
 
   const deleteColumn = (index: number) => {
     const nextList = columns.filter((_, i) => i !== index);
     setColumns(nextList);
-    if (nextList.length > 0) calculate(nextList);
-    else setResults(null);
+    if (nextList.length > 0) {
+      calculate(nextList);
+      if (editingColIndex === index) {
+        loadColIntoForm(nextList[0], 0);
+      } else if (editingColIndex !== null && editingColIndex > index) {
+        setEditingColIndex(editingColIndex - 1);
+      }
+    } else {
+      setEditingColIndex(null);
+      setResults(null);
+    }
   };
 
   const calculate = (list = columns) => {
     setErrorMsg("");
     if (list.length === 0) {
-      setErrorMsg("Add at least one column first.");
       setResults(null);
-      return;
+      return null;
     }
 
     const COVER_IN = 1.5;
@@ -282,7 +276,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
 
     const totalColsCount = list.reduce((sum, c) => sum + c.nos, 0);
 
-    setResults({
+    const calcResult = {
       cementBags,
       sandCft: Number(sandCft.toFixed(1)),
       aggCft: Number(aggCft.toFixed(1)),
@@ -300,7 +294,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       steelCost,
       picketCost,
       totalCost,
-    });
+    };
+    setResults(calcResult);
+    return calcResult;
   };
 
   useEffect(() => {
@@ -324,38 +320,74 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     setBaseType("none");
     setRebars([{ dia: 16, nos: 8 }]);
     setColumns([]);
+    setEditingColIndex(null);
     setResults(null);
     setErrorMsg("");
   };
 
-  const handleSaveToProject = async () => {
-    if (!results) calculate(columns);
+  const handleSaveToProject = async (asNewCopy = false) => {
+    let currentCols = [...columns];
+    const formCol = getCurrentFormColumn();
+    if (editingColIndex !== null && editingColIndex >= 0 && editingColIndex < currentCols.length) {
+      currentCols[editingColIndex] = formCol;
+    } else if (currentCols.length === 0) {
+      currentCols = [formCol];
+    } else {
+      currentCols[0] = formCol;
+    }
+    setColumns(currentCols);
+    const boq = calculate(currentCols);
+    if (!boq) return;
+
     await onSaveEstimate({
+      id: asNewCopy ? undefined : (editingEstimateId || undefined),
       type: "column",
-      name: estimateName,
-      totalCost: results?.totalCost || 0,
-      summary: results || {},
+      name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
+      totalCost: boq.totalCost || 0,
+      summary: boq,
       data: {
-        columns,
+        columns: currentCols,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
       },
     });
   };
 
+  const handleSaveAsCopy = async () => {
+    await handleSaveToProject(true);
+  };
+
+  const handleClearEstimate = () => {
+    setEditingEstimateId(null);
+    setEstimateName("New Column Estimate");
+    resetForm();
+    if (onClearLoadedEstimate) onClearLoadedEstimate();
+  };
+
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
-    if (est.data?.columns) {
+    setEditingEstimateId(est.id);
+    setEstimateName(est.name);
+    if (est.data?.columns && est.data.columns.length > 0) {
       setColumns(est.data.columns);
+      loadColIntoForm(est.data.columns[0], 0);
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
         setAggRate(est.data.rates.aggRate || 120);
         setSteelRate(est.data.rates.steelRate || 95);
+        if (est.data.rates.brickRate) setBrickRate(est.data.rates.brickRate);
+        if (est.data.rates.bricksPerCft) setBricksPerCft(est.data.rates.bricksPerCft);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
       calculate(est.data.columns);
     }
   };
+
+  useEffect(() => {
+    if (loadedEstimate && loadedEstimate.type === "column" && loadedEstimate.id !== editingEstimateId) {
+      handleLoadSavedEstimate(loadedEstimate);
+    }
+  }, [loadedEstimate, editingEstimateId]);
 
   return (
     <div className="flex flex-col h-full bg-[#0f1c2e] overflow-hidden text-[#f1f5f9]">
@@ -365,7 +397,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         activeProject={activeProject}
         currentEstimateName={estimateName}
         setCurrentEstimateName={setEstimateName}
-        onSave={handleSaveToProject}
+        currentEstimateId={editingEstimateId}
+        onSave={() => handleSaveToProject(false)}
+        onSaveAsCopy={handleSaveAsCopy}
+        onClearEstimate={handleClearEstimate}
         onLoadEstimate={handleLoadSavedEstimate}
         onDeleteEstimate={onDeleteEstimate}
         getCurrentPayload={() => ({
@@ -673,11 +708,11 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
               </button>
               <button
                 type="button"
-                onClick={addColumn}
+                onClick={saveColFromForm}
                 className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md"
               >
                 <Plus className="w-3.5 h-3.5" />
-                + Add Column to List
+                {editingColIndex !== null && editingColIndex < columns.length ? "Update Column" : "+ Add Column to List"}
               </button>
             </div>
           </div>

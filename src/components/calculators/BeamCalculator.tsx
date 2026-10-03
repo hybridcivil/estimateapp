@@ -19,7 +19,10 @@ interface BeamItem {
 
 interface BeamCalculatorProps {
   activeProject: Project | null;
+  loadedEstimate?: ProjectEstimateItem | null;
+  onClearLoadedEstimate?: () => void;
   onSaveEstimate: (data: {
+    id?: string;
     type: string;
     name: string;
     totalCost: number;
@@ -31,10 +34,13 @@ interface BeamCalculatorProps {
 
 export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
   activeProject,
+  loadedEstimate,
+  onClearLoadedEstimate,
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
   const [estimateName, setEstimateName] = useState("Beam Estimate");
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
   const [beams, setBeams] = useState<BeamItem[]>([
     {
       nos: 1,
@@ -86,6 +92,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
   const [errorMsg, setErrorMsg] = useState("");
   const [results, setResults] = useState<any>(null);
+  const [editingBeamIndex, setEditingBeamIndex] = useState<number | null>(0);
 
   // Auto-update lengths when beam length changes
   useEffect(() => {
@@ -105,19 +112,9 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     }
   };
 
-  const addBeam = () => {
-    setErrorMsg("");
-    if (beamWidth <= 0 || beamDepth <= 0 || beamLength <= 0 || stirrupSpacing <= 0) {
-      setErrorMsg("Please enter valid beam dimensions.");
-      return;
-    }
+  const getCurrentFormBeam = (): BeamItem => {
     const validRebars = mainRebars.filter((r) => r.dia > 0 && r.qty > 0);
-    if (validRebars.length === 0) {
-      setErrorMsg("Add at least one valid main rebar.");
-      return;
-    }
-
-    const newBeam: BeamItem = {
+    return {
       nos: Math.max(1, numberOfBeams),
       name: beamName.trim() || `B${beams.length + 1}`,
       width: beamWidth,
@@ -125,30 +122,81 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
       length: beamLength,
       stirrupSpacing,
       mix: mixRatio,
-      mainBars: validRebars,
+      mainBars: validRebars.length > 0 ? validRebars : [{ dia: 16, qty: 2 }],
       extraTopBars: { nos: extraTopNos, dia: extraTopDia, length: extraTopLength },
       extraBottomBars: { nos: extraBottomNos, dia: extraBottomDia, length: extraBottomLength },
     };
+  };
 
-    const nextBeams = [...beams, newBeam];
+  const loadBeamIntoForm = (b: BeamItem, idx: number) => {
+    setEditingBeamIndex(idx);
+    setBeamName(b.name);
+    setNumberOfBeams(b.nos);
+    setBeamWidth(b.width);
+    setBeamDepth(b.depth);
+    setBeamLength(b.length);
+    setStirrupSpacing(b.stirrupSpacing);
+    setMixRatio(b.mix || "1:1.5:3");
+    if (Array.isArray(b.mainBars) && b.mainBars.length > 0) {
+      setMainRebars(b.mainBars);
+    }
+    if (b.extraTopBars) {
+      setExtraTopNos(b.extraTopBars.nos || 0);
+      setExtraTopDia(b.extraTopBars.dia || 16);
+      setExtraTopLength(b.extraTopBars.length || Number((b.length / 3).toFixed(2)));
+    }
+    if (b.extraBottomBars) {
+      setExtraBottomNos(b.extraBottomBars.nos || 0);
+      setExtraBottomDia(b.extraBottomBars.dia || 16);
+      setExtraBottomLength(b.extraBottomBars.length || Number((b.length / 2).toFixed(2)));
+    }
+  };
+
+  const saveBeamFromForm = () => {
+    setErrorMsg("");
+    if (beamWidth <= 0 || beamDepth <= 0 || beamLength <= 0 || stirrupSpacing <= 0) {
+      setErrorMsg("Please enter valid beam dimensions.");
+      return;
+    }
+    const current = getCurrentFormBeam();
+    let nextBeams = [...beams];
+    if (editingBeamIndex !== null && editingBeamIndex >= 0 && editingBeamIndex < nextBeams.length) {
+      nextBeams[editingBeamIndex] = current;
+    } else {
+      nextBeams.push(current);
+      setEditingBeamIndex(nextBeams.length - 1);
+    }
     setBeams(nextBeams);
-    setBeamName(`B${nextBeams.length + 1}`);
     calculate(nextBeams);
+  };
+
+  const addBeamAsNew = () => {
+    setEditingBeamIndex(null);
+    setBeamName(`B${beams.length + 1}`);
+    setNumberOfBeams(1);
   };
 
   const deleteBeam = (index: number) => {
     const nextBeams = beams.filter((_, i) => i !== index);
     setBeams(nextBeams);
-    if (nextBeams.length > 0) calculate(nextBeams);
-    else setResults(null);
+    if (nextBeams.length > 0) {
+      calculate(nextBeams);
+      if (editingBeamIndex === index) {
+        loadBeamIntoForm(nextBeams[0], 0);
+      } else if (editingBeamIndex !== null && editingBeamIndex > index) {
+        setEditingBeamIndex(editingBeamIndex - 1);
+      }
+    } else {
+      setEditingBeamIndex(null);
+      setResults(null);
+    }
   };
 
   const calculate = (list = beams) => {
     setErrorMsg("");
     if (list.length === 0) {
-      setErrorMsg("Add at least one beam first.");
       setResults(null);
-      return;
+      return null;
     }
 
     const isPicket = baseType === "picket";
@@ -259,11 +307,19 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     };
 
     setResults(calcResult);
+    return calcResult;
   };
 
   useEffect(() => {
     calculate(beams);
   }, []);
+
+  // Recalculate on rate changes
+  useEffect(() => {
+    if (beams.length > 0) {
+      calculate(beams);
+    }
+  }, [cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft, baseType]);
 
   const resetForm = () => {
     setBeamName("B1");
@@ -282,28 +338,54 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     setExtraBottomLength(10);
     setBaseType("none");
     setBeams([]);
+    setEditingBeamIndex(null);
     setResults(null);
     setErrorMsg("");
   };
 
-  const handleSaveToProject = async () => {
-    if (!results) calculate(beams);
+  const handleSaveToProject = async (asNewCopy = false) => {
+    let currentBeams = [...beams];
+    const formBeam = getCurrentFormBeam();
+    if (editingBeamIndex !== null && editingBeamIndex >= 0 && editingBeamIndex < currentBeams.length) {
+      currentBeams[editingBeamIndex] = formBeam;
+    } else if (currentBeams.length === 0) {
+      currentBeams = [formBeam];
+    }
+    setBeams(currentBeams);
+    const boq = calculate(currentBeams);
+    if (!boq) return;
+
     await onSaveEstimate({
+      id: asNewCopy ? undefined : (editingEstimateId || undefined),
       type: "beam",
-      name: estimateName,
-      totalCost: results?.totalCost || 0,
-      summary: results || {},
+      name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
+      totalCost: boq.totalCost || 0,
+      summary: boq,
       data: {
-        beams,
+        beams: currentBeams,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
       },
     });
   };
 
+  const handleSaveAsCopy = async () => {
+    await handleSaveToProject(true);
+  };
+
+  const handleClearEstimate = () => {
+    setEditingEstimateId(null);
+    setEstimateName("New Beam Estimate");
+    resetForm();
+    if (onClearLoadedEstimate) onClearLoadedEstimate();
+  };
+
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
-    if (est.data?.beams) {
+    setEditingEstimateId(est.id);
+    setEstimateName(est.name);
+    if (est.data?.beams && est.data.beams.length > 0) {
       setBeams(est.data.beams);
+      loadBeamIntoForm(est.data.beams[0], 0);
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
@@ -315,6 +397,13 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     }
   };
 
+  // Auto-sync when loadedEstimate prop is passed from outside
+  useEffect(() => {
+    if (loadedEstimate && loadedEstimate.type === "beam" && loadedEstimate.id !== editingEstimateId) {
+      handleLoadSavedEstimate(loadedEstimate);
+    }
+  }, [loadedEstimate, editingEstimateId]);
+
   return (
     <div className="flex flex-col h-full bg-[#0f1c2e] overflow-hidden text-[#f1f5f9]">
       <SaveEstimateBar
@@ -323,7 +412,10 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
         activeProject={activeProject}
         currentEstimateName={estimateName}
         setCurrentEstimateName={setEstimateName}
-        onSave={handleSaveToProject}
+        currentEstimateId={editingEstimateId}
+        onSave={() => handleSaveToProject(false)}
+        onSaveAsCopy={handleSaveAsCopy}
+        onClearEstimate={handleClearEstimate}
         onLoadEstimate={handleLoadSavedEstimate}
         onDeleteEstimate={onDeleteEstimate}
         getCurrentPayload={() => ({
@@ -617,23 +709,44 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             </div>
 
             {/* Buttons */}
-            <div className="col-span-2 flex gap-2 mt-2">
+            <div className="col-span-2 flex flex-wrap gap-2 mt-2">
               <button
                 type="button"
                 onClick={resetForm}
-                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                className="px-3 h-9 border border-[#2d4a6a] text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reset
+                Clear
               </button>
-              <button
-                type="button"
-                onClick={addBeam}
-                className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                + Add Beam to List
-              </button>
+
+              {editingBeamIndex !== null ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={saveBeamFromForm}
+                    className="flex-1 h-9 bg-gradient-to-r from-[#2ecc71] to-[#27ae60] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                  >
+                    <span>✓ Update Beam {beamName} in List</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addBeamAsNew}
+                    className="px-3 h-9 bg-[#243b55] hover:bg-[#2d4a6a] text-[#00c2c7] border border-[#00c2c7]/40 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ As New</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={saveBeamFromForm}
+                  className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Add Beam to List</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -652,28 +765,54 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               </div>
             ) : (
               <div className="space-y-1.5">
-                {beams.map((b, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-[#1a2b42] border border-[#2d4a6a] rounded-lg p-2 flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-white">
-                        {b.nos} × {b.name}
+                {beams.map((b, idx) => {
+                  const isBeingEdited = editingBeamIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-2.5 flex items-center justify-between gap-2 transition ${
+                        isBeingEdited
+                          ? "bg-[#00c2c7]/10 border-[#00c2c7]"
+                          : "bg-[#1a2b42] border-[#2d4a6a] hover:border-[#00c2c7]/50"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white">
+                            {b.nos} × {b.name}
+                          </span>
+                          {isBeingEdited && (
+                            <span className="text-[9px] bg-[#00c2c7] text-[#0f1c2e] px-1.5 py-0.2 rounded font-bold">
+                              Editing
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#8ba3c1] truncate mt-0.5">
+                          {b.width}"×{b.depth}"×{b.length}ft · {b.mainBars.map((r) => `${r.qty}Ø${r.dia}`).join(", ")} · Stirrup 10mm@{b.stirrupSpacing}"
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#8ba3c1] truncate">
-                        {b.width}"×{b.depth}"×{b.length}ft · {b.mainBars.map((r) => `${r.qty}Ø${r.dia}`).join(", ")} · Stirrup 10mm@{b.stirrupSpacing}"
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => loadBeamIntoForm(b, idx)}
+                          className="px-2 py-1 bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded text-xs font-semibold transition flex items-center gap-1"
+                          title="Edit this beam in form above"
+                        >
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteBeam(idx)}
+                          className="w-7 h-7 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center text-xs font-bold transition"
+                          title="Delete beam"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteBeam(idx)}
-                      className="w-6 h-6 bg-[#ff4d6d] hover:bg-[#ff4d6d]/80 text-white rounded flex items-center justify-center text-xs font-bold"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

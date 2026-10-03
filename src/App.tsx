@@ -4,9 +4,11 @@ import {
   fetchProjects,
   fetchProject,
   createProject,
+  updateProject,
   deleteProject,
   saveEstimateToProject,
   deleteEstimateFromProject,
+  renameEstimate,
 } from "./services/api";
 
 import { Header } from "./components/Header";
@@ -14,6 +16,7 @@ import { Navigation } from "./components/Navigation";
 import { Dashboard } from "./components/Dashboard";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { ReportModal } from "./components/ReportModal";
+import { SplashScreen } from "./components/SplashScreen";
 
 import { BeamCalculator } from "./components/calculators/BeamCalculator";
 import { ColumnCalculator } from "./components/calculators/ColumnCalculator";
@@ -30,8 +33,32 @@ export default function App() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Loaded estimate file state for calculator inspection and in-place editing
+  const [loadedEstimate, setLoadedEstimate] = useState<ProjectEstimateItem | null>(null);
+
+  // Splash Screen States
+  const [showInitialSplash, setShowInitialSplash] = useState(true);
+  const [isManualSplashOpen, setIsManualSplashOpen] = useState(false);
+
+  // View mode: "auto" (responsive CSS), "web" (force desktop layout), "app" (mobile app-styled layout)
+  const [viewMode, setViewMode] = useState<"auto" | "web" | "app">(() => {
+    try {
+      const saved = localStorage.getItem("ashraf_studio_view_mode");
+      if (saved === "web" || saved === "app" || saved === "auto") return saved;
+    } catch (e) {}
+    return "auto";
+  });
+
+  const handleSetViewMode = (mode: "auto" | "web" | "app") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("ashraf_studio_view_mode", mode);
+    } catch (e) {}
+  };
+
   // Modals
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   // Toast notification
@@ -105,6 +132,22 @@ export default function App() {
     showToast(`Project "${created.name}" created successfully!`);
   };
 
+  const handleUpdateProject = async (id: string, data: {
+    name: string;
+    client: string;
+    location: string;
+    engineer: string;
+    notes?: string;
+  }) => {
+    const updated = await updateProject(id, data);
+    if (updated) {
+      await loadProjects(id);
+      showToast(`Project "${updated.name}" updated successfully!`);
+    } else {
+      showToast("Could not update project details.", "error");
+    }
+  };
+
   const handleDeleteProject = async (id: string) => {
     await deleteProject(id);
     await loadProjects();
@@ -135,8 +178,9 @@ export default function App() {
     showToast(`Project "${created.name}" imported with ${projectData.estimates?.length || 0} estimate files!`);
   };
 
-  // Estimate saving handler
+  // Estimate saving handler (supports both creating new and updating existing)
   const handleSaveEstimate = async (estimateData: {
+    id?: string;
     type: string;
     name: string;
     totalCost: number;
@@ -154,7 +198,15 @@ export default function App() {
       if (res.success) {
         // Refresh project list to reflect updated estimates
         await loadProjects(activeProject.id);
-        showToast(`Estimate "${estimateData.name}" saved to project "${activeProject.name}"!`);
+        // Also update loadedEstimate state with the saved item so edit mode stays current
+        if (res.estimate) {
+          setLoadedEstimate(res.estimate);
+        }
+        showToast(
+          estimateData.id
+            ? `Updated "${estimateData.name}" in project "${activeProject.name}"!`
+            : `Saved "${estimateData.name}" to project "${activeProject.name}"!`
+        );
       }
     } catch (err: any) {
       showToast(err.message || "Failed to save estimate.", "error");
@@ -165,6 +217,9 @@ export default function App() {
     if (!activeProject) return;
     try {
       await deleteEstimateFromProject(activeProject.id, estimateId);
+      if (loadedEstimate && loadedEstimate.id === estimateId) {
+        setLoadedEstimate(null);
+      }
       await loadProjects(activeProject.id);
       showToast("Estimate file removed from project.", "info");
     } catch (err: any) {
@@ -172,18 +227,49 @@ export default function App() {
     }
   };
 
+  const handleRenameEstimate = async (estimateId: string, newName: string) => {
+    if (!activeProject) return;
+    try {
+      const success = await renameEstimate(activeProject.id, estimateId, newName);
+      if (success) {
+        if (loadedEstimate && loadedEstimate.id === estimateId) {
+          setLoadedEstimate({ ...loadedEstimate, name: newName });
+        }
+        await loadProjects(activeProject.id);
+        showToast(`Estimate renamed to "${newName}".`);
+      } else {
+        showToast("Could not rename estimate.", "error");
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to rename estimate.", "error");
+    }
+  };
+
   const handleNavigateToCalculator = (
     type: EstimateType,
     estimateToLoad?: ProjectEstimateItem
   ) => {
-    setActiveTab(type);
+    const calcType = ((type as string) === "tile" ? "tiles" : type) as EstimateType;
+    setActiveTab(calcType);
     if (estimateToLoad) {
-      showToast(`Loaded "${estimateToLoad.name}" into ${type.toUpperCase()} calculator.`);
+      setLoadedEstimate({
+        ...estimateToLoad,
+        type: calcType,
+      });
+      showToast(`Loaded "${estimateToLoad.name}" into ${calcType.toUpperCase()} calculator.`);
+    } else {
+      setLoadedEstimate(null);
     }
   };
 
+  const isAppView = viewMode === "app";
+
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#0f1c2e] text-[#f1f5f9] overflow-hidden font-sans select-none antialiased">
+    <div
+      className={`flex flex-col h-screen w-screen bg-[#0f1c2e] text-[#f1f5f9] overflow-hidden font-sans select-none antialiased ${
+        isAppView ? "max-w-md mx-auto border-x border-[#2d4a6a] shadow-2xl" : ""
+      }`}
+    >
       {/* Toast Notification */}
       {toast && (
         <div
@@ -205,16 +291,37 @@ export default function App() {
         setActiveTab={setActiveTab}
         projects={projects}
         activeProject={activeProject}
-        onSelectProject={(p) => setActiveProject(p)}
-        onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
+        onSelectProject={(p) => {
+          setActiveProject(p);
+          setLoadedEstimate(null);
+        }}
+        onOpenNewProjectModal={() => {
+          setEditingProject(null);
+          setIsNewProjectModalOpen(true);
+        }}
+        onOpenEditProjectModal={() => {
+          if (activeProject) {
+            setEditingProject(activeProject);
+            setIsNewProjectModalOpen(true);
+          }
+        }}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenSplash={() => setIsManualSplashOpen(true)}
+        viewMode={viewMode}
+        onSetViewMode={handleSetViewMode}
       />
 
       {/* Calculator Navigation Bar */}
       <Navigation
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === "dashboard") {
+            setLoadedEstimate(null);
+          }
+        }}
         activeProject={activeProject}
+        isAppView={isAppView}
       />
 
       {/* Main Content Area */}
@@ -230,10 +337,23 @@ export default function App() {
               <Dashboard
                 projects={projects}
                 activeProject={activeProject}
-                onSelectProject={(p) => setActiveProject(p)}
-                onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
+                onSelectProject={(p) => {
+                  setActiveProject(p);
+                  setLoadedEstimate(null);
+                }}
+                onOpenNewProjectModal={() => {
+                  setEditingProject(null);
+                  setIsNewProjectModalOpen(true);
+                }}
+                onOpenEditProjectModal={() => {
+                  if (activeProject) {
+                    setEditingProject(activeProject);
+                    setIsNewProjectModalOpen(true);
+                  }
+                }}
                 onDeleteProject={handleDeleteProject}
                 onDeleteEstimate={handleDeleteEstimate}
+                onRenameEstimate={handleRenameEstimate}
                 onNavigateToCalculator={handleNavigateToCalculator}
                 onOpenReportModal={() => setIsReportModalOpen(true)}
                 onImportProject={handleImportProject}
@@ -243,6 +363,8 @@ export default function App() {
             {activeTab === "beam" && (
               <BeamCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -251,6 +373,8 @@ export default function App() {
             {activeTab === "column" && (
               <ColumnCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -259,6 +383,8 @@ export default function App() {
             {activeTab === "footing" && (
               <FootingCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -267,6 +393,8 @@ export default function App() {
             {activeTab === "slab" && (
               <SlabCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -275,6 +403,8 @@ export default function App() {
             {activeTab === "stair" && (
               <StairCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -283,6 +413,8 @@ export default function App() {
             {activeTab === "brick" && (
               <BrickCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -291,6 +423,8 @@ export default function App() {
             {activeTab === "tiles" && (
               <TileCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -299,6 +433,8 @@ export default function App() {
             {activeTab === "structural" && (
               <StructuralCalculator
                 activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
                 onSaveEstimate={handleSaveEstimate}
                 onDeleteEstimate={handleDeleteEstimate}
               />
@@ -310,8 +446,13 @@ export default function App() {
       {/* Modals */}
       <NewProjectModal
         isOpen={isNewProjectModalOpen}
-        onClose={() => setIsNewProjectModalOpen(false)}
+        onClose={() => {
+          setIsNewProjectModalOpen(false);
+          setEditingProject(null);
+        }}
+        initialProject={editingProject}
         onCreateProject={handleCreateProject}
+        onUpdateProject={handleUpdateProject}
       />
 
       <ReportModal
@@ -319,6 +460,17 @@ export default function App() {
         onClose={() => setIsReportModalOpen(false)}
         project={activeProject}
       />
+
+      {/* Splash Screen on Initial Load & on Demand */}
+      {showInitialSplash && (
+        <SplashScreen onFinish={() => setShowInitialSplash(false)} />
+      )}
+      {isManualSplashOpen && (
+        <SplashScreen
+          isManualOpen={true}
+          onClose={() => setIsManualSplashOpen(false)}
+        />
+      )}
     </div>
   );
 }

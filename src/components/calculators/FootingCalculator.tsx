@@ -6,7 +6,10 @@ import { Plus, Minus, Trash2, RotateCcw } from "lucide-react";
 
 interface FootingCalculatorProps {
   activeProject: Project | null;
+  loadedEstimate?: ProjectEstimateItem | null;
+  onClearLoadedEstimate?: () => void;
   onSaveEstimate: (data: {
+    id?: string;
     type: string;
     name: string;
     totalCost: number;
@@ -18,10 +21,13 @@ interface FootingCalculatorProps {
 
 export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   activeProject,
+  loadedEstimate,
+  onClearLoadedEstimate,
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
   const [estimateName, setEstimateName] = useState("Footing Estimate");
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
   const [footings, setFootings] = useState<FootingItem[]>([
     {
       nos: 4,
@@ -67,6 +73,37 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
   const [errorMsg, setErrorMsg] = useState("");
   const [results, setResults] = useState<any>(null);
+  const [editingFtIndex, setEditingFtIndex] = useState<number | null>(0);
+
+  const getCurrentFormFooting = (): FootingItem => {
+    const validRebars = rebars.filter((r) => r.dia > 0 && r.spacing > 0);
+    return {
+      nos: Math.max(1, ftNos),
+      name: ftName.trim() || `F${footings.length + 1}`,
+      length,
+      breadth,
+      thickness: thicknessIn / 12,
+      cover: coverIn / 12,
+      hook: hookIn / 12,
+      mix: mixRatio,
+      rebars: validRebars.length > 0 ? validRebars : [{ role: "bottom", dia: 16, spacing: 6 }],
+    };
+  };
+
+  const loadFtIntoForm = (f: FootingItem, idx: number) => {
+    setEditingFtIndex(idx);
+    setFtName(f.name);
+    setFtNos(f.nos);
+    setMixRatio(f.mix || "1:1.5:3");
+    setLength(f.length);
+    setBreadth(f.breadth);
+    setThicknessIn(Math.round(f.thickness * 12));
+    setCoverIn(Math.round(f.cover * 12));
+    setHookIn(Math.round(f.hook * 12));
+    if (Array.isArray(f.rebars) && f.rebars.length > 0) {
+      setRebars(f.rebars);
+    }
+  };
 
   const reassignRoles = (list: { role: string; dia: number; spacing: number }[]) => {
     const n = list.length;
@@ -242,7 +279,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
     const totalFtCount = list.reduce((sum, f) => sum + f.nos, 0);
 
-    setResults({
+    const calcResult = {
       cementBags,
       sandCft: Number(sandCft.toFixed(1)),
       aggCft: Number(aggCft.toFixed(1)),
@@ -261,7 +298,9 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       steelCost,
       picketCost,
       totalCost,
-    });
+    };
+    setResults(calcResult);
+    return calcResult;
   };
 
   useEffect(() => {
@@ -280,38 +319,74 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     setBaseType("none");
     setRebars([{ role: "bottom", dia: 16, spacing: 6 }]);
     setFootings([]);
+    setEditingFtIndex(null);
     setResults(null);
     setErrorMsg("");
   };
 
-  const handleSaveToProject = async () => {
-    if (!results) calculate(footings);
+  const handleSaveToProject = async (asNewCopy = false) => {
+    let currentFts = [...footings];
+    const formFt = getCurrentFormFooting();
+    if (editingFtIndex !== null && editingFtIndex >= 0 && editingFtIndex < currentFts.length) {
+      currentFts[editingFtIndex] = formFt;
+    } else if (currentFts.length === 0) {
+      currentFts = [formFt];
+    } else {
+      currentFts[0] = formFt;
+    }
+    setFootings(currentFts);
+    const boq = calculate(currentFts);
+    if (!boq) return;
+
     await onSaveEstimate({
+      id: asNewCopy ? undefined : (editingEstimateId || undefined),
       type: "footing",
-      name: estimateName,
-      totalCost: results?.totalCost || 0,
-      summary: results || {},
+      name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
+      totalCost: boq.totalCost || 0,
+      summary: boq,
       data: {
-        footings,
+        footings: currentFts,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
       },
     });
   };
 
+  const handleSaveAsCopy = async () => {
+    await handleSaveToProject(true);
+  };
+
+  const handleClearEstimate = () => {
+    setEditingEstimateId(null);
+    setEstimateName("New Footing Estimate");
+    resetForm();
+    if (onClearLoadedEstimate) onClearLoadedEstimate();
+  };
+
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
-    if (est.data?.footings) {
+    setEditingEstimateId(est.id);
+    setEstimateName(est.name);
+    if (est.data?.footings && est.data.footings.length > 0) {
       setFootings(est.data.footings);
+      loadFtIntoForm(est.data.footings[0], 0);
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
         setAggRate(est.data.rates.aggRate || 120);
         setSteelRate(est.data.rates.steelRate || 95);
+        if (est.data.rates.brickRate) setBrickRate(est.data.rates.brickRate);
+        if (est.data.rates.bricksPerCft) setBricksPerCft(est.data.rates.bricksPerCft);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
       calculate(est.data.footings);
     }
   };
+
+  useEffect(() => {
+    if (loadedEstimate && loadedEstimate.type === "footing" && loadedEstimate.id !== editingEstimateId) {
+      handleLoadSavedEstimate(loadedEstimate);
+    }
+  }, [loadedEstimate, editingEstimateId]);
 
   return (
     <div className="flex flex-col h-full bg-[#0f1c2e] overflow-hidden text-[#f1f5f9]">
@@ -321,7 +396,10 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
         activeProject={activeProject}
         currentEstimateName={estimateName}
         setCurrentEstimateName={setEstimateName}
-        onSave={handleSaveToProject}
+        currentEstimateId={editingEstimateId}
+        onSave={() => handleSaveToProject(false)}
+        onSaveAsCopy={handleSaveAsCopy}
+        onClearEstimate={handleClearEstimate}
         onLoadEstimate={handleLoadSavedEstimate}
         onDeleteEstimate={onDeleteEstimate}
         getCurrentPayload={() => ({

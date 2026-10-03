@@ -6,7 +6,10 @@ import { RotateCcw } from "lucide-react";
 
 interface TileCalculatorProps {
   activeProject: Project | null;
+  loadedEstimate?: ProjectEstimateItem | null;
+  onClearLoadedEstimate?: () => void;
   onSaveEstimate: (data: {
+    id?: string;
     type: string;
     name: string;
     totalCost: number;
@@ -18,10 +21,13 @@ interface TileCalculatorProps {
 
 export const TileCalculator: React.FC<TileCalculatorProps> = ({
   activeProject,
+  loadedEstimate,
+  onClearLoadedEstimate,
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
   const [estimateName, setEstimateName] = useState("Tile Estimation");
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
   // Inputs
   const [tileType, setTileType] = useState("180");
@@ -77,7 +83,7 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
     const total = tileCost + skirtingCost + mortarCost + labourCost + coatingCostTotal;
     const perSft = area > 0 ? total / area : 0;
 
-    setResults({
+    const calcResult = {
       area: Number(area.toFixed(1)),
       areaWaste: Number(areaWaste.toFixed(1)),
       tiles,
@@ -92,7 +98,9 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
       coatingCostTotal,
       perSft: Math.round(perSft),
       totalCost: total,
-    });
+    };
+    setResults(calcResult);
+    return calcResult;
   };
 
   useEffect(() => {
@@ -130,13 +138,15 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
     setSandCost(45);
   };
 
-  const handleSaveToProject = async () => {
-    if (!results) calculate();
+  const handleSaveToProject = async (asNewCopy = false) => {
+    const boq = calculate();
+    if (!boq) return;
     await onSaveEstimate({
+      id: asNewCopy ? undefined : (editingEstimateId || undefined),
       type: "tiles",
-      name: estimateName,
-      totalCost: results?.totalCost || 0,
-      summary: results || {},
+      name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
+      totalCost: boq.totalCost || 0,
+      summary: boq,
       data: {
         tileType,
         tilePrice,
@@ -156,7 +166,20 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
     });
   };
 
+  const handleSaveAsCopy = async () => {
+    await handleSaveToProject(true);
+  };
+
+  const handleClearEstimate = () => {
+    setEditingEstimateId(null);
+    setEstimateName("New Tile Estimate");
+    resetForm();
+    if (onClearLoadedEstimate) onClearLoadedEstimate();
+  };
+
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
+    setEditingEstimateId(est.id);
+    setEstimateName(est.name);
     const d = est.data;
     if (d) {
       if (d.tileType) setTileType(d.tileType);
@@ -171,7 +194,18 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
       if (d.cementCost) setCementCost(d.cementCost);
       if (d.sandCost) setSandCost(d.sandCost);
     }
+    calculate();
   };
+
+  useEffect(() => {
+    if (
+      loadedEstimate &&
+      (loadedEstimate.type === "tiles" || (loadedEstimate.type as string) === "tile") &&
+      loadedEstimate.id !== editingEstimateId
+    ) {
+      handleLoadSavedEstimate(loadedEstimate);
+    }
+  }, [loadedEstimate, editingEstimateId]);
 
   return (
     <div className="flex flex-col h-full bg-[#0f1c2e] overflow-hidden text-[#f1f5f9]">
@@ -181,7 +215,10 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
         activeProject={activeProject}
         currentEstimateName={estimateName}
         setCurrentEstimateName={setEstimateName}
-        onSave={handleSaveToProject}
+        currentEstimateId={editingEstimateId}
+        onSave={() => handleSaveToProject(false)}
+        onSaveAsCopy={handleSaveAsCopy}
+        onClearEstimate={handleClearEstimate}
         onLoadEstimate={handleLoadSavedEstimate}
         onDeleteEstimate={onDeleteEstimate}
         getCurrentPayload={() => ({

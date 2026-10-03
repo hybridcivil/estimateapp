@@ -23,15 +23,20 @@ import {
   HardHat,
   Receipt,
   FileText,
+  Edit3,
 } from "lucide-react";
+import { ConfirmModal } from "./common/ConfirmModal";
+import { EditEstimateModal } from "./EditEstimateModal";
 
 interface DashboardProps {
   projects: Project[];
   activeProject: Project | null;
   onSelectProject: (p: Project) => void;
   onOpenNewProjectModal: () => void;
+  onOpenEditProjectModal: () => void;
   onDeleteProject: (id: string) => Promise<void>;
   onDeleteEstimate: (id: string) => Promise<void>;
+  onRenameEstimate: (estimateId: string, newName: string) => Promise<void>;
   onNavigateToCalculator: (type: EstimateType, estimateToLoad?: ProjectEstimateItem) => void;
   onOpenReportModal: () => void;
   onImportProject: (projectData: any) => Promise<void>;
@@ -42,14 +47,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
   activeProject,
   onSelectProject,
   onOpenNewProjectModal,
+  onOpenEditProjectModal,
   onDeleteProject,
   onDeleteEstimate,
+  onRenameEstimate,
   onNavigateToCalculator,
   onOpenReportModal,
   onImportProject,
 }) => {
   const [filterType, setFilterType] = useState<string>("all");
   const [fileImportError, setFileImportError] = useState("");
+
+  // In-app modal confirmations (no window.confirm!)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [estimateToDelete, setEstimateToDelete] = useState<ProjectEstimateItem | null>(null);
+  const [estimateToEdit, setEstimateToEdit] = useState<ProjectEstimateItem | null>(null);
 
   // Compute portfolio statistics
   const totalProjects = projects.length;
@@ -226,20 +238,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Ashraf Civil Studio
               </span>
               <span className="text-xs text-[#8ba3c1]">
-                · Project Estimation Dashboard
+                · Project Estimation & File Dashboard
               </span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Civil Engineering Estimation & File System
             </h2>
             <p className="text-xs sm:text-sm text-[#8ba3c1] max-w-2xl mt-1">
-              Create civil engineering projects, calculate structural quantities (Beam, Column, Footing, Slab, Stair, Brickwork, Tiles) and store every estimate file safely.
+              Manage civil projects, calculate structural quantities (Beam, Column, Footing, Slab, Stair, Brick, Tiles) and open, edit, or delete every estimation file safely.
             </p>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            <label className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-[#2d4a6a] transition shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <label className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-[#2d4a6a] transition shadow-sm active:scale-95">
               <Upload className="w-3.5 h-3.5 text-[#00c2c7]" />
               <span>Import Project</span>
               <input
@@ -291,7 +303,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-[#121a2b]/70 border border-[#2d4a6a] rounded-xl p-2.5">
             <div className="text-[10px] text-[#8ba3c1] font-medium flex items-center gap-1">
               <Receipt className="w-3 h-3 text-[#2ecc71]" />
-              Active Project Budget
+              Active Project Cost
             </div>
             <div className="text-lg sm:text-xl font-bold text-[#2ecc71] mt-0.5">
               ৳ {Math.round(activeTotalCost).toLocaleString("en-IN")}
@@ -301,7 +313,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-[#121a2b]/70 border border-[#2d4a6a] rounded-xl p-2.5">
             <div className="text-[10px] text-[#8ba3c1] font-medium flex items-center gap-1">
               <HardHat className="w-3 h-3 text-[#e67e22]" />
-              All Projects Portfolio
+              Total Portfolio
             </div>
             <div className="text-lg sm:text-xl font-bold text-white mt-0.5">
               ৳ {Math.round(totalPortfolioBudget).toLocaleString("en-IN")}
@@ -315,13 +327,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs bg-[#f5a623]/20 text-[#f5a623] px-2 py-0.5 rounded font-semibold border border-[#f5a623]/40">
                   Active Project
                 </span>
                 <h3 className="text-lg font-bold text-white tracking-wide">
                   {activeProject.name}
                 </h3>
+                <button
+                  onClick={onOpenEditProjectModal}
+                  className="p-1 text-[#00c2c7] hover:text-white hover:bg-[#00c2c7]/20 border border-[#00c2c7]/30 rounded-lg transition"
+                  title="Edit Project Details"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-[#8ba3c1] mt-1.5">
@@ -350,11 +369,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* Project Actions */}
-            <div className="flex items-center gap-2">
+            {/* Project Actions: Edit, BOQ, Export, Delete */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={onOpenEditProjectModal}
+                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
+                title="Edit Project Name & Metadata"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-[#00c2c7]" />
+                <span>Edit Project</span>
+              </button>
+
               <button
                 onClick={onOpenReportModal}
-                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-[#00c2c7] border border-[#00c2c7]/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-[#00c2c7] border border-[#00c2c7]/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
                 title="View & Print Consolidated BOQ"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -363,24 +391,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
               <button
                 onClick={() => handleExportProject(activeProject)}
-                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
                 title="Download Project JSON Backup"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export Project</span>
+                <span className="hidden sm:inline">Export</span>
               </button>
 
               <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Are you sure you want to delete project "${activeProject.name}" and all its saved estimates?`
-                    )
-                  ) {
-                    onDeleteProject(activeProject.id);
-                  }
-                }}
-                className="p-1.5 text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/40 rounded-lg transition"
+                onClick={() => setProjectToDelete(activeProject)}
+                className="p-2 text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/40 rounded-lg transition active:scale-95"
                 title="Delete Project"
               >
                 <Trash2 className="w-4 h-4" />
@@ -468,7 +488,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Project Estimate Files ({filteredEstimates.length})
             </h3>
             <p className="text-[11px] text-[#8ba3c1]">
-              Saved calculation sheets in this project. Every file can be loaded, edited or exported.
+              Saved calculation sheets in this project. Every file can be opened, edited, renamed, or deleted.
             </p>
           </div>
 
@@ -507,33 +527,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
               No estimate files saved for this filter.
             </div>
             <p className="text-[11px] text-[#8ba3c1]/70">
-              Select one of the calculators below to calculate quantities and click "Save to Project".
+              Select one of the calculators below to calculate quantities and click "Save File".
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredEstimates.map((est) => {
               const calcMeta = calculatorCards.find((c) => c.type === est.type);
               const Icon = calcMeta?.icon || FileText;
               return (
                 <div
                   key={est.id}
-                  className="bg-[#121a2b] border border-[#2d4a6a] hover:border-[#00c2c7]/50 rounded-xl p-3 transition shadow flex flex-col justify-between"
+                  className="bg-[#121a2b] border border-[#2d4a6a] hover:border-[#00c2c7]/50 rounded-xl p-3.5 transition shadow flex flex-col justify-between group"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                           style={{
                             backgroundColor: `${calcMeta?.accent || "#00c2c7"}20`,
                             color: calcMeta?.accent || "#00c2c7",
                           }}
                         >
-                          <Icon className="w-3.5 h-3.5" />
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-white line-clamp-1">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-white truncate" title={est.name}>
                             {est.name}
                           </h4>
                           <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
@@ -551,14 +571,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                     {/* Summary snippets */}
                     <div className="mt-2.5 pt-2 border-t border-[#2d4a6a]/60 grid grid-cols-3 gap-1 text-[10px] text-center">
-                      {est.summary?.cementBags !== undefined && (
+                      {(est.summary?.cementBags || est.summary?.totalCementBags) && (
                         <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#f5a623]">
-                          {est.summary.cementBags} bags
+                          {est.summary.cementBags || est.summary.totalCementBags} bags
                         </div>
                       )}
-                      {est.summary?.totalSteel !== undefined && (
+                      {(est.summary?.totalSteel || est.summary?.totalSteelKg) && (
                         <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#00c2c7]">
-                          {est.summary.totalSteel} kg
+                          {est.summary.totalSteel || est.summary.totalSteelKg} kg
                         </div>
                       )}
                       {est.summary?.dryVolume !== undefined && (
@@ -584,37 +604,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center justify-between gap-1.5 mt-3 pt-2 border-t border-[#2d4a6a]/60">
+                  {/* Actions: Open & Edit, Rename/Details, Export, Delete */}
+                  <div className="flex items-center justify-between gap-1.5 mt-3 pt-2.5 border-t border-[#2d4a6a]/60">
                     <button
-                      onClick={() => onNavigateToCalculator(est.type, est)}
-                      className="flex-1 flex items-center justify-center gap-1 bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-white py-1 px-2 rounded text-[11px] font-semibold transition"
-                      title="Open and edit this estimate"
+                      type="button"
+                      onClick={() =>
+                        onNavigateToCalculator(
+                          (est.type === "tile" ? "tiles" : est.type) as EstimateType,
+                          est
+                        )
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-white py-1.5 px-2.5 rounded-lg text-[11px] font-semibold transition active:scale-95"
+                      title="Open and edit parameters in calculator"
                     >
                       <ExternalLink className="w-3 h-3" />
-                      <span>Open & Edit</span>
+                      <span>Open File</span>
                     </button>
 
                     <button
+                      type="button"
+                      onClick={() => setEstimateToEdit(est)}
+                      className="p-1.5 text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55] rounded-lg transition"
+                      title="Rename or edit file details"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => handleExportSingleEstimate(est)}
-                      className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
+                      className="p-1.5 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded-lg transition"
                       title="Download estimate file (.json)"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </button>
 
                     <button
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            `Delete saved estimate "${est.name}"?`
-                          )
-                        ) {
-                          onDeleteEstimate(est.id);
-                        }
-                      }}
-                      className="p-1 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/15 rounded transition"
-                      title="Delete estimate"
+                      type="button"
+                      onClick={() => setEstimateToDelete(est)}
+                      className="p-1.5 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/15 rounded-lg transition"
+                      title="Delete estimate file"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -689,6 +718,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
           })}
         </div>
       </div>
+
+      {/* Confirmation Modal for Project Deletion */}
+      <ConfirmModal
+        isOpen={Boolean(projectToDelete)}
+        title="Delete Project"
+        message={`Are you sure you want to permanently delete project "${projectToDelete?.name}" and all of its ${projectToDelete?.estimates?.length || 0} saved estimate files? This cannot be undone.`}
+        confirmLabel="Delete Project"
+        onConfirm={async () => {
+          if (projectToDelete) {
+            await onDeleteProject(projectToDelete.id);
+            setProjectToDelete(null);
+          }
+        }}
+        onClose={() => setProjectToDelete(null)}
+      />
+
+      {/* Confirmation Modal for Estimate Deletion */}
+      <ConfirmModal
+        isOpen={Boolean(estimateToDelete)}
+        title="Delete Estimate File"
+        message={`Are you sure you want to delete estimate file "${estimateToDelete?.name}"? It will be permanently removed from project "${activeProject?.name}".`}
+        confirmLabel="Delete File"
+        onConfirm={async () => {
+          if (estimateToDelete) {
+            await onDeleteEstimate(estimateToDelete.id);
+            setEstimateToDelete(null);
+          }
+        }}
+        onClose={() => setEstimateToDelete(null)}
+      />
+
+      {/* Modal for Renaming / Editing Estimate metadata */}
+      <EditEstimateModal
+        isOpen={Boolean(estimateToEdit)}
+        estimate={estimateToEdit}
+        onClose={() => setEstimateToEdit(null)}
+        onRename={async (estimateId, newName) => {
+          await onRenameEstimate(estimateId, newName);
+        }}
+        onOpenInCalculator={(est) => {
+          onNavigateToCalculator(est.type, est);
+        }}
+      />
     </div>
   );
 };

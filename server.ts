@@ -319,6 +319,10 @@ app.post("/api/projects/:id/estimates", (req, res) => {
     }
 
     const project = projects[projIdx];
+    if (!Array.isArray(project.estimates)) {
+      project.estimates = [];
+    }
+
     const estimateId = id || "est_" + type + "_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
     const existingIdx = project.estimates.findIndex((e) => e.id === estimateId);
 
@@ -351,6 +355,78 @@ app.post("/api/projects/:id/estimates", (req, res) => {
         totalEstimates: project.estimates.length,
       },
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Full update of a specific estimate
+app.put("/api/projects/:id/estimates/:estimateId", (req, res) => {
+  try {
+    const projects = readProjects();
+    const project = projects.find((p) => p.id === req.params.id);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    if (!Array.isArray(project.estimates)) {
+      project.estimates = [];
+    }
+    const existingIdx = project.estimates.findIndex((e) => e.id === req.params.estimateId);
+    const { type, name, totalCost, summary, data } = req.body;
+
+    const updatedItem: ProjectEstimateItem = {
+      id: req.params.estimateId,
+      type: type || (existingIdx !== -1 ? project.estimates[existingIdx].type : "beam"),
+      name: (name || (existingIdx !== -1 ? project.estimates[existingIdx].name : "Updated Estimate")).trim(),
+      date: new Date().toISOString(),
+      totalCost: Number(totalCost) !== undefined && !isNaN(Number(totalCost)) ? Number(totalCost) : (existingIdx !== -1 ? project.estimates[existingIdx].totalCost : 0),
+      summary: summary || (existingIdx !== -1 ? project.estimates[existingIdx].summary : {}),
+      data: data || (existingIdx !== -1 ? project.estimates[existingIdx].data : {}),
+    };
+
+    if (existingIdx !== -1) {
+      project.estimates[existingIdx] = updatedItem;
+    } else {
+      project.estimates.unshift(updatedItem);
+    }
+
+    project.updatedAt = new Date().toISOString();
+    writeProjects(projects);
+
+    res.status(200).json({
+      success: true,
+      message: "Estimate updated successfully",
+      estimate: updatedItem,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rename or update estimate metadata
+app.patch("/api/projects/:id/estimates/:estimateId", (req, res) => {
+  try {
+    const projects = readProjects();
+    const project = projects.find((p) => p.id === req.params.id);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const est = project.estimates.find((e) => e.id === req.params.estimateId);
+    if (!est) {
+      res.status(404).json({ error: "Estimate not found" });
+      return;
+    }
+    if (req.body.name && req.body.name.trim()) {
+      est.name = req.body.name.trim();
+    }
+    if (req.body.notes !== undefined) {
+      (est as any).notes = req.body.notes;
+    }
+    project.updatedAt = new Date().toISOString();
+    writeProjects(projects);
+    res.json({ success: true, message: "Estimate updated", estimate: est });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
