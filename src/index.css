@@ -5,15 +5,14 @@
    ---------------------------------------------------- */
 @media print {
   @page {
-    size: var(--pdf-page-size, A4 portrait);
-    margin: var(--pdf-page-margin, 12mm 14mm 14mm 14mm);
+    size: A4 portrait;
+    margin: 15mm;
   }
 
   html,
   body {
     background-color: #ffffff !important;
     color: #0f172a !important;
-    font-size: var(--pdf-base-font-size, 11px) !important;
     line-height: 1.4 !important;
     height: auto !important;
     min-height: 100% !important;
@@ -24,13 +23,34 @@
     padding: 0 !important;
   }
 
-  /* Hide app shell headers, navs, floating controls */
+  /* Unclamp root containers so multi-page printing flows naturally */
+  #root,
+  #root > div {
+    height: auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  /* Hide app shell headers, navs, floating controls and background main calculators when report is open */
   header,
   nav,
   aside,
   #root > div > header,
   #root > div > nav,
-  #root > div > main:not(.print-active-main),
+  body.report-modal-open #root > div > main,
+  body.report-modal-open #root > div > header,
+  body.report-modal-open #root > div > nav,
+  body.report-modal-open .toast,
+  body:has(.report-modal-backdrop) #root > div > main,
+  body:has(.report-modal-backdrop) #root > div > header,
+  body:has(.report-modal-backdrop) #root > div > nav,
   .print-hide,
   .no-print {
     display: none !important;
@@ -73,13 +93,16 @@
   .report-printable-content {
     background: #ffffff !important;
     color: #0f172a !important;
-    padding: var(--pdf-inner-padding, 0mm) !important;
+    padding: 0 !important;
     margin: 0 !important;
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
     width: 100% !important;
+    max-width: none !important;
     display: block !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   /* Table rules for PDF generation */
