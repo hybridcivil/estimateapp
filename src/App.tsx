@@ -187,14 +187,14 @@ function MainAppContent() {
     showToast(`Added ${addedCount} building items (multiplied across ${stories} storeys) to "${activeProject.name}"!`);
   };
 
-  const handleUpdateProject = async (id: string, data: {
+  const handleUpdateProject = async (id: string, data: Partial<{
     name: string;
     client: string;
     location: string;
     engineer: string;
     notes?: string;
     stories?: number;
-  }) => {
+  }>) => {
     const updated = await updateProject(id, data);
     if (updated) {
       await loadProjects(id);

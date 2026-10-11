@@ -48,13 +48,14 @@ function readProjects(): Project[] {
       const stories = p.stories ? Math.max(1, p.stories) : 1;
       // Auto-synchronize estimates if multiplier doesn't match project stories
       if (Array.isArray(p.estimates) && p.estimates.length > 0) {
-        const brickEst = p.estimates.find((e) => e.type === "brick");
-        if (brickEst) {
-          const currentMult = brickEst.summary?.multiplier || brickEst.data?.multiplier;
-          if (currentMult && currentMult !== stories) {
-            p.estimates = rescaleEstimatesForStories(p.estimates, stories, currentMult);
-            mutated = true;
-          }
+        const mismatchEst = p.estimates.find((e) => {
+          const m = e.summary?.multiplier || e.data?.multiplier;
+          return m !== undefined && m !== stories && (e.type !== "footing" || m !== 1);
+        });
+        if (mismatchEst) {
+          const currentMult = mismatchEst.summary?.multiplier || mismatchEst.data?.multiplier || 1;
+          p.estimates = rescaleEstimatesForStories(p.estimates, stories, currentMult);
+          mutated = true;
         }
       }
     }

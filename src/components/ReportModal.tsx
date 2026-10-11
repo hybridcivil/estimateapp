@@ -17,7 +17,18 @@ import {
   FileText,
   Link as LinkIcon,
   Unlink,
+  Layers,
+  Boxes,
+  Hammer,
+  ShieldCheck,
+  Building2,
+  HardHat,
+  Sparkles,
 } from "lucide-react";
+import {
+  computeFullProjectBreakdown,
+  FullProjectBreakdown,
+} from "../utils/reportBreakdown";
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -54,6 +65,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   // Base font size (pt)
   const [fontSizePt, setFontSizePt] = useState<number>(10);
+
+  // Active section view filter in modal preview
+  const [activeTabFilter, setActiveTabFilter] = useState<string>("all");
 
   // UI state
   const [showSettings, setShowSettings] = useState<boolean>(true);
@@ -98,33 +112,27 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     preset: "standard" | "compact" | "narrow" | "spacious" | "binding" | "zero"
   ) => {
     switch (preset) {
-      case "zero":
-        setMarginTop(0);
-        setMarginBottom(0);
-        setMarginLeft(0);
-        setMarginRight(0);
-        break;
-      case "narrow":
-        setMarginTop(5);
-        setMarginBottom(5);
-        setMarginLeft(5);
-        setMarginRight(5);
-        break;
-      case "compact":
-        setMarginTop(8);
-        setMarginBottom(8);
-        setMarginLeft(8);
-        setMarginRight(8);
-        break;
       case "standard":
         setMarginTop(15);
         setMarginBottom(15);
         setMarginLeft(15);
         setMarginRight(15);
         break;
+      case "compact":
+        setMarginTop(10);
+        setMarginBottom(10);
+        setMarginLeft(10);
+        setMarginRight(10);
+        break;
+      case "narrow":
+        setMarginTop(8);
+        setMarginBottom(8);
+        setMarginLeft(8);
+        setMarginRight(8);
+        break;
       case "spacious":
-        setMarginTop(20);
-        setMarginBottom(20);
+        setMarginTop(22);
+        setMarginBottom(22);
         setMarginLeft(20);
         setMarginRight(20);
         break;
@@ -134,70 +142,69 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         setMarginLeft(25);
         setMarginRight(12);
         break;
+      case "zero":
+        setMarginTop(0);
+        setMarginBottom(0);
+        setMarginLeft(0);
+        setMarginRight(0);
+        break;
     }
   };
 
-  // Cell padding based on density
+  // Cell padding CSS value
   const cellPaddingCss =
     paddingDensity === "compact"
       ? "3px 6px"
-      : paddingDensity === "normal"
-      ? "6px 9px"
-      : "9px 12px";
+      : paddingDensity === "spacious"
+      ? "7px 11px"
+      : "5px 8px";
 
-  // Section spacing class based on density
+  // Section spacing class
   const sectionSpacingClass =
     paddingDensity === "compact"
-      ? "space-y-2"
-      : paddingDensity === "normal"
-      ? "space-y-3.5"
-      : "space-y-5";
+      ? "space-y-3"
+      : paddingDensity === "spacious"
+      ? "space-y-6"
+      : "space-y-4";
 
-  // Dynamic CSS injection for direct window.print()
+  // Inject dynamic print style tag when modal is open
   useEffect(() => {
-    if (!isOpen) {
-      document.body.classList.remove("report-modal-open");
-      return;
-    }
-
-    document.body.classList.add("report-modal-open");
+    if (!isOpen) return;
 
     const styleId = "dynamic-pdf-page-rules";
-    let styleTag = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!styleTag) {
-      styleTag = document.createElement("style");
-      styleTag.id = styleId;
-      document.head.appendChild(styleTag);
+    let tag = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!tag) {
+      tag = document.createElement("style");
+      tag.id = styleId;
+      document.head.appendChild(tag);
     }
 
     const pageKeyword =
       pageSize === "a4" ? "A4" : pageSize === "letter" ? "letter" : "legal";
 
-    styleTag.textContent = `
+    tag.innerHTML = `
       @media print {
         @page {
-          size: ${pageKeyword} ${orientation};
-          margin: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
+          size: ${pageKeyword} ${orientation} !important;
+          margin-top: ${marginTop}mm !important;
+          margin-bottom: ${marginBottom}mm !important;
+          margin-left: ${marginLeft}mm !important;
+          margin-right: ${marginRight}mm !important;
         }
         :root {
+          --pdf-margin-top: ${marginTop}mm;
+          --pdf-margin-bottom: ${marginBottom}mm;
+          --pdf-margin-left: ${marginLeft}mm;
+          --pdf-margin-right: ${marginRight}mm;
           --pdf-cell-padding: ${cellPaddingCss};
           --pdf-base-font-size: ${fontSizePt}px;
-        }
-        th, td {
-          padding: ${cellPaddingCss} !important;
-          font-size: ${fontSizePt}px !important;
-        }
-        .report-printable-content {
-          padding: 0 !important;
-          margin: 0 !important;
         }
       }
     `;
 
     return () => {
-      document.body.classList.remove("report-modal-open");
-      const tag = document.getElementById(styleId);
-      if (tag) tag.remove();
+      const existing = document.getElementById(styleId);
+      if (existing) existing.remove();
     };
   }, [
     isOpen,
@@ -219,20 +226,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       ? allEstimates
       : allEstimates.filter((e) => e.id === selectedSheetFilter);
 
-  // Material aggregates & costs
-  let totalCementBags = 0;
-  let totalSandCft = 0;
-  let totalAggCft = 0;
-  let totalSteelKg = 0;
-  let totalBricks = 0;
-  let totalTiles = 0;
-
-  let totalCementCost = 0;
-  let totalSandCost = 0;
-  let totalAggCost = 0;
-  let totalSteelCost = 0;
-  let totalBrickCost = 0;
-  let totalTileCost = 0;
+  // Compute the comprehensive project breakdown
+  const breakdown: FullProjectBreakdown = computeFullProjectBreakdown(estimates);
 
   // Default rates fallback
   let defaultCementRate = 550;
@@ -243,169 +238,16 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   let defaultTileRate = 180;
 
   estimates.forEach((e) => {
-    const s = e.summary || {};
-    const d = e.data || {};
-    const r = d.rates || {};
-
+    const r = e.data?.rates || {};
     if (r.cementRate) defaultCementRate = r.cementRate;
     if (r.sandRate) defaultSandRate = r.sandRate;
     if (r.aggRate) defaultAggRate = r.aggRate;
     if (r.steelRate) defaultSteelRate = r.steelRate;
     if (r.brickRate) defaultBrickRate = r.brickRate;
-    if (d.tilePrice) defaultTileRate = d.tilePrice;
-
-    // Cement
-    const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
-    totalCementBags += cBags;
-    const cCost =
-      s.cementCost !== undefined ? s.cementCost : cBags * (r.cementRate || defaultCementRate);
-    totalCementCost += cCost;
-
-    // Sand
-    const sCft =
-      s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || 0;
-    totalSandCft += sCft;
-    const sCost =
-      s.sandCost !== undefined ? s.sandCost : sCft * (r.sandRate || defaultSandRate);
-    totalSandCost += sCost;
-
-    // Aggregate
-    const aCft =
-      s.multipliedAggCft || s.aggregateVolume || s.aggregateVol || s.aggCft || s.totalAggCft || 0;
-    totalAggCft += aCft;
-    const aCost =
-      (s.aggCost !== undefined ? s.aggCost : aCft * (r.aggRate || defaultAggRate)) +
-      (s.picketCost || 0);
-    totalAggCost += aCost;
-
-    // Steel
-    const stKg = s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || 0;
-    totalSteelKg += stKg;
-    const stCost =
-      s.steelCost !== undefined ? s.steelCost : stKg * (r.steelRate || defaultSteelRate);
-    totalSteelCost += stCost;
-
-    // Bricks
-    const bQty = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
-    totalBricks += bQty;
-    const bCost =
-      s.brickCost !== undefined ? s.brickCost : bQty * (r.brickRate || defaultBrickRate);
-    totalBrickCost += bCost;
-
-    // Tiles
-    const tQty = s.multipliedTilePieces || s.tiles || 0;
-    totalTiles += tQty;
-    const tCost =
-      s.tileCost !== undefined ? s.tileCost : tQty * (d.tilePrice || defaultTileRate);
-    totalTileCost += tCost;
+    if (e.data?.tilePrice) defaultTileRate = e.data.tilePrice;
   });
 
-  // Calculate clean Unit Prices for materials (rounded to standard currencies)
-  const unitPriceCement =
-    totalCementBags > 0
-      ? Math.round(totalCementCost / totalCementBags)
-      : defaultCementRate;
-  const unitPriceSand =
-    totalSandCft > 0
-      ? Number((totalSandCost / totalSandCft).toFixed(2))
-      : defaultSandRate;
-  const unitPriceAgg =
-    totalAggCft > 0
-      ? Number((totalAggCost / totalAggCft).toFixed(2))
-      : defaultAggRate;
-  const unitPriceSteel =
-    totalSteelKg > 0
-      ? Number((totalSteelCost / totalSteelKg).toFixed(2))
-      : defaultSteelRate;
-  const unitPriceBrick =
-    totalBricks > 0
-      ? Number((totalBrickCost / totalBricks).toFixed(2))
-      : defaultBrickRate;
-  const unitPriceTile =
-    totalTiles > 0
-      ? Number((totalTileCost / totalTiles).toFixed(2))
-      : defaultTileRate;
-
-  const totalMaterialsCost =
-    totalCementCost +
-    totalSandCost +
-    totalAggCost +
-    totalSteelCost +
-    totalBrickCost +
-    totalTileCost;
-
-  const grandTotalCost = estimates.reduce(
-    (sum, e) => sum + (e.totalCost || 0),
-    0
-  );
-
-  // Helper to extract Unit, Unit Price, Quantity, Amount for an itemized estimate sheet
-  const getEstimateItemDetails = (e: ProjectEstimateItem) => {
-    let unit = "Job";
-    let qty = 1;
-    const s = e.summary || {};
-    const d = e.data || {};
-
-    switch (e.type) {
-      case "beam":
-        unit = "Nos";
-        qty =
-          s.totalBeamsCount ||
-          (d.beams &&
-            d.beams.reduce((sum: number, b: any) => sum + (b.nos || 1), 0)) ||
-          1;
-        break;
-      case "column":
-        unit = "Nos";
-        qty =
-          s.totalColsCount ||
-          (d.cols &&
-            d.cols.reduce((sum: number, c: any) => sum + (c.nos || 1), 0)) ||
-          1;
-        break;
-      case "footing":
-        unit = "Nos";
-        qty =
-          s.totalFtCount ||
-          (d.footings &&
-            d.footings.reduce((sum: number, f: any) => sum + (f.nos || 1), 0)) ||
-          1;
-        break;
-      case "slab":
-        unit = "sq.ft";
-        qty = s.area || 1;
-        break;
-      case "stair":
-        unit = "Steps";
-        qty = d.numSteps || 1;
-        break;
-      case "brick":
-        unit = "Pcs";
-        qty = s.totalBricks || s.brickQty || 1;
-        break;
-      case "tiles":
-        unit = "sq.ft";
-        qty = s.area || s.tiles || 1;
-        break;
-      default:
-        unit = "Job";
-        qty = 1;
-        break;
-    }
-
-    const amount = Math.round(e.totalCost || 0);
-    const unitPrice = qty > 0 ? amount / qty : amount;
-
-    return {
-      unit,
-      qty,
-      unitPrice:
-        qty > 0
-          ? Number(unitPrice.toFixed(qty < 100 ? 0 : 2))
-          : amount,
-      amount,
-    };
-  };
+  const { allocations, footings, columns, beams, slabs, stairs, bricks, tiles, steelBreakdown, totals } = breakdown;
 
   // Dimensions for paper aspect ratio in preview mode
   const getPaperDimensionsClass = () => {
@@ -439,7 +281,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${project.name} - Bill of Quantities (BOQ)</title>
+  <title>${project.name} - Detailed Bill of Quantities (BOQ) & Component Takeoff</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -456,7 +298,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: ${fontSizePt}px;
-      line-height: 1.4;
+      line-height: 1.35;
       color: #0f172a;
       background: #ffffff;
       -webkit-print-color-adjust: exact;
@@ -465,15 +307,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       margin: 0;
     }
     .header-box {
-      border-bottom: 2px solid #0f172a;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
     }
     .brand-sub {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
       letter-spacing: 1px;
       text-transform: uppercase;
@@ -481,7 +323,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       margin-bottom: 2px;
     }
     .doc-title {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 800;
       color: #0f172a;
       letter-spacing: -0.5px;
@@ -493,30 +335,30 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     }
     .meta-box {
       text-align: right;
-      font-size: 10px;
+      font-size: 9.5px;
       color: #475569;
-      line-height: 1.45;
+      line-height: 1.4;
     }
     .meta-box strong {
       color: #0f172a;
     }
     .project-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 6px;
       background: #f8fafc;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 8px 10px;
-      margin-bottom: 14px;
-      font-size: 10px;
+      padding: 7px 9px;
+      margin-bottom: 12px;
+      font-size: 9.5px;
     }
     .grid-label {
-      font-size: 8.5px;
+      font-size: 8px;
       text-transform: uppercase;
       font-weight: 700;
       color: #64748b;
-      margin-bottom: 2px;
+      margin-bottom: 1px;
     }
     .grid-val {
       font-weight: 700;
@@ -531,16 +373,28 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #0f172a;
+      margin-top: 14px;
       margin-bottom: 5px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: space-between;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 3px;
+    }
+    .section-badge {
+      font-size: 8.5px;
+      font-weight: 700;
+      background: #e2e8f0;
+      color: #1e293b;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
     }
     .table-container {
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-radius: 5px;
       overflow: hidden;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       page-break-inside: auto;
       break-inside: auto;
     }
@@ -559,35 +413,31 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       font-weight: 700;
       color: #1e293b;
       border-bottom: 1.5px solid #475569;
-      font-size: 9.5px;
+      font-size: 9px;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.3px;
     }
     td {
       padding: ${cellPaddingCss};
       border-bottom: 1px solid #e2e8f0;
       color: #0f172a;
+      font-size: ${fontSizePt}px;
     }
     tr {
       page-break-inside: avoid;
       break-inside: avoid;
     }
-    .text-right {
-      text-align: right;
+    tbody tr:nth-child(even) {
+      background-color: #fafbfc;
     }
-    .text-center {
-      text-align: center;
-    }
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
-    }
-    .font-bold {
-      font-weight: 700;
-    }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .font-bold { font-weight: 700; }
     tfoot {
-      background: #f8fafc;
+      background: #f1f5f9;
       font-weight: 800;
-      border-top: 2px solid #0f172a;
+      border-top: 1.5px solid #0f172a;
       display: table-footer-group;
     }
     tfoot td {
@@ -595,17 +445,71 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       border-bottom: none;
     }
     .grand-total-val {
-      font-size: 12.5px;
+      font-size: 11.5px;
       color: #047857;
       font-weight: 800;
     }
+    .materials-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .mat-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 7px 9px;
+      background: #f8fafc;
+    }
+    .mat-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-bottom: 4px;
+    }
+    .mat-title {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+    .mat-rate {
+      font-size: 8.5px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #64748b;
+    }
+    .mat-qty {
+      font-size: 14px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #007791;
+    }
+    .mat-cost {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #047857;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+    }
+    .mat-sub {
+      font-size: 8px;
+      color: #64748b;
+    }
+    .avoid-break {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     .signatures-block {
-      margin-top: 20px;
+      margin-top: 18px;
       padding-top: 12px;
       border-top: 1px solid #cbd5e1;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 32px;
+      gap: 28px;
       text-align: center;
       page-break-inside: avoid;
       break-inside: avoid;
@@ -613,7 +517,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     .sign-line {
       width: 100%;
       max-width: 220px;
-      margin: 0 auto 5px auto;
+      margin: 0 auto 4px auto;
       border-bottom: 1.5px dashed #475569;
       padding-bottom: 4px;
       font-weight: 700;
@@ -629,17 +533,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       color: #64748b;
     }
     .footer-note {
-      margin-top: 16px;
+      margin-top: 14px;
       padding-top: 6px;
       border-top: 1px solid #e2e8f0;
       display: flex;
       justify-content: space-between;
-      font-size: 8.5px;
+      font-size: 8px;
       color: #64748b;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    .avoid-break {
       page-break-inside: avoid;
       break-inside: avoid;
     }
@@ -661,8 +561,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   <div class="header-box">
     <div>
       <div class="brand-sub">ASHRAF CIVIL STUDIO • CIVIL & STRUCTURAL ENGINEERING</div>
-      <div class="doc-title">Bill of Quantities (BOQ) & Cost Takeoff</div>
-      <div class="doc-subtitle">Consolidated Materials & Component Breakdown Matrix</div>
+      <div class="doc-title">Bill of Quantities (BOQ) & Component Takeoff</div>
+      <div class="doc-subtitle">Complete Structural Elements Breakdown (Footings, Columns, Beams, Slabs, Stairs, Bricks) & Separated Materials Schedule</div>
     </div>
     <div class="meta-box">
       <div>Report Date: <strong>${new Date().toLocaleDateString("en-GB", {
@@ -694,13 +594,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <div class="grid-val">${project.stories || 1} Floor(s)${(project.stories || 1) > 1 ? ` (×${project.stories} Multiplied)` : ""}</div>
     </div>
     <div>
-      <div class="grid-label">Calculation Sheets</div>
-      <div class="grid-val">${estimates.length} Saved Takeoff File(s)</div>
+      <div class="grid-label">Takeoff File Sheets</div>
+      <div class="grid-val">${estimates.length} Saved Module(s)</div>
     </div>
   </div>
 
+  <!-- SECTION 1: CONSOLIDATED MATERIALS SUMMARY -->
   <div class="section-title">
     <span>1. Consolidated Structural Materials Schedule</span>
+    <span class="section-badge">Master Totals</span>
   </div>
   <div class="table-container">
     <table>
@@ -710,7 +612,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <th>Material Description & Specification</th>
           <th class="text-center" style="width: 75px">Unit</th>
           <th class="text-right" style="width: 95px">Unit Price (৳)</th>
-          <th class="text-right" style="width: 95px">Quantity</th>
+          <th class="text-right" style="width: 100px">Total Quantity</th>
           <th class="text-right" style="width: 120px">Amount (BDT)</th>
         </tr>
       </thead>
@@ -719,69 +621,69 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-center font-mono" style="color: #64748b;">1</td>
           <td class="font-bold">
             Portland Composite Cement (PCC)
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Standard 50 kg bags (BDS EN 197-1 CEM II)</div>
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Standard 50 kg bags (BDS EN 197-1 CEM II / ACI 318)</div>
           </td>
           <td class="text-center">Bag</td>
-          <td class="text-right font-mono">৳ ${unitPriceCement.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">${totalCementBags.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalCementCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultCementRate.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">${totals.cementBags.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${(totals.cementBags * defaultCementRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">2</td>
           <td class="font-bold">
-            Coarse & Medium Sand (Sylhet + Local)
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Fineness Modulus FM 1.5 - 2.5</div>
+            Coarse & Medium Sand (Sylhet FM 2.5 + Local FM 1.5)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Clean graded sand for concrete, mortar & plastering</div>
           </td>
           <td class="text-center">cft</td>
-          <td class="text-right font-mono">৳ ${unitPriceSand}</td>
-          <td class="text-right font-bold font-mono">${Math.round(totalSandCft).toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalSandCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultSandRate}</td>
+          <td class="text-right font-bold font-mono">${Math.round(totals.sandCft).toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.sandCft * defaultSandRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">3</td>
           <td class="font-bold">
             Crushed Stone Aggregate / Picket Chips
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">3/4" down graded angular coarse aggregate</div>
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular coarse aggregate</div>
           </td>
           <td class="text-center">cft</td>
-          <td class="text-right font-mono">৳ ${unitPriceAgg}</td>
-          <td class="text-right font-bold font-mono">${Math.round(totalAggCft).toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalAggCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultAggRate}</td>
+          <td class="text-right font-bold font-mono">${Math.round(totals.aggCft).toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">4</td>
           <td class="font-bold">
-            High-Yield Strength Deformed Rebar
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Grade 500W / 60G Thermo-Mechanically Treated</div>
+            High-Yield Strength Deformed Rebar Steel
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Grade 500W / 60G TMT Rebar (${totals.steelTons} Metric Tons)</div>
           </td>
           <td class="text-center">kg</td>
-          <td class="text-right font-mono">৳ ${unitPriceSteel}</td>
-          <td class="text-right font-bold font-mono">${Math.round(totalSteelKg).toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalSteelCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultSteelRate}</td>
+          <td class="text-right font-bold font-mono">${totals.steelKg.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">5</td>
           <td class="font-bold">
             First Class Burnt Clay Bricks
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Standard Modular 9.5" × 4.5" × 2.75"</div>
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Standard Modular 9.5" × 4.5" × 2.75"</div>
           </td>
           <td class="text-center">Pcs</td>
-          <td class="text-right font-mono">৳ ${unitPriceBrick}</td>
-          <td class="text-right font-bold font-mono">${totalBricks.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalBrickCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultBrickRate}</td>
+          <td class="text-right font-bold font-mono">${totals.bricksPcs.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.bricksPcs * defaultBrickRate).toLocaleString("en-IN")}</td>
         </tr>
         ${
-          totalTiles > 0
+          totals.tilesPcs > 0
             ? `<tr>
           <td class="text-center font-mono" style="color: #64748b;">6</td>
           <td class="font-bold">
-            Floor / Wall Ceramic & Vitrified Tiles
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Finished tile surface including cuts & wastage</div>
+            Floor & Wall Ceramic / Vitrified Tiles
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Finished tile units including cuts, skirting & wastage</div>
           </td>
           <td class="text-center">Pcs</td>
-          <td class="text-right font-mono">৳ ${unitPriceTile}</td>
-          <td class="text-right font-bold font-mono">${totalTiles.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totalTileCost).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultTileRate}</td>
+          <td class="text-right font-bold font-mono">${totals.tilesPcs.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.tilesPcs * defaultTileRate).toLocaleString("en-IN")}</td>
         </tr>`
             : ""
         }
@@ -789,55 +691,578 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       <tfoot>
         <tr>
           <td colspan="5" class="text-right font-bold">Consolidated Materials Subtotal Cost:</td>
-          <td class="text-right grand-total-val font-mono">৳ ${Math.round(totalMaterialsCost).toLocaleString("en-IN")}</td>
+          <td class="text-right grand-total-val font-mono">৳ ${totals.materialsCost.toLocaleString("en-IN")}</td>
         </tr>
       </tfoot>
     </table>
   </div>
 
+  <!-- SECTION 2: COMPONENT VS MATERIAL ALLOCATION MATRIX -->
   <div class="section-title">
-    <span>2. Itemized Component Estimate Breakdown (${estimates.length} Sheets)</span>
+    <span>2. Material Allocation Matrix by Structural Component</span>
+    <span class="section-badge">Cross-Breakdown</span>
   </div>
   <div class="table-container">
     <table>
       <thead>
         <tr>
-          <th style="width: 28px" class="text-center">#</th>
-          <th>Estimate File Title</th>
-          <th style="width: 75px">Component</th>
-          <th class="text-center" style="width: 60px">Unit</th>
-          <th class="text-right" style="width: 90px">Unit Price (৳)</th>
-          <th class="text-right" style="width: 70px">Quantity</th>
+          <th>Structural Element</th>
+          <th class="text-right" style="width: 75px">Wet Conc (cft)</th>
+          <th class="text-right" style="width: 75px">Cement (Bags)</th>
+          <th class="text-right" style="width: 65px">Sand (cft)</th>
+          <th class="text-right" style="width: 65px">Stone (cft)</th>
+          <th class="text-right" style="width: 70px">Steel (kg)</th>
+          <th class="text-right" style="width: 65px">Bricks (Pcs)</th>
+          <th class="text-right" style="width: 60px">Tiles (Pcs)</th>
+          <th class="text-right" style="width: 95px">Subtotal (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${allocations
+          .map(
+            (a) => `<tr>
+          <td class="font-bold">${a.label} <span style="font-size: 8px; color: #64748b; font-weight: normal;">(${a.count > 0 ? `${a.count.toLocaleString()} ${a.unit}` : ""})</span></td>
+          <td class="text-right font-mono">${a.concreteVolCft > 0 ? a.concreteVolCft.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono font-bold">${a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.aggCft > 0 ? Math.round(a.aggCft).toLocaleString() : "—"}</td>
+          <td class="text-right font-mono font-bold">${a.steelKg > 0 ? a.steelKg.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.bricksPcs > 0 ? a.bricksPcs.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.tilesPcs > 0 ? a.tilesPcs.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono font-bold">৳ ${a.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="font-bold">Total Material Quantities:</td>
+          <td class="text-right font-mono font-bold">${totals.concreteVolCft.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.cementBags.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${Math.round(totals.sandCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${Math.round(totals.aggCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.steelKg.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.bricksPcs.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.tilesPcs.toLocaleString()}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- SECTION 3: REBAR DIAMETER BREAKDOWN -->
+  ${
+    steelBreakdown.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>3. Deformed Rebar Steel Reinforcement Breakdown (${totals.steelTons} Metric Tons)</span>
+    <span class="section-badge">Grade 500W / 60G</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 30px" class="text-center">#</th>
+          <th>Rebar Bar Size & Diameter</th>
+          <th class="text-right" style="width: 100px">Weight (kg)</th>
+          <th class="text-right" style="width: 100px">Tonnage (Metric Tons)</th>
+          <th class="text-right" style="width: 80px">Share (%)</th>
+          <th class="text-right" style="width: 90px">Rate (৳/kg)</th>
           <th class="text-right" style="width: 115px">Amount (BDT)</th>
         </tr>
       </thead>
       <tbody>
-        ${
-          estimates.length === 0
-            ? `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 16px;">No saved estimate sheets recorded for this project yet.</td></tr>`
-            : estimates
-                .map((e, idx) => {
-                  const details = getEstimateItemDetails(e);
-                  return `<tr>
-          <td class="font-mono text-center" style="color: #64748b;">${idx + 1}</td>
-          <td class="font-bold">
-            ${e.name}
-            <div style="font-size: 8.5px; font-weight: normal; color: #64748b;">Date: ${new Date(e.date).toLocaleDateString()}</div>
-          </td>
-          <td style="text-transform: uppercase; font-size: 9px; font-weight: 700; color: #007791;">${e.type}</td>
-          <td class="text-center" style="font-size: 9.5px; color: #475569;">${details.unit}</td>
-          <td class="text-right font-mono">৳ ${details.unitPrice.toLocaleString()}</td>
-          <td class="text-right font-mono font-bold">${details.qty.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${details.amount.toLocaleString("en-IN")}</td>
-        </tr>`;
-                })
-                .join("")
-        }
+        ${steelBreakdown
+          .map(
+            (st, i) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${i + 1}</td>
+          <td class="font-bold">${st.dia} mmø Deformed Rebar <span style="font-size: 8px; color: #64748b; font-weight: normal;">(ASTM #${Math.round(st.dia / 3.175)})</span></td>
+          <td class="text-right font-mono font-bold">${st.kg.toLocaleString()} kg</td>
+          <td class="text-right font-mono">${st.tons} MT</td>
+          <td class="text-right font-mono">${st.pct}%</td>
+          <td class="text-right font-mono">৳ ${defaultSteelRate}</td>
+          <td class="text-right font-mono font-bold">৳ ${st.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="6" class="text-right font-bold">Consolidated Project Estimate Grand Total:</td>
-          <td class="text-right grand-total-val font-mono">৳ ${Math.round(grandTotalCost).toLocaleString("en-IN")}</td>
+          <td colspan="2" class="text-right font-bold">Total Steel Rebar Quantity:</td>
+          <td class="text-right font-mono font-bold">${totals.steelKg.toLocaleString()} kg</td>
+          <td class="text-right font-mono font-bold">${totals.steelTons} MT</td>
+          <td class="text-right font-mono font-bold">100.0%</td>
+          <td class="text-right font-mono">৳ ${defaultSteelRate}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 4: FOUNDATION / FOOTINGS BREAKDOWN -->
+  ${
+    footings.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>4. Foundation Isolated Footings Breakdown Schedule</span>
+    <span class="section-badge">${footings.length} Mark(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Footing Mark</th>
+          <th style="width: 110px">Size (L×B×Th)</th>
+          <th class="text-center" style="width: 45px">Nos</th>
+          <th style="width: 60px">Mix</th>
+          <th>Reinforcement (Bottom / Top)</th>
+          <th class="text-right" style="width: 55px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 85px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${footings
+          .map(
+            (f) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${f.sl}</td>
+          <td class="font-bold">${f.name}</td>
+          <td class="font-mono text-[9px]">${f.dimensions}</td>
+          <td class="text-center font-mono font-bold">${f.totalNos}</td>
+          <td class="font-mono text-[9px]">${f.mix}</td>
+          <td style="font-size: 8.5px; color: #334155;">${f.rebars}</td>
+          <td class="text-right font-mono">${f.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${f.cementBags}</td>
+          <td class="text-right font-mono">${f.sandCft}</td>
+          <td class="text-right font-mono">${f.aggCft}</td>
+          <td class="text-right font-mono font-bold">${f.steelKg}</td>
+          <td class="text-right font-mono font-bold">৳ ${f.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="font-bold">Total Footings Subtotal:</td>
+          <td class="text-center font-mono font-bold">${footings.reduce((sum, f) => sum + f.totalNos, 0)}</td>
+          <td colspan="2"></td>
+          <td class="text-right font-mono font-bold">${footings.reduce((sum, f) => sum + f.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${footings.reduce((sum, f) => sum + f.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${footings.reduce((sum, f) => sum + f.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${footings.reduce((sum, f) => sum + f.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${footings.reduce((sum, f) => sum + f.steelKg, 0)}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${footings.reduce((sum, f) => sum + f.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 5: COLUMNS BREAKDOWN -->
+  ${
+    columns.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>5. Building RCC Columns Breakdown Schedule</span>
+    <span class="section-badge">${columns.length} Mark(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Column Mark</th>
+          <th style="width: 85px">Size (b×h)</th>
+          <th style="width: 60px">Height</th>
+          <th class="text-center" style="width: 45px">Nos</th>
+          <th>Longitudinal Rebars</th>
+          <th>Lateral Ties</th>
+          <th class="text-right" style="width: 55px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 85px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${columns
+          .map(
+            (c) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${c.sl}</td>
+          <td class="font-bold">${c.name}</td>
+          <td class="font-mono text-[9px]">${c.size}</td>
+          <td class="font-mono text-[9px]">${c.height}</td>
+          <td class="text-center font-mono font-bold">${c.totalNos}</td>
+          <td class="font-mono text-[8.5px] font-bold" style="color: #007791;">${c.mainBars}</td>
+          <td style="font-size: 8.5px; color: #475569;">${c.ties}</td>
+          <td class="text-right font-mono">${c.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${c.cementBags}</td>
+          <td class="text-right font-mono">${c.sandCft}</td>
+          <td class="text-right font-mono">${c.aggCft}</td>
+          <td class="text-right font-mono font-bold">${c.steelKg}</td>
+          <td class="text-right font-mono font-bold">৳ ${c.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="font-bold">Total Columns Subtotal:</td>
+          <td class="text-center font-mono font-bold">${columns.reduce((sum, c) => sum + c.totalNos, 0)}</td>
+          <td colspan="2"></td>
+          <td class="text-right font-mono font-bold">${columns.reduce((sum, c) => sum + c.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${columns.reduce((sum, c) => sum + c.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${columns.reduce((sum, c) => sum + c.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${columns.reduce((sum, c) => sum + c.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${columns.reduce((sum, c) => sum + c.steelKg, 0)}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${columns.reduce((sum, c) => sum + c.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 6: BEAMS BREAKDOWN -->
+  ${
+    beams.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>6. Structural RCC Beams Breakdown Schedule</span>
+    <span class="section-badge">${beams.length} Mark(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Beam Mark</th>
+          <th style="width: 80px">Cross Sec</th>
+          <th style="width: 60px">Span</th>
+          <th class="text-center" style="width: 45px">Nos</th>
+          <th>Main Bottom/Top Rebar</th>
+          <th>Extra Bars & Stirrups</th>
+          <th class="text-right" style="width: 55px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 85px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${beams
+          .map(
+            (b) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${b.sl}</td>
+          <td class="font-bold">${b.name}</td>
+          <td class="font-mono text-[9px]">${b.size}</td>
+          <td class="font-mono text-[9px]">${b.span}</td>
+          <td class="text-center font-mono font-bold">${b.totalNos}</td>
+          <td class="font-mono text-[8.5px] font-bold" style="color: #007791;">${b.mainBars}</td>
+          <td style="font-size: 8.5px; color: #475569;">${b.extraBars} | ${b.stirrups}</td>
+          <td class="text-right font-mono">${b.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${b.cementBags}</td>
+          <td class="text-right font-mono">${b.sandCft}</td>
+          <td class="text-right font-mono">${b.aggCft}</td>
+          <td class="text-right font-mono font-bold">${b.steelKg}</td>
+          <td class="text-right font-mono font-bold">৳ ${b.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="font-bold">Total Beams Subtotal:</td>
+          <td class="text-center font-mono font-bold">${beams.reduce((sum, b) => sum + b.totalNos, 0)}</td>
+          <td colspan="2"></td>
+          <td class="text-right font-mono font-bold">${beams.reduce((sum, b) => sum + b.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${beams.reduce((sum, b) => sum + b.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${beams.reduce((sum, b) => sum + b.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${beams.reduce((sum, b) => sum + b.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${beams.reduce((sum, b) => sum + b.steelKg, 0)}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${beams.reduce((sum, b) => sum + b.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 7: SLABS BREAKDOWN -->
+  ${
+    slabs.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>7. Floor RCC Slabs Breakdown Schedule</span>
+    <span class="section-badge">${slabs.length} Mark(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Slab Mark</th>
+          <th style="width: 120px">Dimensions (L×W×Th)</th>
+          <th class="text-right" style="width: 75px">Area (sq.ft)</th>
+          <th class="text-center" style="width: 45px">Nos</th>
+          <th>Reinforcement (Main / Dist / Extra)</th>
+          <th class="text-right" style="width: 55px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 85px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${slabs
+          .map(
+            (sl) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${sl.sl}</td>
+          <td class="font-bold">${sl.name}</td>
+          <td class="font-mono text-[9px]">${sl.dimensions}</td>
+          <td class="text-right font-mono font-bold">${sl.areaSqft.toLocaleString()}</td>
+          <td class="text-center font-mono">${sl.totalNos}</td>
+          <td style="font-size: 8.5px; color: #334155;">Main: ${sl.mainBars}; Dist: ${sl.distBars}; Extra: ${sl.extraBars}</td>
+          <td class="text-right font-mono">${sl.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${sl.cementBags}</td>
+          <td class="text-right font-mono">${sl.sandCft}</td>
+          <td class="text-right font-mono">${sl.aggCft}</td>
+          <td class="text-right font-mono font-bold">${sl.steelKg}</td>
+          <td class="text-right font-mono font-bold">৳ ${sl.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="font-bold">Total Slabs Subtotal:</td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.areaSqft, 0).toLocaleString()}</td>
+          <td class="text-center font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.totalNos, 0)}</td>
+          <td></td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${slabs.reduce((sum, sl) => sum + sl.steelKg, 0)}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${slabs.reduce((sum, sl) => sum + sl.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 8: STAIRS BREAKDOWN -->
+  ${
+    stairs.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>8. Staircase Flights Breakdown Schedule</span>
+    <span class="section-badge">${stairs.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Flight Mark</th>
+          <th style="width: 130px">Dimensions & Waist</th>
+          <th style="width: 110px">Steps & Risers</th>
+          <th class="text-center" style="width: 50px">Flights</th>
+          <th>Reinforcement</th>
+          <th class="text-right" style="width: 55px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 85px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${stairs
+          .map(
+            (st) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${st.sl}</td>
+          <td class="font-bold">${st.name}</td>
+          <td class="font-mono text-[9px]">${st.dimensions}</td>
+          <td style="font-size: 8.5px;">${st.steps}</td>
+          <td class="text-center font-mono font-bold">${st.flights}</td>
+          <td style="font-size: 8.5px; color: #334155;">${st.rebar}</td>
+          <td class="text-right font-mono">${st.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${st.cementBags}</td>
+          <td class="text-right font-mono">${st.sandCft}</td>
+          <td class="text-right font-mono">${st.aggCft}</td>
+          <td class="text-right font-mono font-bold">${st.steelKg}</td>
+          <td class="text-right font-mono font-bold">৳ ${st.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="font-bold">Total Stairs Subtotal:</td>
+          <td class="text-center font-mono font-bold">${stairs.reduce((sum, st) => sum + st.flights, 0)}</td>
+          <td></td>
+          <td class="text-right font-mono font-bold">${stairs.reduce((sum, st) => sum + st.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${stairs.reduce((sum, st) => sum + st.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${stairs.reduce((sum, st) => sum + st.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${stairs.reduce((sum, st) => sum + st.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${stairs.reduce((sum, st) => sum + st.steelKg, 0)}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${stairs.reduce((sum, st) => sum + st.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 9: BRICKWORK BREAKDOWN -->
+  ${
+    bricks.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>9. Burnt Clay Brickwork & Partition Masonry Schedule</span>
+    <span class="section-badge">${bricks.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Wall Description</th>
+          <th style="width: 140px">Dimensions & Thickness</th>
+          <th>Openings & Deductions</th>
+          <th class="text-center" style="width: 50px">Storeys</th>
+          <th class="text-right" style="width: 85px">Bricks (Pcs)</th>
+          <th class="text-right" style="width: 75px">Cement (Bags)</th>
+          <th class="text-right" style="width: 75px">Sand (cft)</th>
+          <th class="text-right" style="width: 100px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bricks
+          .map(
+            (b) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${b.sl}</td>
+          <td class="font-bold">${b.name}</td>
+          <td class="font-mono text-[9px]">${b.dimensions}</td>
+          <td style="font-size: 8.5px; color: #475569;">${b.deductions}</td>
+          <td class="text-center font-mono">×${b.multiplier}</td>
+          <td class="text-right font-mono font-bold" style="color: #c2410c;">${b.bricksPcs.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${b.cementBags}</td>
+          <td class="text-right font-mono">${b.sandCft}</td>
+          <td class="text-right font-mono font-bold">৳ ${b.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" class="font-bold">Total Brickwork Subtotal:</td>
+          <td class="text-right font-mono font-bold">${bricks.reduce((sum, b) => sum + b.bricksPcs, 0).toLocaleString()} Pcs</td>
+          <td class="text-right font-mono font-bold">${bricks.reduce((sum, b) => sum + b.cementBags, 0)} Bags</td>
+          <td class="text-right font-mono font-bold">${bricks.reduce((sum, b) => sum + b.sandCft, 0).toFixed(1)} cft</td>
+          <td class="text-right font-mono grand-total-val">৳ ${bricks.reduce((sum, b) => sum + b.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 10: TILES BREAKDOWN -->
+  ${
+    tiles.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>10. Floor & Skirting Tiles Schedule</span>
+    <span class="section-badge">${tiles.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Room / Area Name</th>
+          <th style="width: 140px">Dimensions & Area</th>
+          <th>Tile Specification</th>
+          <th>Skirting</th>
+          <th class="text-center" style="width: 50px">Storeys</th>
+          <th class="text-right" style="width: 80px">Tiles (Pcs)</th>
+          <th class="text-right" style="width: 70px">Cement (Bags)</th>
+          <th class="text-right" style="width: 70px">Sand (cft)</th>
+          <th class="text-right" style="width: 95px">Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tiles
+          .map(
+            (t) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${t.sl}</td>
+          <td class="font-bold">${t.name}</td>
+          <td class="font-mono text-[9px]">${t.dimensions}</td>
+          <td style="font-size: 8.5px;">${t.tileSpec}</td>
+          <td style="font-size: 8.5px; color: #475569;">${t.skirting}</td>
+          <td class="text-center font-mono">×${t.multiplier}</td>
+          <td class="text-right font-mono font-bold" style="color: #0284c7;">${t.tilesPcs.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${t.cementBags}</td>
+          <td class="text-right font-mono">${t.sandCft}</td>
+          <td class="text-right font-mono font-bold">৳ ${t.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="6" class="font-bold">Total Tiles Subtotal:</td>
+          <td class="text-right font-mono font-bold">${tiles.reduce((sum, t) => sum + t.tilesPcs, 0).toLocaleString()} Pcs</td>
+          <td class="text-right font-mono font-bold">${tiles.reduce((sum, t) => sum + t.cementBags, 0)} Bags</td>
+          <td class="text-right font-mono font-bold">${tiles.reduce((sum, t) => sum + t.sandCft, 0).toFixed(1)} cft</td>
+          <td class="text-right font-mono grand-total-val">৳ ${tiles.reduce((sum, t) => sum + t.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 11: ESTIMATE FILE LIST -->
+  <div class="section-title avoid-break">
+    <span>11. Consolidated Project Budget & Saved Estimate Files (${estimates.length} Sheets)</span>
+    <span class="section-badge">Grand Summary</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 28px" class="text-center">#</th>
+          <th>Estimate File Title</th>
+          <th style="width: 85px">Component</th>
+          <th class="text-center" style="width: 75px">Date</th>
+          <th class="text-center" style="width: 65px">Multiplier</th>
+          <th class="text-right" style="width: 120px">Total Amount (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${estimates
+          .map(
+            (e, idx) => `<tr>
+          <td class="font-mono text-center" style="color: #64748b;">${idx + 1}</td>
+          <td class="font-bold">${e.name}</td>
+          <td style="text-transform: uppercase; font-size: 8.5px; font-weight: 700; color: #007791;">${e.type}</td>
+          <td class="text-center font-mono text-[9px]">${new Date(e.date).toLocaleDateString()}</td>
+          <td class="text-center font-mono">×${e.summary?.multiplier || e.data?.multiplier || 1}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(e.totalCost || 0).toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" class="text-right font-bold">Consolidated Project Estimate Grand Total:</td>
+          <td class="text-right grand-total-val font-mono">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
         </tr>
       </tfoot>
     </table>
@@ -896,49 +1321,132 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     link.href = url;
     link.download = `${project.name
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, "_")}_boq_report_${pageSize}.html`;
+      .replace(/[^a-z0-9]/g, "_")}_detailed_boq_${pageSize}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  // Export CSV with Unit, Unit Price, Quantity, Amount
+  // Comprehensive CSV Export with all breakdowns
   const handleExportCSV = () => {
-    let csv = `ASHRAF CIVIL STUDIO - BILL OF QUANTITIES REPORT\n`;
+    let csv = `ASHRAF CIVIL STUDIO - COMPREHENSIVE BILL OF QUANTITIES REPORT\n`;
     csv += `Project:,"${project.name}"\n`;
     csv += `Client:,"${project.client || "N/A"}"\n`;
     csv += `Location:,"${project.location || "N/A"}"\n`;
     csv += `Engineer:,"${project.engineer || "Engr. Ashraf"}"\n`;
     csv += `Date:,"${new Date().toLocaleDateString()}"\n`;
-    csv += `Page Format:,"${pageSize.toUpperCase()} ${orientation.toUpperCase()}",Top Margin:,"${marginTop}mm",Bottom Margin:,"${marginBottom}mm",Left Margin:,"${marginLeft}mm",Right Margin:,"${marginRight}mm"\n\n`;
+    csv += `Storeys:,"${project.stories || 1} Floor(s)",Multiplier:,"×${project.stories || 1}"\n\n`;
 
+    // 1. Consolidated Materials Schedule
     csv += `1. CONSOLIDATED MATERIALS SCHEDULE\n`;
     csv += `SL,Material Description,Specification,Unit,Unit Price (BDT),Quantity,Amount (BDT)\n`;
-    csv += `1,"Portland Composite Cement (PCC)","50 kg Bags, BDS EN 197-1 CEM II",Bag,${unitPriceCement},${totalCementBags},${Math.round(totalCementCost)}\n`;
-    csv += `2,"Coarse & Medium Sand (Sylhet + Local)","Fineness Modulus FM 1.5 - 2.5",cft,${unitPriceSand},${Math.round(totalSandCft)},${Math.round(totalSandCost)}\n`;
-    csv += `3,"Stone Aggregate / Picket Chips","3/4 inch down graded coarse agg",cft,${unitPriceAgg},${Math.round(totalAggCft)},${Math.round(totalAggCost)}\n`;
-    csv += `4,"High-Yield Strength Deformed Rebar","500W / 60G Rebar Steel",kg,${unitPriceSteel},${Math.round(totalSteelKg)},${Math.round(totalSteelCost)}\n`;
-    csv += `5,"First Class Burnt Clay Bricks","Standard Modular 9.5x4.5x2.75 in",Pcs,${unitPriceBrick},${totalBricks},${Math.round(totalBrickCost)}\n`;
-    if (totalTiles > 0) {
-      csv += `6,"Ceramic & Vitrified Tiles","Finished tile surface",Pcs,${unitPriceTile},${totalTiles},${Math.round(totalTileCost)}\n`;
+    csv += `1,"Portland Composite Cement (PCC)","50 kg Bags BDS EN 197-1 CEM II",Bag,${defaultCementRate},${totals.cementBags},${totals.cementBags * defaultCementRate}\n`;
+    csv += `2,"Coarse & Medium Sand (Sylhet + Local)","Fineness Modulus FM 1.5 - 2.5",cft,${defaultSandRate},${Math.round(totals.sandCft)},${Math.round(totals.sandCft * defaultSandRate)}\n`;
+    csv += `3,"Stone Aggregate / Picket Chips","3/4 inch down graded coarse agg",cft,${defaultAggRate},${Math.round(totals.aggCft)},${Math.round(totals.aggCft * defaultAggRate)}\n`;
+    csv += `4,"High-Yield Deformed Rebar Steel","500W / 60G (${totals.steelTons} MT)",kg,${defaultSteelRate},${totals.steelKg},${Math.round(totals.steelKg * defaultSteelRate)}\n`;
+    csv += `5,"First Class Burnt Clay Bricks","Standard Modular 9.5x4.5x2.75 in",Pcs,${defaultBrickRate},${totals.bricksPcs},${Math.round(totals.bricksPcs * defaultBrickRate)}\n`;
+    if (totals.tilesPcs > 0) {
+      csv += `6,"Ceramic & Vitrified Tiles","Finished tile surface",Pcs,${defaultTileRate},${totals.tilesPcs},${Math.round(totals.tilesPcs * defaultTileRate)}\n`;
     }
-    csv += `Subtotal Material Cost,,,,,,${Math.round(totalMaterialsCost)}\n\n`;
+    csv += `Consolidated Materials Subtotal Cost,,,,,,${totals.materialsCost}\n\n`;
 
-    csv += `2. ITEMIZED COMPONENT ESTIMATE BREAKDOWN\n`;
-    csv += `SL,Estimate Sheet Name,Component Type,Date,Unit,Unit Price (BDT),Quantity,Amount (BDT)\n`;
-    estimates.forEach((e, i) => {
-      const details = getEstimateItemDetails(e);
-      csv += `${i + 1},"${e.name}",${e.type.toUpperCase()},"${new Date(e.date).toLocaleDateString()}",${details.unit},${details.unitPrice},${details.qty},${details.amount}\n`;
+    // 2. Material Allocation Matrix
+    csv += `2. MATERIAL ALLOCATION MATRIX BY STRUCTURAL ELEMENT\n`;
+    csv += `Structural Element,Quantity,Concrete Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Bricks (Pcs),Tiles (Pcs),Subtotal (BDT)\n`;
+    allocations.forEach((a) => {
+      csv += `"${a.label}","${a.count > 0 ? `${a.count} ${a.unit}` : "-"}",${a.concreteVolCft},${a.cementBags},${Math.round(a.sandCft)},${Math.round(a.aggCft)},${a.steelKg},${a.bricksPcs},${a.tilesPcs},${a.cost}\n`;
     });
-    csv += `Grand Total Consolidated Estimated Cost,,,,,,,${Math.round(grandTotalCost)}\n`;
+    csv += `Total Quantities,-,${totals.concreteVolCft},${totals.cementBags},${Math.round(totals.sandCft)},${Math.round(totals.aggCft)},${totals.steelKg},${totals.bricksPcs},${totals.tilesPcs},${totals.grandTotalCost}\n\n`;
+
+    // 3. Rebar Diameter Breakdown
+    if (steelBreakdown.length > 0) {
+      csv += `3. STEEL REBAR DIAMETER BREAKDOWN\n`;
+      csv += `SL,Bar Diameter,Weight (kg),Tonnage (MT),Share (%),Rate (BDT),Amount (BDT)\n`;
+      steelBreakdown.forEach((st, i) => {
+        csv += `${i + 1},"${st.dia} mmø",${st.kg},${st.tons},${st.pct}%,${defaultSteelRate},${st.cost}\n`;
+      });
+      csv += `Total Steel,,${totals.steelKg},${totals.steelTons},100%,${defaultSteelRate},${Math.round(totals.steelKg * defaultSteelRate)}\n\n`;
+    }
+
+    // 4. Footings Breakdown
+    if (footings.length > 0) {
+      csv += `4. FOUNDATION FOOTINGS BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Footing Mark,Dimensions,Total Nos,Mix,Reinforcement,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
+      footings.forEach((f) => {
+        csv += `${f.sl},"${f.name}","${f.dimensions}",${f.totalNos},"${f.mix}","${f.rebars}",${f.wetVolCft},${f.cementBags},${f.sandCft},${f.aggCft},${f.steelKg},${f.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 5. Columns Breakdown
+    if (columns.length > 0) {
+      csv += `5. BUILDING COLUMNS BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Column Mark,Size,Height,Total Nos,Main Rebars,Lateral Ties,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
+      columns.forEach((c) => {
+        csv += `${c.sl},"${c.name}","${c.size}","${c.height}",${c.totalNos},"${c.mainBars}","${c.ties}",${c.wetVolCft},${c.cementBags},${c.sandCft},${c.aggCft},${c.steelKg},${c.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 6. Beams Breakdown
+    if (beams.length > 0) {
+      csv += `6. STRUCTURAL BEAMS BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Beam Mark,Cross Section,Span,Total Nos,Main Bars,Extra Bars & Stirrups,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
+      beams.forEach((b) => {
+        csv += `${b.sl},"${b.name}","${b.size}","${b.span}",${b.totalNos},"${b.mainBars}","${b.extraBars} | ${b.stirrups}",${b.wetVolCft},${b.cementBags},${b.sandCft},${b.aggCft},${b.steelKg},${b.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 7. Slabs Breakdown
+    if (slabs.length > 0) {
+      csv += `7. FLOOR SLABS BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Slab Mark,Dimensions,Area (sq.ft),Total Nos,Reinforcement,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
+      slabs.forEach((sl) => {
+        csv += `${sl.sl},"${sl.name}","${sl.dimensions}",${sl.areaSqft},${sl.totalNos},"Main: ${sl.mainBars}; Dist: ${sl.distBars}",${sl.wetVolCft},${sl.cementBags},${sl.sandCft},${sl.aggCft},${sl.steelKg},${sl.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 8. Stairs Breakdown
+    if (stairs.length > 0) {
+      csv += `8. STAIRCASES BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Flight Mark,Dimensions,Steps,Flights,Reinforcement,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
+      stairs.forEach((st) => {
+        csv += `${st.sl},"${st.name}","${st.dimensions}","${st.steps}",${st.flights},"${st.rebar}",${st.wetVolCft},${st.cementBags},${st.sandCft},${st.aggCft},${st.steelKg},${st.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 9. Brickwork Breakdown
+    if (bricks.length > 0) {
+      csv += `9. BRICKWORK & MASONRY BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Wall Description,Dimensions,Deductions,Storeys,Bricks (Pcs),Cement (Bags),Sand (cft),Cost (BDT)\n`;
+      bricks.forEach((b) => {
+        csv += `${b.sl},"${b.name}","${b.dimensions}","${b.deductions}",${b.multiplier},${b.bricksPcs},${b.cementBags},${b.sandCft},${b.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 10. Tiles Breakdown
+    if (tiles.length > 0) {
+      csv += `10. FLOOR TILES BREAKDOWN SCHEDULE\n`;
+      csv += `SL,Room Name,Dimensions,Tile Spec,Skirting,Storeys,Tiles (Pcs),Cement (Bags),Sand (cft),Cost (BDT)\n`;
+      tiles.forEach((t) => {
+        csv += `${t.sl},"${t.name}","${t.dimensions}","${t.tileSpec}","${t.skirting}",${t.multiplier},${t.tilesPcs},${t.cementBags},${t.sandCft},${t.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    csv += `Consolidated Project Estimate Grand Total Cost,,,,,,,,,,${totals.grandTotalCost}\n`;
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute(
       "download",
-      `${project.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_boq_report.csv`
+      `${project.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_detailed_boq.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -947,7 +1455,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   return (
     <div className="report-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xs overflow-y-auto">
-      <div className="report-modal-card bg-[#152033] border border-[#2d4a6a] rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="report-modal-card bg-[#152033] border border-[#2d4a6a] rounded-2xl w-full max-w-6xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Top Header & Actions Bar (Hidden during print) */}
         <div className="px-4 py-3 bg-[#1a2b42] border-b border-[#2d4a6a] flex flex-wrap items-center justify-between gap-2.5 shrink-0 print:hidden">
@@ -957,14 +1465,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                BOQ Report & PDF Export Studio
+                Detailed BOQ & PDF Export Studio
               </h3>
               <p className="text-[10px] text-[#8ba3c1]">
                 Project: <strong className="text-white">{project.name}</strong> •{" "}
-                {estimates.length} sheets • Paper:{" "}
+                <span className="text-[#00c2c7] font-bold">{project.stories || 1} Floor(s)</span> •{" "}
+                {estimates.length} sheets • Format:{" "}
                 <span className="text-[#00c2c7] font-bold uppercase">{pageSize}</span>{" "}
-                ({orientation}) • Columns:{" "}
-                <span className="text-[#2ecc71] font-semibold">Unit, Unit Price, Qty, Amount</span>
+                ({orientation}) • Separated:{" "}
+                <span className="text-[#2ecc71] font-semibold">Columns, Beams, Footings & Materials</span>
               </p>
             </div>
           </div>
@@ -982,7 +1491,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               title="Show/Hide Margins, Padding & Page Size Settings"
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Page & Margin Controls</span>
+              <span>Page & Margins</span>
             </button>
 
             {/* Paper Preview Toggle */}
@@ -1026,7 +1535,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-1 bg-[#243b55] hover:bg-[#2d4a6a] text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border border-[#2d4a6a]"
-              title="Export as CSV spreadsheet"
+              title="Export complete breakdown as CSV spreadsheet"
             >
               <Download className="w-3.5 h-3.5 text-[#00c2c7]" />
               <span className="hidden md:inline">CSV</span>
@@ -1036,8 +1545,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             <button
               onClick={handlePrint}
               disabled={isPrinting}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-md shadow-[#00c2c7]/20 active:scale-95 disabled:opacity-50"
-              title="Print or Save PDF with exact margins, paper size and all columns"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-md shadow-[#00c2c7]/20 active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Print or Save PDF with exact margins, paper size and all separated breakdowns"
             >
               <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>{isPrinting ? "Opening Print Dialog..." : "Print / Save PDF"}</span>
@@ -1054,11 +1563,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           </div>
         </div>
 
-        {/* DETAILED PDF CONTROLS PANEL: TOP, BOTTOM, LEFT, RIGHT MARGINS & A4/LETTER/LEGAL */}
+        {/* DETAILED PDF CONTROLS PANEL */}
         {showSettings && (
-          <div className="bg-[#121c2d] border-b border-[#2d4a6a] px-4 py-3 text-xs text-[#8ba3c1] print:hidden shrink-0 space-y-3 shadow-inner">
-            
-            {/* Row 1: Page Size (A4, Letter, Legal), Orientation, and Margin Presets */}
+          <div className="bg-[#121c2d] border-b border-[#2d4a6a] px-4 py-2.5 text-xs text-[#8ba3c1] print:hidden shrink-0 space-y-2.5 shadow-inner">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Paper Format: A4, Letter, Legal */}
               <div className="flex items-center gap-2">
@@ -1075,7 +1582,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
                         : "text-[#8ba3c1] hover:text-white"
                     }`}
-                    title="A4 Standard: 210 × 297 mm (Standard International)"
                   >
                     A4 (210×297)
                   </button>
@@ -1087,7 +1593,6 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
                         : "text-[#8ba3c1] hover:text-white"
                     }`}
-                    title="Letter Standard: 8.5 × 11 in (216 × 279 mm)"
                   >
                     Letter (8.5×11")
                   </button>
@@ -1099,20 +1604,22 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
                         : "text-[#8ba3c1] hover:text-white"
                     }`}
-                    title="Legal Standard: 8.5 × 14 in (216 × 356 mm)"
                   >
                     Legal (8.5×14")
                   </button>
                 </div>
+              </div>
 
-                {/* Orientation: Portrait / Landscape */}
-                <div className="inline-flex rounded-lg bg-[#1a2b42] p-0.5 border border-[#2d4a6a] ml-1">
+              {/* Orientation: Portrait / Landscape */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-white">Orientation:</span>
+                <div className="inline-flex rounded-lg bg-[#1a2b42] p-0.5 border border-[#2d4a6a]">
                   <button
                     type="button"
                     onClick={() => setOrientation("portrait")}
-                    className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                    className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
                       orientation === "portrait"
-                        ? "bg-[#f5a623] text-[#0f1c2e]"
+                        ? "bg-[#00c2c7] text-[#0f1c2e] font-bold shadow-sm"
                         : "text-[#8ba3c1] hover:text-white"
                     }`}
                   >
@@ -1121,344 +1628,144 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setOrientation("landscape")}
-                    className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                    className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
                       orientation === "landscape"
-                        ? "bg-[#f5a623] text-[#0f1c2e]"
+                        ? "bg-[#00c2c7] text-[#0f1c2e] font-bold shadow-sm"
                         : "text-[#8ba3c1] hover:text-white"
                     }`}
-                    title="Landscape orientation (wider tables)"
                   >
                     Landscape
                   </button>
                 </div>
               </div>
 
-              {/* Quick Margin Presets */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold text-white">Presets:</span>
-                <div className="inline-flex rounded-lg bg-[#1a2b42] p-0.5 border border-[#2d4a6a]">
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("standard")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginTop === 15 &&
-                      marginBottom === 15 &&
-                      marginLeft === 15 &&
-                      marginRight === 15
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="15 mm all sides (Standard BNBC / ACI)"
-                  >
-                    Normal (15mm)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("compact")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginTop === 8 &&
-                      marginBottom === 8 &&
-                      marginLeft === 8 &&
-                      marginRight === 8
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="8 mm all sides (Compact economic print)"
-                  >
-                    Compact (8mm)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("narrow")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginTop === 5 &&
-                      marginBottom === 5 &&
-                      marginLeft === 5 &&
-                      marginRight === 5
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="5 mm narrow margins (Maximizes page content)"
-                  >
-                    Narrow (5mm)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("spacious")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginTop === 20 &&
-                      marginBottom === 20 &&
-                      marginLeft === 20 &&
-                      marginRight === 20
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="20 mm wide margins (Formal executive presentation)"
-                  >
-                    Wide (20mm)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("binding")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginLeft === 25 &&
-                      marginRight === 12 &&
-                      marginTop === 15 &&
-                      marginBottom === 15
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="Extra left margin (25mm) for punched holes & spiral folder binding"
-                  >
-                    Left Binding (25mm)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyMarginPreset("zero")}
-                    className={`px-2.5 py-1 rounded text-[10px] font-semibold transition ${
-                      marginTop === 0 &&
-                      marginBottom === 0 &&
-                      marginLeft === 0 &&
-                      marginRight === 0
-                        ? "bg-[#2ecc71] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="Zero margins (0mm) - for borderless print or driver handling"
-                  >
-                    Zero (0mm)
-                  </button>
-                </div>
-              </div>
-
-              {/* Table Padding Density */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-white">Padding:</span>
-                <div className="inline-flex rounded-lg bg-[#1a2b42] p-0.5 border border-[#2d4a6a]">
-                  <button
-                    type="button"
-                    onClick={() => setPaddingDensity("compact")}
-                    className={`px-2 py-1 rounded text-[10px] font-semibold transition ${
-                      paddingDensity === "compact"
-                        ? "bg-[#f5a623] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="Dense table cells (3px 6px padding)"
-                  >
-                    Dense (3px)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaddingDensity("normal")}
-                    className={`px-2 py-1 rounded text-[10px] font-semibold transition ${
-                      paddingDensity === "normal"
-                        ? "bg-[#f5a623] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="Standard table cells (6px 9px padding)"
-                  >
-                    Normal (6px)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaddingDensity("spacious")}
-                    className={`px-2 py-1 rounded text-[10px] font-semibold transition ${
-                      paddingDensity === "spacious"
-                        ? "bg-[#f5a623] text-[#0f1c2e] font-bold"
-                        : "text-[#8ba3c1] hover:text-white"
-                    }`}
-                    title="Roomy table cells (9px 12px padding)"
-                  >
-                    Roomy (9px)
-                  </button>
-                </div>
+              {/* Margin Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-[#8ba3c1] font-semibold">Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset("standard")}
+                  className="px-2 py-0.5 rounded bg-[#1a2b42] hover:bg-[#243b55] text-[10px] font-medium text-white border border-[#2d4a6a]"
+                >
+                  Standard (15mm)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset("compact")}
+                  className="px-2 py-0.5 rounded bg-[#1a2b42] hover:bg-[#243b55] text-[10px] font-medium text-white border border-[#2d4a6a]"
+                >
+                  Compact (10mm)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset("binding")}
+                  className="px-2 py-0.5 rounded bg-[#1a2b42] hover:bg-[#243b55] text-[10px] font-medium text-white border border-[#2d4a6a]"
+                >
+                  Binding (25mm)
+                </button>
               </div>
             </div>
 
-            {/* Row 2: Individual TOP, BOTTOM, LEFT, RIGHT Margins with Steppers & Link */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-[#2d4a6a]/60 bg-[#0d1624] p-2.5 rounded-xl border border-[#243b55]">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-[11px] font-bold text-[#00c2c7] uppercase tracking-wider flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5" />
-                  Exact Margins (mm):
-                </span>
-
-                {/* Top Margin */}
-                <div className="flex items-center gap-1 bg-[#1a2b42] border border-[#2d4a6a] px-1.5 py-1 rounded-lg">
-                  <ArrowUp className="w-3 h-3 text-[#f5a623]" />
-                  <span className="text-[10px] font-semibold text-[#8ba3c1]">Top:</span>
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("top", -1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Decrease 1mm"
-                  >
-                    -
-                  </button>
+            {/* Row 2: 4 Margins & Density */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-[#2d4a6a]/60">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold text-white">Margins (mm):</span>
+                {/* Top */}
+                <div className="flex items-center gap-1 bg-[#1a2b42] px-1.5 py-0.5 rounded border border-[#2d4a6a]">
+                  <span className="text-[9px] text-[#8ba3c1]">Top:</span>
                   <input
                     type="number"
                     min={0}
                     max={60}
                     value={marginTop}
-                    onChange={(e) => handleMarginChange("top", Number(e.target.value))}
-                    className="w-8 bg-transparent text-white text-center font-mono font-bold text-xs outline-none"
+                    onChange={(e) => handleMarginChange("top", parseInt(e.target.value) || 0)}
+                    className="w-8 bg-transparent text-center font-mono font-bold text-white text-xs outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("top", 1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Increase 1mm"
-                  >
-                    +
-                  </button>
-                  <span className="text-[9px] text-[#8ba3c1] pr-1">mm</span>
+                  <span className="text-[9px] text-[#8ba3c1]">mm</span>
                 </div>
-
-                {/* Bottom Margin */}
-                <div className="flex items-center gap-1 bg-[#1a2b42] border border-[#2d4a6a] px-1.5 py-1 rounded-lg">
-                  <ArrowDown className="w-3 h-3 text-[#f5a623]" />
-                  <span className="text-[10px] font-semibold text-[#8ba3c1]">Bottom:</span>
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("bottom", -1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Decrease 1mm"
-                  >
-                    -
-                  </button>
+                {/* Bottom */}
+                <div className="flex items-center gap-1 bg-[#1a2b42] px-1.5 py-0.5 rounded border border-[#2d4a6a]">
+                  <span className="text-[9px] text-[#8ba3c1]">Btm:</span>
                   <input
                     type="number"
                     min={0}
                     max={60}
                     value={marginBottom}
-                    onChange={(e) => handleMarginChange("bottom", Number(e.target.value))}
-                    className="w-8 bg-transparent text-white text-center font-mono font-bold text-xs outline-none"
+                    onChange={(e) => handleMarginChange("bottom", parseInt(e.target.value) || 0)}
+                    className="w-8 bg-transparent text-center font-mono font-bold text-white text-xs outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("bottom", 1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Increase 1mm"
-                  >
-                    +
-                  </button>
-                  <span className="text-[9px] text-[#8ba3c1] pr-1">mm</span>
+                  <span className="text-[9px] text-[#8ba3c1]">mm</span>
                 </div>
-
-                {/* Left Margin */}
-                <div className="flex items-center gap-1 bg-[#1a2b42] border border-[#2d4a6a] px-1.5 py-1 rounded-lg">
-                  <ArrowLeft className="w-3 h-3 text-[#00c2c7]" />
-                  <span className="text-[10px] font-semibold text-[#8ba3c1]">Left:</span>
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("left", -1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Decrease 1mm"
-                  >
-                    -
-                  </button>
+                {/* Left */}
+                <div className="flex items-center gap-1 bg-[#1a2b42] px-1.5 py-0.5 rounded border border-[#2d4a6a]">
+                  <span className="text-[9px] text-[#8ba3c1]">Left:</span>
                   <input
                     type="number"
                     min={0}
                     max={60}
                     value={marginLeft}
-                    onChange={(e) => handleMarginChange("left", Number(e.target.value))}
-                    className="w-8 bg-transparent text-white text-center font-mono font-bold text-xs outline-none"
+                    onChange={(e) => handleMarginChange("left", parseInt(e.target.value) || 0)}
+                    className="w-8 bg-transparent text-center font-mono font-bold text-white text-xs outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("left", 1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Increase 1mm"
-                  >
-                    +
-                  </button>
-                  <span className="text-[9px] text-[#8ba3c1] pr-1">mm</span>
+                  <span className="text-[9px] text-[#8ba3c1]">mm</span>
                 </div>
-
-                {/* Right Margin */}
-                <div className="flex items-center gap-1 bg-[#1a2b42] border border-[#2d4a6a] px-1.5 py-1 rounded-lg">
-                  <ArrowRight className="w-3 h-3 text-[#00c2c7]" />
-                  <span className="text-[10px] font-semibold text-[#8ba3c1]">Right:</span>
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("right", -1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Decrease 1mm"
-                  >
-                    -
-                  </button>
+                {/* Right */}
+                <div className="flex items-center gap-1 bg-[#1a2b42] px-1.5 py-0.5 rounded border border-[#2d4a6a]">
+                  <span className="text-[9px] text-[#8ba3c1]">Right:</span>
                   <input
                     type="number"
                     min={0}
                     max={60}
                     value={marginRight}
-                    onChange={(e) => handleMarginChange("right", Number(e.target.value))}
-                    className="w-8 bg-transparent text-white text-center font-mono font-bold text-xs outline-none"
+                    onChange={(e) => handleMarginChange("right", parseInt(e.target.value) || 0)}
+                    className="w-8 bg-transparent text-center font-mono font-bold text-white text-xs outline-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => stepMargin("right", 1)}
-                    className="w-4 h-4 flex items-center justify-center bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded text-[10px]"
-                    title="Increase 1mm"
-                  >
-                    +
-                  </button>
-                  <span className="text-[9px] text-[#8ba3c1] pr-1">mm</span>
+                  <span className="text-[9px] text-[#8ba3c1]">mm</span>
                 </div>
 
-                {/* Link Margins Toggle */}
                 <button
                   type="button"
                   onClick={() => setIsMarginsLinked(!isMarginsLinked)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition border ${
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition border ${
                     isMarginsLinked
                       ? "bg-[#00c2c7]/20 text-[#00c2c7] border-[#00c2c7]"
                       : "bg-[#1a2b42] text-[#8ba3c1] border-[#2d4a6a] hover:text-white"
                   }`}
-                  title="Lock/Link all 4 margins so they update simultaneously"
+                  title="Link all 4 margins"
                 >
-                  {isMarginsLinked ? (
-                    <>
-                      <LinkIcon className="w-3 h-3 text-[#00c2c7]" />
-                      <span>Linked</span>
-                    </>
-                  ) : (
-                    <>
-                      <Unlink className="w-3 h-3 text-[#8ba3c1]" />
-                      <span>Unlinked</span>
-                    </>
-                  )}
+                  {isMarginsLinked ? <LinkIcon className="w-3 h-3" /> : <Unlink className="w-3 h-3" />}
+                  <span>{isMarginsLinked ? "Linked" : "Unlinked"}</span>
                 </button>
               </div>
 
-              {/* Font Size & Filter Sheets */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[#8ba3c1]">Font:</span>
-                <select
-                  value={fontSizePt}
-                  onChange={(e) => setFontSizePt(Number(e.target.value))}
-                  className="bg-[#1a2b42] text-white border border-[#2d4a6a] rounded px-2 py-1 text-[10px] outline-none"
-                >
-                  <option value={9}>9 pt (Ultra Dense)</option>
-                  <option value={10}>10 pt (Standard)</option>
-                  <option value={11}>11 pt (Large)</option>
-                  <option value={12}>12 pt (Extra Large)</option>
-                </select>
-
-                {allEstimates.length > 1 && (
+              {/* Font Size & Spacing Density */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[#8ba3c1]">Font:</span>
                   <select
-                    value={selectedSheetFilter}
-                    onChange={(e) => setSelectedSheetFilter(e.target.value)}
-                    className="bg-[#1a2b42] text-[#00c2c7] border border-[#2d4a6a] rounded px-2 py-1 text-[10px] outline-none max-w-[140px] truncate"
+                    value={fontSizePt}
+                    onChange={(e) => setFontSizePt(Number(e.target.value))}
+                    className="bg-[#1a2b42] text-white border border-[#2d4a6a] rounded px-2 py-0.5 text-[10px] outline-none"
                   >
-                    <option value="all">All Sheets ({allEstimates.length})</option>
-                    {allEstimates.map((est) => (
-                      <option key={est.id} value={est.id}>
-                        {est.name}
-                      </option>
-                    ))}
+                    <option value={9}>9 pt (Ultra Dense)</option>
+                    <option value={10}>10 pt (Standard)</option>
+                    <option value={11}>11 pt (Large)</option>
+                    <option value={12}>12 pt (Extra Large)</option>
                   </select>
-                )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-[#8ba3c1]">Padding:</span>
+                  <select
+                    value={paddingDensity}
+                    onChange={(e) => setPaddingDensity(e.target.value as PaddingDensity)}
+                    className="bg-[#1a2b42] text-white border border-[#2d4a6a] rounded px-2 py-0.5 text-[10px] outline-none"
+                  >
+                    <option value="compact">Compact (3×6px)</option>
+                    <option value="normal">Normal (5×8px)</option>
+                    <option value="spacious">Spacious (7×11px)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -1489,16 +1796,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             {/* Visual Margin Guideline Indicators in Paper Preview */}
             {isPaperPreview && (
               <div
-                className="absolute inset-0 pointer-events-none border border-dashed border-sky-400/40 print:hidden z-10"
+                className="absolute inset-0 pointer-events-none border border-dashed border-sky-400/30 print:hidden z-10"
                 style={{
                   top: `${marginTop}mm`,
                   bottom: `${marginBottom}mm`,
                   left: `${marginLeft}mm`,
                   right: `${marginRight}mm`,
                 }}
-                title={`Printable margin boundary: Top ${marginTop}mm, Bottom ${marginBottom}mm, Left ${marginLeft}mm, Right ${marginRight}mm`}
               >
-                {/* Margin measurement badge */}
                 <div className="absolute top-1 right-1 text-[8px] font-mono bg-sky-100 text-sky-800 px-1 py-0.5 rounded opacity-70">
                   {marginTop}mm / {marginRight}mm
                 </div>
@@ -1513,10 +1818,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   <span>ASHRAF CIVIL STUDIO • STRUCTURAL & CIVIL ENGINEERING</span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-white print:text-slate-900 tracking-tight">
-                  Bill of Quantities (BOQ) & Cost Schedule
+                  Bill of Quantities (BOQ) & Component Takeoff
                 </h1>
                 <p className="text-xs text-[#8ba3c1] print:text-slate-600 mt-0.5">
-                  Comprehensive Takeoff Matrix with Unit, Unit Price, Quantity & Amount Breakdown
+                  Complete Breakdown for Columns, Beams, Footings, Slabs, Stairs & Separated Materials
                 </p>
               </div>
 
@@ -1539,7 +1844,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   </strong>
                 </div>
                 <div className="text-[10px] text-[#00c2c7] print:text-blue-700 font-mono font-semibold">
-                  Standard: BNBC / ACI 318 Standard
+                  BNBC / ACI 318 Standard
                 </div>
               </div>
             </div>
@@ -1582,13 +1887,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <span className="text-[#8ba3c1] print:text-slate-500 block text-[9px] uppercase font-bold tracking-wider">
                   Paper & Margins:
                 </span>
-                <strong className="text-white print:text-slate-900 block uppercase font-mono text-[11px]">
-                  {pageSize} {orientation[0].toUpperCase()} • T:{marginTop} B:{marginBottom} L:{marginLeft} R:{marginRight}mm
+                <strong className="text-white print:text-slate-900 block uppercase font-mono text-[10px]">
+                  {pageSize} • T:{marginTop} B:{marginBottom} L:{marginLeft} R:{marginRight}mm
                 </strong>
               </div>
             </div>
 
-            {/* Table 1: Consolidated Structural Materials Schedule */}
+            {/* SECTION 1: CONSOLIDATED MATERIALS SCHEDULE */}
             <div className="space-y-1.5 print-avoid-break">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -1597,8 +1902,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   </span>
                   Consolidated Structural Materials Schedule
                 </h4>
-                <span className="text-[10px] text-[#8ba3c1] print:text-slate-500">
-                  Aggregated Quantities & Rates
+                <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                  Consolidated Takeoff Totals
                 </span>
               </div>
 
@@ -1610,148 +1915,100 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <th style={{ padding: cellPaddingCss }}>Material Description & Specification</th>
                       <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-center">Unit</th>
                       <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Unit Price (৳)</th>
-                      <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Quantity</th>
+                      <th style={{ padding: cellPaddingCss, width: "105px" }} className="text-right">Total Quantity</th>
                       <th style={{ padding: cellPaddingCss, width: "125px" }} className="text-right">Amount (BDT)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
-                    {/* 1. Cement */}
+                    {/* Cement */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">1</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         Portland Composite Cement (PCC)
-                        <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Standard 50 kg bags (BDS EN 197-1 CEM II)
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          Standard 50 kg bags (BDS EN 197-1 CEM II / ACI 318)
                         </div>
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                        Bag
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                        ৳ {unitPriceCement.toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                        {totalCementBags.toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                        ৳ {Math.round(totalCementCost).toLocaleString("en-IN")}
-                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Bag</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultCementRate.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.cementBags.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {(totals.cementBags * defaultCementRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 2. Sand */}
+                    {/* Sand */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">2</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        Coarse & Medium Sand (Sylhet + Local)
-                        <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Fineness Modulus FM 1.5 - 2.5
+                        Coarse & Medium Sand (Sylhet FM 2.5 + Local FM 1.5)
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          Graded sand for structural concrete, mortar & plastering
                         </div>
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                        cft
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                        ৳ {unitPriceSand}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                        {Math.round(totalSandCft).toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                        ৳ {Math.round(totalSandCost).toLocaleString("en-IN")}
-                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSandRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.sandCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.sandCft * defaultSandRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 3. Aggregate */}
+                    {/* Aggregate */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">3</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         Crushed Stone Aggregate / Picket Chips
-                        <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          3/4" down graded angular coarse aggregate
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          3/4" down-graded angular coarse aggregate
                         </div>
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                        cft
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                        ৳ {unitPriceAgg}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                        {Math.round(totalAggCft).toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                        ৳ {Math.round(totalAggCost).toLocaleString("en-IN")}
-                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultAggRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.aggCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 4. Steel */}
+                    {/* Steel */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">4</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        High-Yield Strength Deformed Rebar
-                        <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Grade 500W / 60G Thermo-Mechanically Treated
+                        High-Yield Strength Deformed Rebar Steel
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          Grade 500W / 60G Thermo-Mechanically Treated ({totals.steelTons} MT)
                         </div>
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                        kg
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                        ৳ {unitPriceSteel}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                        {Math.round(totalSteelKg).toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                        ৳ {Math.round(totalSteelCost).toLocaleString("en-IN")}
-                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">kg</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSteelRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.steelKg.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 5. Bricks */}
+                    {/* Bricks */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">5</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         First Class Burnt Clay Bricks
-                        <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
                           Standard Modular 9.5" × 4.5" × 2.75"
                         </div>
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                        Pcs
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                        ৳ {unitPriceBrick}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                        {totalBricks.toLocaleString()}
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                        ৳ {Math.round(totalBrickCost).toLocaleString("en-IN")}
-                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Pcs</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultBrickRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.bricksPcs.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.bricksPcs * defaultBrickRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 6. Tiles (if any) */}
-                    {totalTiles > 0 && (
+                    {/* Tiles */}
+                    {totals.tilesPcs > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                         <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">6</td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                          Floor / Wall Ceramic & Vitrified Tiles
-                          <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                            Finished tile surface including cuts & wastage
+                          Floor & Wall Ceramic / Vitrified Tiles
+                          <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                            Finished tile units including skirting and cuts
                           </div>
                         </td>
-                        <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                          Pcs
-                        </td>
-                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                          ৳ {unitPriceTile}
-                        </td>
-                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                          {totalTiles.toLocaleString()}
-                        </td>
-                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
-                          ৳ {Math.round(totalTileCost).toLocaleString("en-IN")}
-                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Pcs</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultTileRate}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.tilesPcs.toLocaleString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.tilesPcs * defaultTileRate).toLocaleString("en-IN")}</td>
                       </tr>
                     )}
                   </tbody>
@@ -1761,7 +2018,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         Consolidated Materials Subtotal Cost:
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right text-sm text-[#2ecc71] print:text-slate-950 font-black font-mono">
-                        ৳ {Math.round(totalMaterialsCost).toLocaleString("en-IN")}
+                        ৳ {totals.materialsCost.toLocaleString("en-IN")}
                       </td>
                     </tr>
                   </tfoot>
@@ -1769,17 +2026,654 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               </div>
             </div>
 
-            {/* Table 2: Individual Itemized Component Sheets Breakdown */}
+            {/* SECTION 2: COMPONENT VS MATERIAL ALLOCATION MATRIX */}
             <div className="space-y-1.5 print-avoid-break">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
                     2
                   </span>
-                  Itemized Component Estimate Breakdown ({estimates.length} Sheets)
+                  Material Allocation Matrix by Structural Component
                 </h4>
-                <span className="text-[10px] text-[#8ba3c1] print:text-slate-500">
-                  Individual Module Takeoffs
+                <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                  Cross-Tab Component Distribution
+                </span>
+              </div>
+
+              <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                    <tr>
+                      <th style={{ padding: cellPaddingCss }}>Structural Element</th>
+                      <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Wet Conc (cft)</th>
+                      <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Cement (Bags)</th>
+                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Sand (cft)</th>
+                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Stone (cft)</th>
+                      <th style={{ padding: cellPaddingCss, width: "70px" }} className="text-right">Steel (kg)</th>
+                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Bricks (Pcs)</th>
+                      <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Tiles (Pcs)</th>
+                      <th style={{ padding: cellPaddingCss, width: "105px" }} className="text-right">Subtotal (BDT)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                    {allocations.map((a) => (
+                      <tr key={a.key} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                          {a.label}{" "}
+                          {a.count > 0 && (
+                            <span className="text-[9px] text-[#8ba3c1] print:text-slate-500 font-normal">
+                              ({a.count.toLocaleString()} {a.unit})
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
+                          {a.concreteVolCft > 0 ? a.concreteVolCft.toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">
+                          {a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
+                          {a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
+                          {a.aggCft > 0 ? Math.round(a.aggCft).toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">
+                          {a.steelKg > 0 ? a.steelKg.toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#f97316] print:text-slate-700">
+                          {a.bricksPcs > 0 ? a.bricksPcs.toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#38bdf8] print:text-slate-700">
+                          {a.tilesPcs > 0 ? a.tilesPcs.toLocaleString() : "—"}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">
+                          ৳ {a.cost.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                    <tr>
+                      <td style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">
+                        Total Material Quantities:
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
+                        {totals.concreteVolCft.toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">
+                        {totals.cementBags.toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
+                        {Math.round(totals.sandCft).toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
+                        {Math.round(totals.aggCft).toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">
+                        {totals.steelKg.toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f97316] print:text-slate-900">
+                        {totals.bricksPcs.toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#38bdf8] print:text-slate-900">
+                        {totals.tilesPcs.toLocaleString()}
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val text-sm font-black">
+                        ৳ {totals.grandTotalCost.toLocaleString("en-IN")}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* SECTION 3: REBAR STEEL REINFORCEMENT BREAKDOWN */}
+            {steelBreakdown.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      3
+                    </span>
+                    Rebar Steel Diameter Breakdown ({totals.steelTons} Metric Tons)
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    Grade 500W / 60G Deformed Rebar
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "28px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Rebar Bar Size & Specification</th>
+                        <th style={{ padding: cellPaddingCss, width: "100px" }} className="text-right">Weight (kg)</th>
+                        <th style={{ padding: cellPaddingCss, width: "100px" }} className="text-right">Tonnage (MT)</th>
+                        <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Share (%)</th>
+                        <th style={{ padding: cellPaddingCss, width: "90px" }} className="text-right">Rate (৳/kg)</th>
+                        <th style={{ padding: cellPaddingCss, width: "120px" }} className="text-right">Amount (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {steelBreakdown.map((st, i) => (
+                        <tr key={st.dia} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{i + 1}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                            {st.dia} mmø Deformed Rebar{" "}
+                            <span className="text-[9px] text-[#8ba3c1] print:text-slate-500 font-normal">
+                              (ASTM #{Math.round(st.dia / 3.175)})
+                            </span>
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{st.kg.toLocaleString()} kg</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{st.tons} MT</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{st.pct}%</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSteelRate}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {st.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={2} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
+                          Total Steel Rebar Quantity:
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{totals.steelKg.toLocaleString()} kg</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{totals.steelTons} MT</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">100.0%</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSteelRate}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 4: FOUNDATION / FOOTINGS BREAKDOWN */}
+            {footings.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      4
+                    </span>
+                    Foundation Isolated Footings Breakdown Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {footings.length} Footing Mark(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Footing Mark</th>
+                        <th style={{ padding: cellPaddingCss, width: "105px" }}>Size (L×B×Th)</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }}>Mix</th>
+                        <th style={{ padding: cellPaddingCss }}>Reinforcement (Bottom / Top)</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {footings.map((f) => (
+                        <tr key={f.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{f.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{f.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{f.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{f.totalNos}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{f.mix}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{f.rebars}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{f.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{f.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{f.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{f.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{f.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {f.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={3} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Footings Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{footings.reduce((sum, f) => sum + f.totalNos, 0)}</td>
+                        <td colSpan={2}></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{footings.reduce((sum, f) => sum + f.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{footings.reduce((sum, f) => sum + f.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{footings.reduce((sum, f) => sum + f.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{footings.reduce((sum, f) => sum + f.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{footings.reduce((sum, f) => sum + f.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {footings.reduce((sum, f) => sum + f.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 5: COLUMNS BREAKDOWN */}
+            {columns.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      5
+                    </span>
+                    Building RCC Columns Breakdown Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {columns.length} Column Mark(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Column Mark</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }}>Size (b×h)</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }}>Height</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss }}>Longitudinal Main Rebars</th>
+                        <th style={{ padding: cellPaddingCss }}>Lateral Ties</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {columns.map((c) => (
+                        <tr key={c.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{c.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{c.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{c.size}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{c.height}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{c.totalNos}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] font-bold text-[#00c2c7] print:text-blue-800">{c.mainBars}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{c.ties}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{c.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{c.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{c.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{c.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{c.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {c.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={4} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Columns Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{columns.reduce((sum, c) => sum + c.totalNos, 0)}</td>
+                        <td colSpan={2}></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{columns.reduce((sum, c) => sum + c.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{columns.reduce((sum, c) => sum + c.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{columns.reduce((sum, c) => sum + c.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{columns.reduce((sum, c) => sum + c.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{columns.reduce((sum, c) => sum + c.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {columns.reduce((sum, c) => sum + c.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 6: BEAMS BREAKDOWN */}
+            {beams.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      6
+                    </span>
+                    Structural RCC Beams Breakdown Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {beams.length} Beam Mark(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Beam Mark</th>
+                        <th style={{ padding: cellPaddingCss, width: "80px" }}>Cross Sec</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }}>Span</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss }}>Main Bottom/Top Bars</th>
+                        <th style={{ padding: cellPaddingCss }}>Extra Bars & Stirrups</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {beams.map((b) => (
+                        <tr key={b.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{b.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{b.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{b.size}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{b.span}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{b.totalNos}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] font-bold text-[#00c2c7] print:text-blue-800">{b.mainBars}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[9.5px] text-[#8ba3c1] print:text-slate-700">{b.extraBars} | {b.stirrups}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{b.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{b.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{b.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{b.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{b.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {b.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={4} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Beams Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{beams.reduce((sum, b) => sum + b.totalNos, 0)}</td>
+                        <td colSpan={2}></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{beams.reduce((sum, b) => sum + b.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{beams.reduce((sum, b) => sum + b.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{beams.reduce((sum, b) => sum + b.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{beams.reduce((sum, b) => sum + b.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{beams.reduce((sum, b) => sum + b.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {beams.reduce((sum, b) => sum + b.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 7: SLABS BREAKDOWN */}
+            {slabs.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      7
+                    </span>
+                    Floor RCC Slabs Breakdown Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {slabs.length} Slab Panel(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Slab Mark</th>
+                        <th style={{ padding: cellPaddingCss, width: "120px" }}>Dimensions (L×W×Th)</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Area (sq.ft)</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss }}>Reinforcement (Main / Dist / Extra)</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {slabs.map((sl) => (
+                        <tr key={sl.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{sl.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{sl.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{sl.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{sl.areaSqft.toLocaleString()}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-white print:text-slate-900">{sl.totalNos}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[9.5px] text-[#8ba3c1] print:text-slate-700">
+                            Main: {sl.mainBars}; Dist: {sl.distBars}; Extra: {sl.extraBars}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{sl.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{sl.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{sl.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{sl.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{sl.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {sl.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={3} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Slabs Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.areaSqft, 0).toLocaleString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.totalNos, 0)}</td>
+                        <td></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{slabs.reduce((sum, sl) => sum + sl.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {slabs.reduce((sum, sl) => sum + sl.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 8: STAIRS BREAKDOWN */}
+            {stairs.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      8
+                    </span>
+                    Staircase Flights Breakdown Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {stairs.length} Flight(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Flight Mark</th>
+                        <th style={{ padding: cellPaddingCss, width: "130px" }}>Dimensions & Waist</th>
+                        <th style={{ padding: cellPaddingCss, width: "110px" }}>Steps & Risers</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-center">Flights</th>
+                        <th style={{ padding: cellPaddingCss }}>Reinforcement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "60px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {stairs.map((st) => (
+                        <tr key={st.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{st.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{st.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{st.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{st.steps}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{st.flights}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[9.5px] text-[#8ba3c1] print:text-slate-700">{st.rebar}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{st.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{st.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{st.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{st.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{st.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {st.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={4} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Stairs Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{stairs.reduce((sum, st) => sum + st.flights, 0)}</td>
+                        <td></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{stairs.reduce((sum, st) => sum + st.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{stairs.reduce((sum, st) => sum + st.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{stairs.reduce((sum, st) => sum + st.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{stairs.reduce((sum, st) => sum + st.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{stairs.reduce((sum, st) => sum + st.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {stairs.reduce((sum, st) => sum + st.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 9: BRICKWORK BREAKDOWN */}
+            {bricks.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      9
+                    </span>
+                    Burnt Clay Brickwork & Partition Masonry Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {bricks.length} Wall Segment(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Wall Description</th>
+                        <th style={{ padding: cellPaddingCss, width: "130px" }}>Dimensions & Thickness</th>
+                        <th style={{ padding: cellPaddingCss }}>Openings & Deductions</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-center">Storeys</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }} className="text-right">Bricks (Pcs)</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Cement (Bags)</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Sand (cft)</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {bricks.map((b) => (
+                        <tr key={b.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{b.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{b.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{b.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{b.deductions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-white print:text-slate-900">×{b.multiplier}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f97316] print:text-slate-900">{b.bricksPcs.toLocaleString()}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{b.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{b.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {b.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={5} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Brickwork Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f97316] print:text-slate-900">{bricks.reduce((sum, b) => sum + b.bricksPcs, 0).toLocaleString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{bricks.reduce((sum, b) => sum + b.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{bricks.reduce((sum, b) => sum + b.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {bricks.reduce((sum, b) => sum + b.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 10: TILES BREAKDOWN */}
+            {tiles.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      10
+                    </span>
+                    Floor & Skirting Tiles Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {tiles.length} Area Unit(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Room / Unit Name</th>
+                        <th style={{ padding: cellPaddingCss, width: "130px" }}>Dimensions & Area</th>
+                        <th style={{ padding: cellPaddingCss }}>Tile Specification</th>
+                        <th style={{ padding: cellPaddingCss }}>Skirting</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-center">Storeys</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Tiles (Pcs)</th>
+                        <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {tiles.map((t) => (
+                        <tr key={t.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{t.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{t.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{t.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{t.tileSpec}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{t.skirting}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-white print:text-slate-900">×{t.multiplier}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#38bdf8] print:text-slate-900">{t.tilesPcs.toLocaleString()}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{t.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{t.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {t.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={6} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Tiles Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#38bdf8] print:text-slate-900">{tiles.reduce((sum, t) => sum + t.tilesPcs, 0).toLocaleString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{tiles.reduce((sum, t) => sum + t.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{tiles.reduce((sum, t) => sum + t.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {tiles.reduce((sum, t) => sum + t.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 11: ESTIMATE FILE LIST */}
+            <div className="space-y-1.5 print-avoid-break">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                    11
+                  </span>
+                  Consolidated Project Budget & Saved Estimate Files ({estimates.length} Sheets)
+                </h4>
+                <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                  Module Summary
                 </span>
               </div>
 
@@ -1788,62 +2682,32 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
                     <tr>
                       <th style={{ padding: cellPaddingCss, width: "28px" }} className="text-center">#</th>
-                      <th style={{ padding: cellPaddingCss }}>Estimate Sheet Name</th>
-                      <th style={{ padding: cellPaddingCss, width: "75px" }}>Type</th>
-                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-center">Unit</th>
-                      <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Unit Price (৳)</th>
-                      <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Quantity</th>
-                      <th style={{ padding: cellPaddingCss, width: "125px" }} className="text-right">Amount (BDT)</th>
+                      <th style={{ padding: cellPaddingCss }}>Estimate File Title</th>
+                      <th style={{ padding: cellPaddingCss, width: "85px" }}>Component</th>
+                      <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-center">Date</th>
+                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-center">Multiplier</th>
+                      <th style={{ padding: cellPaddingCss, width: "125px" }} className="text-right">Total Amount (BDT)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
-                    {estimates.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-4 text-center text-[#8ba3c1] print:text-slate-500">
-                          No estimate sheets saved yet for this project.
-                        </td>
+                    {estimates.map((e, idx) => (
+                      <tr key={e.id} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                        <td style={{ padding: cellPaddingCss }} className="font-mono text-center text-[#8ba3c1] print:text-slate-500">{idx + 1}</td>
+                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{e.name}</td>
+                        <td style={{ padding: cellPaddingCss }} className="uppercase font-mono text-[9px] text-[#00c2c7] print:text-blue-800 font-bold">{e.type}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[9px] text-[#8ba3c1] print:text-slate-600">{new Date(e.date).toLocaleDateString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-white print:text-slate-900">×{e.summary?.multiplier || e.data?.multiplier || 1}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {Math.round(e.totalCost || 0).toLocaleString("en-IN")}</td>
                       </tr>
-                    ) : (
-                      estimates.map((e, idx) => {
-                        const details = getEstimateItemDetails(e);
-                        return (
-                          <tr key={e.id} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                            <td style={{ padding: cellPaddingCss }} className="font-mono text-center text-[#8ba3c1] print:text-slate-500 text-[11px]">
-                              {idx + 1}
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                              {e.name}
-                              <div className="text-[10px] font-normal text-[#8ba3c1] print:text-slate-500">
-                                Date: {new Date(e.date).toLocaleDateString()}
-                              </div>
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="uppercase font-mono text-[10px] text-[#00c2c7] print:text-blue-800 font-bold">
-                              {e.type}
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">
-                              {details.unit}
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                              ৳ {details.unitPrice.toLocaleString()}
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">
-                              {details.qty.toLocaleString()}
-                            </td>
-                            <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-900 font-mono">
-                              ৳ {details.amount.toLocaleString("en-IN")}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
+                    ))}
                   </tbody>
                   <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
                     <tr>
-                      <td colSpan={6} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
+                      <td colSpan={5} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
                         Consolidated Project Grand Total Estimated Cost:
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right text-sm text-[#2ecc71] print:text-slate-950 font-black font-mono">
-                        ৳ {Math.round(grandTotalCost).toLocaleString("en-IN")}
+                        ৳ {totals.grandTotalCost.toLocaleString("en-IN")}
                       </td>
                     </tr>
                   </tfoot>
