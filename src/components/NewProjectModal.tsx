@@ -11,6 +11,8 @@ interface NewProjectModalProps {
     location: string;
     engineer: string;
     notes?: string;
+    stories?: number;
+    includeDefaultList?: boolean;
   }) => Promise<void>;
   initialProject?: Project | null;
   onUpdateProject?: (id: string, data: {
@@ -19,6 +21,7 @@ interface NewProjectModalProps {
     location: string;
     engineer: string;
     notes?: string;
+    stories?: number;
   }) => Promise<void>;
 }
 
@@ -35,6 +38,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   const [location, setLocation] = useState("");
   const [engineer, setEngineer] = useState("Engr. Ashraf");
   const [notes, setNotes] = useState("");
+  const [stories, setStories] = useState<number | string>(1);
+  const [includeDefaultList, setIncludeDefaultList] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -45,12 +50,16 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setLocation(initialProject.location || "");
       setEngineer(initialProject.engineer || "Engr. Ashraf");
       setNotes(initialProject.notes || "");
+      setStories(initialProject.stories || 1);
+      setIncludeDefaultList(false);
     } else {
       setName("");
       setClient("");
       setLocation("");
       setEngineer("Engr. Ashraf");
       setNotes("");
+      setStories(1);
+      setIncludeDefaultList(true);
     }
     setError("");
   }, [initialProject, isOpen]);
@@ -67,6 +76,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
     try {
       setLoading(true);
       setError("");
+      const parsedStories = Math.max(1, Number(stories) || 1);
       if (isEditing && initialProject && onUpdateProject) {
         await onUpdateProject(initialProject.id, {
           name: name.trim(),
@@ -74,6 +84,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
           location: location.trim(),
           engineer: engineer.trim(),
           notes: notes.trim(),
+          stories: parsedStories,
         });
       } else if (onCreateProject) {
         await onCreateProject({
@@ -82,6 +93,8 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
           location: location.trim(),
           engineer: engineer.trim(),
           notes: notes.trim(),
+          stories: parsedStories,
+          includeDefaultList,
         });
       }
       onClose();
@@ -162,6 +175,77 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             </div>
           </div>
 
+          {/* Building Storeys / Number of Floors */}
+          <div className="bg-[#0e1624] border border-[#2d4a6a] rounded-xl p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-[#f1f5f9] flex items-center gap-1.5">
+                <span>🏢 Building Storeys / Floors</span>
+                <span className="text-[10px] text-[#00c2c7] font-bold">
+                  (Multi-Storey Multiplier)
+                </span>
+              </label>
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={stories}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") {
+                      setStories("");
+                    } else {
+                      const cleaned = raw.replace(/[^0-9]/g, "");
+                      setStories(cleaned);
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInt(String(stories), 10);
+                    if (isNaN(parsed) || parsed < 1) {
+                      setStories(1);
+                    } else {
+                      setStories(Math.min(100, parsed));
+                    }
+                  }}
+                  className="w-14 h-7 text-center font-bold text-xs bg-[#1a2b42] border border-[#00c2c7] rounded-lg text-[#00c2c7] outline-none"
+                  placeholder="1"
+                />
+                <span className="text-[11px] text-[#8ba3c1]">Floors</span>
+              </div>
+            </div>
+
+            {/* Quick storey presets */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[10px] text-[#8ba3c1] mr-1">Presets:</span>
+              {[
+                { count: 1, label: "1 (Single)" },
+                { count: 2, label: "2 (Duplex)" },
+                { count: 3, label: "3 Storey" },
+                { count: 4, label: "4 (G+3)" },
+                { count: 5, label: "5 (G+4)" },
+                { count: 6, label: "6 (G+5)" },
+                { count: 7, label: "7 (G+6)" },
+                { count: 10, label: "10 Storey" },
+              ].map((preset) => (
+                <button
+                  key={preset.count}
+                  type="button"
+                  onClick={() => setStories(preset.count)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                    Number(stories) === preset.count
+                      ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
+                      : "bg-[#1a2b42] text-[#8ba3c1] hover:text-white border border-[#2d4a6a]"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-[#8ba3c1] mt-1.5 leading-relaxed">
+              All floor estimates (beams, columns, slabs, stairs, brickwork, tiles) can be multiplied automatically across these storeys.
+            </p>
+          </div>
+
           <div>
             <label className="text-xs text-[#8ba3c1] block mb-1">Assigned Civil Engineer</label>
             <input
@@ -183,6 +267,30 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               className="w-full px-3 py-2 bg-[#0e1624] border border-[#2d4a6a] rounded-xl text-xs text-white placeholder-[#8ba3c1] focus:border-[#00c2c7] focus:outline-none transition resize-none"
             />
           </div>
+
+          {/* Option to automatically populate building list */}
+          {!isEditing && (
+            <div className="bg-[#0e1624] border border-[#00c2c7]/40 rounded-xl p-3 flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="autoIncludeList"
+                checked={includeDefaultList}
+                onChange={(e) => setIncludeDefaultList(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded text-[#00c2c7] accent-[#00c2c7] cursor-pointer"
+              />
+              <label htmlFor="autoIncludeList" className="text-xs text-[#f1f5f9] cursor-pointer leading-snug">
+                <span className="font-bold text-white block flex items-center gap-1.5">
+                  <span>🏢 Add Building Elements to List</span>
+                  <span className="text-[10px] bg-[#00c2c7]/20 text-[#00c2c7] px-1.5 py-0.2 rounded font-mono font-bold">
+                    ×{Math.max(1, Number(stories) || 1)} Storeys
+                  </span>
+                </span>
+                <span className="text-[11px] text-[#8ba3c1] block mt-0.5">
+                  Automatically initializes Beam, Column, Footing, Slab, Stair, Tiles, and Brick multiplied by {Math.max(1, Number(stories) || 1)} storeys.
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#2d4a6a]">

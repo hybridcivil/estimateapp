@@ -26,8 +26,10 @@ import { StairCalculator } from "./components/calculators/StairCalculator";
 import { BrickCalculator } from "./components/calculators/BrickCalculator";
 import { TileCalculator } from "./components/calculators/TileCalculator";
 import { StructuralCalculator } from "./components/calculators/StructuralCalculator";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { createDefaultBuildingEstimates } from "./utils/buildingSchedule";
 
-export default function App() {
+function MainAppContent() {
   const [activeTab, setActiveTab] = useState<EstimateType>("dashboard");
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -36,9 +38,8 @@ export default function App() {
   // Loaded estimate file state for calculator inspection and in-place editing
   const [loadedEstimate, setLoadedEstimate] = useState<ProjectEstimateItem | null>(null);
 
-  // Splash Screen States
+  // Splash Screen State
   const [showInitialSplash, setShowInitialSplash] = useState(true);
-  const [isManualSplashOpen, setIsManualSplashOpen] = useState(false);
 
   // View mode: "auto" (responsive CSS), "web" (force desktop layout), "app" (mobile app-styled layout)
   const [viewMode, setViewMode] = useState<"auto" | "web" | "app">(() => {
@@ -126,10 +127,64 @@ export default function App() {
     location: string;
     engineer: string;
     notes?: string;
+    stories?: number;
+    includeDefaultList?: boolean;
   }) => {
     const created = await createProject(data);
+    const storiesCount = created.stories || data.stories || 1;
+    if (data.includeDefaultList && (!created.estimates || created.estimates.length === 0)) {
+      const defaultEstimates = createDefaultBuildingEstimates(storiesCount);
+      for (const est of defaultEstimates) {
+        try {
+          await saveEstimateToProject(created.id, est);
+        } catch (e) {
+          console.warn("Error saving default building estimate", e);
+        }
+      }
+    }
     await loadProjects(created.id);
-    showToast(`Project "${created.name}" created successfully!`);
+    showToast(
+      data.includeDefaultList
+        ? `Project "${created.name}" created with all 7 building elements (${storiesCount} ${storiesCount === 1 ? 'floor' : 'floors'} multiplied)!`
+        : `Project "${created.name}" created successfully!`
+    );
+  };
+
+  const handleAddDefaultBuildingList = async () => {
+    if (!activeProject) {
+      setIsNewProjectModalOpen(true);
+      return;
+    }
+    const stories = activeProject.stories || 1;
+    const defaultEstimates = createDefaultBuildingEstimates(stories);
+    const existingTypes = new Set(
+      Array.isArray(activeProject.estimates) ? activeProject.estimates.map((e) => e.type) : []
+    );
+    let addedCount = 0;
+    for (const est of defaultEstimates) {
+      if (!existingTypes.has(est.type)) {
+        try {
+          await saveEstimateToProject(activeProject.id, est);
+          addedCount++;
+        } catch (e) {
+          console.warn("Error saving building element", e);
+        }
+      }
+    }
+    // If all already exist, add with new copy name
+    if (addedCount === 0) {
+      for (const est of defaultEstimates) {
+        try {
+          await saveEstimateToProject(activeProject.id, {
+            ...est,
+            name: `${est.name} (Copy)`,
+          });
+          addedCount++;
+        } catch (e) {}
+      }
+    }
+    await loadProjects(activeProject.id);
+    showToast(`Added ${addedCount} building items (multiplied across ${stories} storeys) to "${activeProject.name}"!`);
   };
 
   const handleUpdateProject = async (id: string, data: {
@@ -138,11 +193,16 @@ export default function App() {
     location: string;
     engineer: string;
     notes?: string;
+    stories?: number;
   }) => {
     const updated = await updateProject(id, data);
     if (updated) {
       await loadProjects(id);
-      showToast(`Project "${updated.name}" updated successfully!`);
+      const storiesMsg =
+        data.stories !== undefined && activeProject && data.stories !== activeProject.stories
+          ? ` (${data.stories} storeys multiplier updated across all estimates)`
+          : "";
+      showToast(`Project "${updated.name}" updated successfully!${storiesMsg}`);
     } else {
       showToast("Could not update project details.", "error");
     }
@@ -306,7 +366,6 @@ export default function App() {
           }
         }}
         onOpenReportModal={() => setIsReportModalOpen(true)}
-        onOpenSplash={() => setIsManualSplashOpen(true)}
         viewMode={viewMode}
         onSetViewMode={handleSetViewMode}
       />
@@ -357,6 +416,8 @@ export default function App() {
                 onNavigateToCalculator={handleNavigateToCalculator}
                 onOpenReportModal={() => setIsReportModalOpen(true)}
                 onImportProject={handleImportProject}
+                onAddDefaultBuildingList={handleAddDefaultBuildingList}
+                onUpdateProject={handleUpdateProject}
               />
             )}
 
@@ -461,16 +522,19 @@ export default function App() {
         project={activeProject}
       />
 
-      {/* Splash Screen on Initial Load & on Demand */}
+      {/* Splash Screen on Initial Load */}
       {showInitialSplash && (
         <SplashScreen onFinish={() => setShowInitialSplash(false)} />
-      )}
-      {isManualSplashOpen && (
-        <SplashScreen
-          isManualOpen={true}
-          onClose={() => setIsManualSplashOpen(false)}
-        />
       )}
     </div>
   );
 }
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <MainAppContent />
+    </ThemeProvider>
+  );
+}
+

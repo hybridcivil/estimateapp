@@ -120,51 +120,51 @@ export const EditEstimateModal: React.FC<EditEstimateModalProps> = ({
 
             {/* Material quantities summary pills */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-2">
-              {(s.cementBags || s.totalCementBags) && (
+              {(s.multipliedCementBags || s.cementBags || s.totalCementBags) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Cement</div>
                   <div className="text-[11px] font-bold text-[#f5a623]">
-                    {s.cementBags || s.totalCementBags} bags
+                    {s.multipliedCementBags || s.cementBags || s.totalCementBags} bags
                   </div>
                 </div>
               )}
-              {(s.totalSteel || s.totalSteelKg) && (
+              {(s.multipliedSteelKg || s.totalSteel || s.totalSteelKg) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Rebar Steel</div>
                   <div className="text-[11px] font-bold text-[#00c2c7]">
-                    {s.totalSteel || s.totalSteelKg} kg
+                    {s.multipliedSteelKg || s.totalSteel || s.totalSteelKg} kg
                   </div>
                 </div>
               )}
-              {(s.sandCft || s.sandVolume || s.totalSandCft) && (
+              {(s.multipliedSandCft || s.sandCft || s.sandVolume || s.totalSandCft) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Sand</div>
                   <div className="text-[11px] font-bold text-[#f1f5f9]">
-                    {Math.round(s.sandCft || s.sandVolume || s.totalSandCft || 0)} cft
+                    {Math.round(s.multipliedSandCft || s.sandCft || s.sandVolume || s.totalSandCft || 0)} cft
                   </div>
                 </div>
               )}
-              {(s.aggCft || s.aggregateVolume || s.totalAggCft) && (
+              {(s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.totalAggCft) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Aggregates</div>
                   <div className="text-[11px] font-bold text-[#f1f5f9]">
-                    {Math.round(s.aggCft || s.aggregateVolume || s.totalAggCft || 0)} cft
+                    {Math.round(s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.totalAggCft || 0)} cft
                   </div>
                 </div>
               )}
-              {(s.totalBricks || s.brickQty) && (
+              {(s.multipliedBricks || s.totalBricks || s.brickQty) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Bricks</div>
                   <div className="text-[11px] font-bold text-[#e67e22]">
-                    {(s.totalBricks || s.brickQty).toLocaleString()} pcs
+                    {(s.multipliedBricks || s.totalBricks || s.brickQty).toLocaleString()} pcs
                   </div>
                 </div>
               )}
-              {s.tiles && (
+              {(s.multipliedTilePieces || s.tiles) && (
                 <div className="bg-[#1a2b42] rounded-lg p-1.5 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Tiles</div>
                   <div className="text-[11px] font-bold text-[#1abc9c]">
-                    {s.tiles} tiles
+                    {s.multipliedTilePieces || s.tiles} tiles
                   </div>
                 </div>
               )}

@@ -1,4 +1,5 @@
 import { Project, ProjectEstimateItem } from "../types";
+import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 
 const LOCAL_STORAGE_KEY = "ashraf_civil_studio_projects_v1";
 
@@ -70,6 +71,8 @@ export async function createProject(data: {
   location?: string;
   engineer?: string;
   notes?: string;
+  stories?: number;
+  includeDefaultList?: boolean;
 }): Promise<Project> {
   try {
     const res = await fetch("/api/projects", {
@@ -88,6 +91,9 @@ export async function createProject(data: {
   }
 
   // Local fallback
+  const parsedStories = data.stories ? Math.max(1, data.stories) : 1;
+  const initialEstimates = data.includeDefaultList ? createDefaultBuildingEstimates(parsedStories) : [];
+
   const newProj: Project = {
     id: "proj_local_" + Date.now(),
     name: data.name,
@@ -95,9 +101,10 @@ export async function createProject(data: {
     location: data.location || "Bangladesh",
     engineer: data.engineer || "Engr. Ashraf",
     notes: data.notes || "",
+    stories: parsedStories,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    estimates: [],
+    estimates: initialEstimates as any,
   };
   const local = getLocalProjects();
   saveLocalProjects([newProj, ...local]);
@@ -127,9 +134,18 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
   const local = getLocalProjects();
   const idx = local.findIndex((p) => p.id === id);
   if (idx !== -1) {
+    const oldStories = local[idx].stories || 1;
+    const newStories = data.stories !== undefined ? Math.max(1, data.stories) : oldStories;
+    let rescaledEstimates = local[idx].estimates || [];
+    if (newStories !== oldStories && Array.isArray(rescaledEstimates) && rescaledEstimates.length > 0) {
+      rescaledEstimates = rescaleEstimatesForStories(rescaledEstimates, newStories, oldStories);
+    }
+
     local[idx] = {
       ...local[idx],
       ...data,
+      stories: newStories,
+      estimates: rescaledEstimates,
       updatedAt: new Date().toISOString(),
     };
     saveLocalProjects(local);

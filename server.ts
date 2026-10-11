@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
+import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "./src/utils/buildingSchedule";
 
 const app = express();
 const PORT = 3000;
@@ -12,27 +13,7 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "projects.json");
 
-interface ProjectEstimateItem {
-  id: string;
-  type: "beam" | "column" | "footing" | "slab" | "stair" | "brick" | "tiles" | "structural";
-  name: string;
-  date: string;
-  totalCost: number;
-  summary: Record<string, any>;
-  data: Record<string, any>;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  client: string;
-  location: string;
-  engineer: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  estimates: ProjectEstimateItem[];
-}
+import { Project, ProjectEstimateItem } from "./src/types";
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -47,123 +28,10 @@ function ensureDataFile() {
         location: "Dhanmondi, Dhaka",
         engineer: "Engr. Ashraf",
         notes: "Complete structural & civil estimation with 1:1.5:3 concrete mix and 500W rebar.",
+        stories: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        estimates: [
-          {
-            id: "est_beam_01",
-            type: "beam",
-            name: "Ground Floor Grade Beams (GB1-GB8)",
-            date: new Date().toISOString(),
-            totalCost: 184500,
-            summary: {
-              cementBags: 68,
-              sandCft: 128,
-              aggCft: 255,
-              totalSteelKg: 1140,
-              wetVolCft: 165.5,
-              dryVolCft: 267.4,
-              totalCost: 184500,
-              currency: "৳",
-            },
-            data: {
-              beams: [
-                {
-                  nos: 8,
-                  name: "GB1",
-                  width: 12,
-                  depth: 18,
-                  length: 22,
-                  stirrupSpacing: 6,
-                  mix: "1:1.5:3",
-                  mainBars: [
-                    { dia: 16, qty: 3 },
-                    { dia: 20, qty: 2 },
-                  ],
-                  extraTopBars: { nos: 2, dia: 16, length: 7.33 },
-                  extraBottomBars: { nos: 2, dia: 16, length: 11 },
-                },
-              ],
-              rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
-              baseType: "none",
-            },
-          },
-          {
-            id: "est_col_01",
-            type: "column",
-            name: "Main Columns C1-C12 (12x15)",
-            date: new Date().toISOString(),
-            totalCost: 215400,
-            summary: {
-              cementBags: 74,
-              sandCft: 139,
-              aggCft: 278,
-              totalSteelKg: 1380,
-              wetVolCft: 180,
-              dryVolCft: 291,
-              totalCost: 215400,
-              currency: "৳",
-            },
-            data: {
-              columns: [
-                {
-                  nos: 12,
-                  name: "C1",
-                  type: "rectangular",
-                  category: "long",
-                  size: "12x15",
-                  height: 10,
-                  rebars: [
-                    { dia: 16, nos: 4 },
-                    { dia: 20, nos: 4 },
-                  ],
-                  mix: "1:1.5:3",
-                  stirrupDia: 10,
-                  stirrupSpacing: 6,
-                },
-              ],
-              rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
-              baseType: "none",
-            },
-          },
-          {
-            id: "est_footing_01",
-            type: "footing",
-            name: "Isolated Footings F1-F8",
-            date: new Date().toISOString(),
-            totalCost: 268900,
-            summary: {
-              cementBags: 112,
-              sandCft: 210,
-              aggCft: 420,
-              totalSteelKg: 1420,
-              wetVolCft: 272,
-              dryVolCft: 440,
-              totalCost: 268900,
-              currency: "৳",
-            },
-            data: {
-              footings: [
-                {
-                  nos: 8,
-                  name: "F1",
-                  length: 7.5,
-                  breadth: 7.5,
-                  thickness: 1.5,
-                  cover: 0.25,
-                  hook: 0.5,
-                  mix: "1:1.5:3",
-                  rebars: [
-                    { role: "bottom", dia: 16, spacing: 5 },
-                    { role: "top", dia: 12, spacing: 6 },
-                  ],
-                },
-              ],
-              rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
-              baseType: "none",
-            },
-          },
-        ],
+        estimates: createDefaultBuildingEstimates(1) as any,
       },
     ];
     fs.writeFileSync(DATA_FILE, JSON.stringify(defaultProjects, null, 2), "utf-8");
@@ -174,7 +42,26 @@ function readProjects(): Project[] {
   ensureDataFile();
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
+    const list: Project[] = JSON.parse(raw);
+    let mutated = false;
+    for (const p of list) {
+      const stories = p.stories ? Math.max(1, p.stories) : 1;
+      // Auto-synchronize estimates if multiplier doesn't match project stories
+      if (Array.isArray(p.estimates) && p.estimates.length > 0) {
+        const brickEst = p.estimates.find((e) => e.type === "brick");
+        if (brickEst) {
+          const currentMult = brickEst.summary?.multiplier || brickEst.data?.multiplier;
+          if (currentMult && currentMult !== stories) {
+            p.estimates = rescaleEstimatesForStories(p.estimates, stories, currentMult);
+            mutated = true;
+          }
+        }
+      }
+    }
+    if (mutated) {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(list, null, 2), "utf-8");
+    }
+    return list;
   } catch (err) {
     console.error("Error reading projects:", err);
     return [];
@@ -222,12 +109,15 @@ app.get("/api/projects", (_req, res) => {
 // Create new project
 app.post("/api/projects", (req, res) => {
   try {
-    const { name, client, location, engineer, notes } = req.body;
+    const { name, client, location, engineer, notes, stories, includeDefaultList } = req.body;
     if (!name || !name.trim()) {
       res.status(400).json({ error: "Project name is required" });
       return;
     }
     const projects = readProjects();
+    const parsedStories = Math.max(1, parseInt(stories, 10) || 1);
+    const initialEstimates = includeDefaultList ? createDefaultBuildingEstimates(parsedStories) : [];
+
     const newProject: Project = {
       id: "proj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
       name: name.trim(),
@@ -235,9 +125,10 @@ app.post("/api/projects", (req, res) => {
       location: (location || "Bangladesh").trim(),
       engineer: (engineer || "Engr. Ashraf").trim(),
       notes: notes || "",
+      stories: parsedStories,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      estimates: [],
+      estimates: initialEstimates as any,
     };
     projects.unshift(newProject);
     writeProjects(projects);
@@ -271,12 +162,26 @@ app.put("/api/projects/:id", (req, res) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const { name, client, location, engineer, notes } = req.body;
+    const { name, client, location, engineer, notes, stories } = req.body;
     if (name) projects[idx].name = name.trim();
     if (client !== undefined) projects[idx].client = client.trim();
     if (location !== undefined) projects[idx].location = location.trim();
     if (engineer !== undefined) projects[idx].engineer = engineer.trim();
     if (notes !== undefined) projects[idx].notes = notes;
+    if (stories !== undefined) {
+      const oldStories = projects[idx].stories || 1;
+      const newStories = Math.max(1, parseInt(stories, 10) || 1);
+      projects[idx].stories = newStories;
+
+      // Rescale and synchronize all estimates to match the new storey count
+      if (newStories !== oldStories && Array.isArray(projects[idx].estimates) && projects[idx].estimates.length > 0) {
+        projects[idx].estimates = rescaleEstimatesForStories(
+          projects[idx].estimates as any,
+          newStories,
+          oldStories
+        ) as any;
+      }
+    }
     projects[idx].updatedAt = new Date().toISOString();
     writeProjects(projects);
     res.json(projects[idx]);

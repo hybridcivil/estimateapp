@@ -28,13 +28,15 @@ export const NumericInput: React.FC<NumericInputProps> = ({
   useEffect(() => {
     if (value !== lastEmittedRef.current) {
       lastEmittedRef.current = value;
-      if (value === 0 && !allowZero && !isFocused) {
+      if (isFocused && (str === "" || str === "-")) {
+        // User is actively editing/clearing the field; do not override until blur
+      } else if (value === 0 && !allowZero && !isFocused) {
         setStr("");
       } else {
         setStr(String(value));
       }
     }
-  }, [value, allowZero, isFocused]);
+  }, [value, allowZero, isFocused, str]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;

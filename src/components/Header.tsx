@@ -8,7 +8,10 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 interface HeaderProps {
   activeTab: EstimateType;
@@ -19,7 +22,6 @@ interface HeaderProps {
   onOpenNewProjectModal: () => void;
   onOpenEditProjectModal: () => void;
   onOpenReportModal: () => void;
-  onOpenSplash?: () => void;
   viewMode: "auto" | "web" | "app";
   onSetViewMode: (mode: "auto" | "web" | "app") => void;
 }
@@ -33,10 +35,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewProjectModal,
   onOpenEditProjectModal,
   onOpenReportModal,
-  onOpenSplash,
   viewMode,
   onSetViewMode,
 }) => {
+  const { theme, toggleTheme, isLight } = useTheme();
+
   return (
     <header className="relative bg-[#152033] border-b border-[#2d4a6a] shrink-0 z-30">
       {/* Top accent gradient bar */}
@@ -130,18 +133,45 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Studio Splash / Info Button */}
-          {onOpenSplash && (
+          {/* High-Contrast Site Visit Theme Switcher */}
+          <div
+            className="flex items-center bg-[#0e1624] border border-[#2d4a6a] rounded-lg p-0.5"
+            role="group"
+            aria-label="Theme mode switcher"
+          >
             <button
               type="button"
-              onClick={onOpenSplash}
-              className="flex items-center gap-1 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/40 px-2 py-1 rounded-lg text-[10px] font-semibold transition active:scale-95"
-              title="View Studio Splash & Info"
+              onClick={() => theme !== "dark" && toggleTheme()}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition ${
+                !isLight
+                  ? "bg-[#243b55] text-[#00c2c7] font-bold shadow-xs"
+                  : "text-[#8ba3c1] hover:text-white"
+              }`}
+              title="Studio Dark Mode (Standard indoor display)"
             >
-              <Sparkles className="w-3 h-3" />
-              <span className="hidden sm:inline">Splash</span>
+              <Moon className="w-3 h-3 text-[#00c2c7]" />
+              <span className="hidden lg:inline">Dark</span>
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={() => theme !== "light" && toggleTheme()}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition ${
+                isLight
+                  ? "bg-amber-500 text-slate-950 font-bold shadow-xs ring-1 ring-amber-400"
+                  : "text-[#8ba3c1] hover:text-[#f5a623]"
+              }`}
+              title="High-Contrast Light Mode (Sunlight & Site Visits)"
+            >
+              <Sun
+                className={`w-3 h-3 ${
+                  isLight ? "text-slate-950 fill-slate-950" : "text-[#f5a623]"
+                }`}
+              />
+              <span className="hidden sm:inline">Site Mode</span>
+              <span className="sm:hidden">Site</span>
+            </button>
+          </div>
 
           {/* Active project dropdown + Quick Edit Button */}
           <div className="flex items-center bg-[#243b55] border border-[#2d4a6a] rounded-lg pl-2 pr-1 py-0.5 max-w-[170px] sm:max-w-[240px]">
@@ -159,7 +189,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 projects.map((p) => (
                   <option key={p.id} value={p.id} className="bg-[#1a2b42] text-white">
-                    {p.name}
+                    {p.name} ({p.stories || 1} {p.stories === 1 ? "Floor" : "Floors"})
                   </option>
                 ))
               )}

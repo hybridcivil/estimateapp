@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Project, ProjectEstimateItem } from "../../types";
+import { Project, ProjectEstimateItem, TileRoomItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
-import { RotateCcw } from "lucide-react";
+import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
+import {
+  RotateCcw,
+  Grid3X3,
+  Plus,
+  Trash2,
+  Edit3,
+  Copy,
+  Building2,
+} from "lucide-react";
 
 interface TileCalculatorProps {
   activeProject: Project | null;
@@ -26,26 +35,82 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
-  const [estimateName, setEstimateName] = useState("Tile Estimation");
+  const [estimateName, setEstimateName] = useState("Floor & Wall Tiles Estimate");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
-  // Inputs
+  // Multi-Storey Building Multiplier
+  const projectStories = activeProject?.stories || 1;
+  const [multiplier, setMultiplier] = useState(projectStories);
+  const [isMultiplying, setIsMultiplying] = useState(projectStories > 1);
+
+  // Sync multiplier when project changes
+  useEffect(() => {
+    if (activeProject?.stories) {
+      setMultiplier(activeProject.stories);
+      setIsMultiplying(activeProject.stories > 1);
+    }
+  }, [activeProject?.id, activeProject?.stories]);
+
+  // Added Tile Rooms List
+  const [rooms, setRooms] = useState<TileRoomItem[]>([
+    {
+      id: "room_1",
+      nos: 1,
+      name: "Living & Dining Room",
+      length: 20,
+      width: 15,
+      tileType: "180",
+      tilePrice: 180,
+      tileSize: 2,
+      includeSkirting: true,
+      skirtingHeight: 4,
+      skirtingPrice: 160,
+      mortarTh: 0.5,
+      wastage: 8,
+      labour: 45,
+    },
+    {
+      id: "room_2",
+      nos: 2,
+      name: "Bedrooms (Bed 1 & Bed 2)",
+      length: 14,
+      width: 12,
+      tileType: "160",
+      tilePrice: 160,
+      tileSize: 2,
+      includeSkirting: true,
+      skirtingHeight: 4,
+      skirtingPrice: 160,
+      mortarTh: 0.5,
+      wastage: 8,
+      labour: 45,
+    },
+  ]);
+  const [editingRoomIndex, setEditingRoomIndex] = useState<number | null>(null);
+
+  // Form Inputs
+  const [roomName, setRoomName] = useState("Master Bedroom");
+  const [roomNos, setRoomNos] = useState(1);
+  const [length, setLength] = useState(14);
+  const [width, setWidth] = useState(12);
+
   const [tileType, setTileType] = useState("180");
   const [tilePrice, setTilePrice] = useState(180);
-  const [tileSize, setTileSize] = useState(2);
-  const [length, setLength] = useState(12);
-  const [width, setWidth] = useState(10);
+  const [tileSize, setTileSize] = useState(2); // 2' x 2'
+
   const [includeSkirting, setIncludeSkirting] = useState(true);
-  const [skirtingHeight, setSkirtingHeight] = useState(4);
+  const [skirtingHeight, setSkirtingHeight] = useState(4); // inches
   const [skirtingPrice, setSkirtingPrice] = useState(160);
 
-  const [mortarTh, setMortarTh] = useState(0.5);
-  const [wastage, setWastage] = useState(8);
-  const [labour, setLabour] = useState(45);
-  const [coatingCost, setCoatingCost] = useState(12);
-  const [cementCost, setCementCost] = useState(520);
-  const [sandCost, setSandCost] = useState(45);
+  const [mortarTh, setMortarTh] = useState(0.5); // inches
+  const [wastage, setWastage] = useState(8); // %
+  const [labour, setLabour] = useState(45); // ৳/sqft
 
+  const [cementRate, setCementRate] = useState(550);
+  const [sandRate, setSandRate] = useState(45);
+
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [results, setResults] = useState<any>(null);
 
   const handleTileTypeChange = (val: string) => {
@@ -54,155 +119,282 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
       const price = parseFloat(val);
       setTilePrice(price);
       if (val === "160") setSkirtingPrice(160);
+      if (val === "180") setSkirtingPrice(180);
+      if (val === "240") setSkirtingPrice(200);
     }
   };
 
-  const calculate = () => {
-    const perimeter = 2 * (length + width);
-    const area = length * width;
-    const areaWaste = area * (1 + wastage / 100);
-    const tiles = Math.ceil(areaWaste / (tileSize * tileSize));
-    const tileCost = areaWaste * tilePrice;
-
-    let skirtingArea = 0;
-    let skirtingCost = 0;
-    if (includeSkirting) {
-      skirtingArea = perimeter * (skirtingHeight / 12) * (1 + wastage / 100);
-      skirtingCost = skirtingArea * skirtingPrice;
-    }
-
-    const mortarVol = area * (mortarTh / 12);
-    const cementVol = mortarVol / 5;
-    const sandVol = mortarVol * 0.8;
-    const cementBags = Math.ceil(cementVol / 1.25);
-    const mortarCost = cementBags * cementCost + sandVol * sandCost;
-
-    const labourCost = area * labour;
-    const coatingCostTotal = area * coatingCost;
-
-    const total = tileCost + skirtingCost + mortarCost + labourCost + coatingCostTotal;
-    const perSft = area > 0 ? total / area : 0;
-
-    const calcResult = {
-      area: Number(area.toFixed(1)),
-      areaWaste: Number(areaWaste.toFixed(1)),
-      tiles,
-      tileCost,
-      perimeter: Number(perimeter.toFixed(1)),
-      skirtingArea: Number(skirtingArea.toFixed(1)),
-      skirtingCost,
-      cementBags,
-      sandVol: Number(sandVol.toFixed(1)),
-      mortarCost,
-      labourCost,
-      coatingCostTotal,
-      perSft: Math.round(perSft),
-      totalCost: total,
-    };
-    setResults(calcResult);
-    return calcResult;
-  };
-
-  useEffect(() => {
-    calculate();
-  }, [
-    tilePrice,
-    tileSize,
-    length,
-    width,
+  const getCurrentFormRoom = (): TileRoomItem => ({
+    id: editingRoomIndex !== null ? rooms[editingRoomIndex]?.id : "room_" + Date.now(),
+    nos: roomNos > 0 ? roomNos : 1,
+    name: roomName.trim() || `Room ${rooms.length + 1}`,
+    length: length > 0 ? length : 1,
+    width: width > 0 ? width : 1,
+    tileType,
+    tilePrice: tilePrice > 0 ? tilePrice : 180,
+    tileSize: tileSize > 0 ? tileSize : 2,
     includeSkirting,
-    skirtingHeight,
-    skirtingPrice,
-    mortarTh,
-    wastage,
-    labour,
-    coatingCost,
-    cementCost,
-    sandCost,
-  ]);
+    skirtingHeight: skirtingHeight > 0 ? skirtingHeight : 4,
+    skirtingPrice: skirtingPrice > 0 ? skirtingPrice : 160,
+    mortarTh: mortarTh > 0 ? mortarTh : 0.5,
+    wastage: wastage >= 0 ? wastage : 8,
+    labour: labour >= 0 ? labour : 45,
+  });
+
+  const loadRoomIntoForm = (r: TileRoomItem, idx: number) => {
+    setEditingRoomIndex(idx);
+    setRoomName(r.name);
+    setRoomNos(r.nos);
+    setLength(r.length);
+    setWidth(r.width);
+    setTileType(r.tileType || "180");
+    setTilePrice(r.tilePrice || 180);
+    setTileSize(r.tileSize || 2);
+    setIncludeSkirting(Boolean(r.includeSkirting));
+    setSkirtingHeight(r.skirtingHeight || 4);
+    setSkirtingPrice(r.skirtingPrice || 160);
+    setMortarTh(r.mortarTh || 0.5);
+    setWastage(r.wastage !== undefined ? r.wastage : 8);
+    setLabour(r.labour !== undefined ? r.labour : 45);
+    setErrorMsg("");
+  };
+
+  const handleAddNewRoom = () => {
+    setErrorMsg("");
+    if (length <= 0 || width <= 0) {
+      setErrorMsg("Please enter valid room dimensions (Length, Width > 0).");
+      return;
+    }
+    const current = getCurrentFormRoom();
+    const nextList = [...rooms, current];
+    setRooms(nextList);
+    calculate(nextList);
+
+    setEditingRoomIndex(null);
+    setRoomName(`Room ${nextList.length + 1}`);
+    setRoomNos(1);
+    setSuccessMsg(`✓ Added ${current.name} to tiles list!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleUpdateRoom = () => {
+    setErrorMsg("");
+    if (editingRoomIndex === null || editingRoomIndex < 0 || editingRoomIndex >= rooms.length) {
+      handleAddNewRoom();
+      return;
+    }
+    const current = getCurrentFormRoom();
+    const nextList = [...rooms];
+    nextList[editingRoomIndex] = current;
+    setRooms(nextList);
+    calculate(nextList);
+
+    setSuccessMsg(`✓ Updated ${current.name} in list!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleDuplicateRoom = (idx: number) => {
+    const orig = rooms[idx];
+    if (!orig) return;
+    const duplicated: TileRoomItem = {
+      ...orig,
+      id: "room_" + Date.now(),
+      name: `${orig.name} (Copy)`,
+    };
+    const nextList = [...rooms, duplicated];
+    setRooms(nextList);
+    calculate(nextList);
+    setSuccessMsg(`✓ Duplicated ${orig.name}!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const deleteRoom = (idx: number) => {
+    const nextList = rooms.filter((_, i) => i !== idx);
+    setRooms(nextList);
+    if (nextList.length > 0) {
+      calculate(nextList);
+      if (editingRoomIndex === idx) {
+        setEditingRoomIndex(null);
+        setRoomName(`Room ${nextList.length + 1}`);
+      } else if (editingRoomIndex !== null && editingRoomIndex > idx) {
+        setEditingRoomIndex(editingRoomIndex - 1);
+      }
+    } else {
+      setEditingRoomIndex(null);
+      setRoomName("Room 1");
+      setResults(null);
+    }
+  };
 
   const resetForm = () => {
+    setRoomName("Room 1");
+    setRoomNos(1);
+    setLength(14);
+    setWidth(12);
     setTileType("180");
     setTilePrice(180);
     setTileSize(2);
-    setLength(12);
-    setWidth(10);
     setIncludeSkirting(true);
     setSkirtingHeight(4);
     setSkirtingPrice(160);
     setMortarTh(0.5);
     setWastage(8);
     setLabour(45);
-    setCoatingCost(12);
-    setCementCost(520);
-    setSandCost(45);
+    setEditingRoomIndex(null);
+    setErrorMsg("");
   };
+
+  const calculate = (list = rooms) => {
+    setErrorMsg("");
+    if (!list || list.length === 0) {
+      setResults(null);
+      return null;
+    }
+
+    let totalFloorArea = 0;
+    let totalSkirtingArea = 0;
+    let totalGrossTileArea = 0;
+    let totalTilePieces = 0;
+    let totalTileCost = 0;
+    let totalMortarCement = 0;
+    let totalMortarSand = 0;
+    let totalLabourCost = 0;
+
+    list.forEach((r) => {
+      const nos = r.nos > 0 ? r.nos : 1;
+      const fArea = r.length * r.width * nos;
+      const perimeter = 2 * (r.length + r.width) * nos;
+
+      let sArea = 0;
+      if (r.includeSkirting) {
+        const sHeightFt = (r.skirtingHeight || 4) / 12;
+        sArea = perimeter * sHeightFt;
+      }
+
+      const wastageMul = 1 + (r.wastage || 8) / 100;
+      const roomTileArea = (fArea + sArea) * wastageMul;
+      const pieceArea = (r.tileSize || 2) * (r.tileSize || 2);
+      const pieces = Math.ceil(roomTileArea / pieceArea);
+
+      const rTileCost = fArea * wastageMul * (r.tilePrice || 180) + (sArea > 0 ? sArea * wastageMul * (r.skirtingPrice || 160) : 0);
+
+      // Mortar
+      const mThFt = (r.mortarTh || 0.5) / 12;
+      const wetMortar = (fArea + sArea) * mThFt;
+      const dryMortar = wetMortar * 1.5;
+      // 1:4 mix
+      const cVol = dryMortar * (1 / 5);
+      const sVol = dryMortar * (4 / 5);
+
+      const rLabour = (fArea + (r.includeSkirting ? perimeter : 0)) * (r.labour || 45);
+
+      totalFloorArea += fArea;
+      totalSkirtingArea += sArea;
+      totalGrossTileArea += roomTileArea;
+      totalTilePieces += pieces;
+      totalTileCost += rTileCost;
+      totalMortarCement += cVol / 1.25;
+      totalMortarSand += sVol;
+      totalLabourCost += rLabour;
+    });
+
+    const cementBags = Math.ceil(totalMortarCement);
+    const sandVolume = Number(totalMortarSand.toFixed(1));
+    const cementCost = cementBags * cementRate;
+    const sandCost = sandVolume * sandRate;
+
+    const singleFloorTotalCost = totalTileCost + cementCost + sandCost + totalLabourCost;
+
+    // Apply Storey Multiplier
+    const effMultiplier = isMultiplying ? Math.max(1, multiplier) : 1;
+    const multipliedCost = singleFloorTotalCost * effMultiplier;
+
+    const calcResult = {
+      totalFloorArea: Number(((isMultiplying ? totalFloorArea * effMultiplier : totalFloorArea)).toFixed(1)),
+      totalSkirtingArea: Number(((isMultiplying ? totalSkirtingArea * effMultiplier : totalSkirtingArea)).toFixed(1)),
+      totalGrossTileArea: Number(((isMultiplying ? totalGrossTileArea * effMultiplier : totalGrossTileArea)).toFixed(1)),
+      totalTilePieces: isMultiplying ? totalTilePieces * effMultiplier : totalTilePieces,
+      totalBoxes: isMultiplying ? Math.ceil((totalTilePieces * effMultiplier) / 4) : Math.ceil(totalTilePieces / 4),
+      cementBags: isMultiplying ? Math.ceil(cementBags * effMultiplier) : cementBags,
+      sandVolume: Number(((isMultiplying ? sandVolume * effMultiplier : sandVolume)).toFixed(1)),
+      totalTileCost: Math.round(isMultiplying ? totalTileCost * effMultiplier : totalTileCost),
+      cementCost,
+      sandCost,
+      totalLabourCost: Math.round(isMultiplying ? totalLabourCost * effMultiplier : totalLabourCost),
+      singleFloorTotalCost,
+      totalRoomsCount: (list.reduce((sum, r) => sum + r.nos, 0)) * effMultiplier,
+      singleFloorRoomsCount: list.reduce((sum, r) => sum + r.nos, 0),
+      // Single floor details
+      singleFloorCementBags: cementBags,
+      singleFloorSandVolume: sandVolume,
+      singleFloorTilePieces: totalTilePieces,
+      singleFloorBoxes: Math.ceil(totalTilePieces / 4),
+      // Storey multiplier details
+      multiplier: effMultiplier,
+      isMultiplying,
+      totalCost: multipliedCost,
+      // Multiplied materials for full building
+      multipliedTileArea: Number((totalGrossTileArea * effMultiplier).toFixed(1)),
+      multipliedTilePieces: totalTilePieces * effMultiplier,
+      multipliedBoxes: Math.ceil((totalTilePieces * effMultiplier) / 4),
+      multipliedCementBags: Math.ceil(cementBags * effMultiplier),
+      multipliedSandCft: Number((sandVolume * effMultiplier).toFixed(1)),
+    };
+
+    setResults(calcResult);
+    return calcResult;
+  };
+
+  useEffect(() => {
+    calculate(rooms);
+  }, [multiplier, isMultiplying, cementRate, sandRate]);
 
   const handleSaveToProject = async (asNewCopy = false) => {
-    const boq = calculate();
+    let currentRooms = [...rooms];
+    if (editingRoomIndex !== null && editingRoomIndex < currentRooms.length) {
+      currentRooms[editingRoomIndex] = getCurrentFormRoom();
+    } else if (currentRooms.length === 0) {
+      currentRooms = [getCurrentFormRoom()];
+    }
+    setRooms(currentRooms);
+    const boq = calculate(currentRooms);
     if (!boq) return;
+
     await onSaveEstimate({
-      id: asNewCopy ? undefined : (editingEstimateId || undefined),
+      id: asNewCopy ? undefined : editingEstimateId || undefined,
       type: "tiles",
-      name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
-      totalCost: boq.totalCost || 0,
+      name: estimateName.trim() || "Floor & Wall Tiles Estimate",
+      totalCost: boq.totalCost,
       summary: boq,
       data: {
-        tileType,
-        tilePrice,
-        tileSize,
-        length,
-        width,
-        includeSkirting,
-        skirtingHeight,
-        skirtingPrice,
-        mortarTh,
-        wastage,
-        labour,
-        coatingCost,
-        cementCost,
-        sandCost,
+        rooms: currentRooms,
+        rates: { cementRate, sandRate },
+        multiplier,
+        isMultiplying,
       },
     });
-  };
-
-  const handleSaveAsCopy = async () => {
-    await handleSaveToProject(true);
-  };
-
-  const handleClearEstimate = () => {
-    setEditingEstimateId(null);
-    setEstimateName("New Tile Estimate");
-    resetForm();
-    if (onClearLoadedEstimate) onClearLoadedEstimate();
   };
 
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
     setEditingEstimateId(est.id);
     setEstimateName(est.name);
-    const d = est.data;
-    if (d) {
-      if (d.tileType) setTileType(d.tileType);
-      if (d.tilePrice) setTilePrice(d.tilePrice);
-      if (d.tileSize) setTileSize(d.tileSize);
-      if (d.length) setLength(d.length);
-      if (d.width) setWidth(d.width);
-      if (d.includeSkirting !== undefined) setIncludeSkirting(d.includeSkirting);
-      if (d.skirtingHeight) setSkirtingHeight(d.skirtingHeight);
-      if (d.skirtingPrice) setSkirtingPrice(d.skirtingPrice);
-      if (d.labour) setLabour(d.labour);
-      if (d.cementCost) setCementCost(d.cementCost);
-      if (d.sandCost) setSandCost(d.sandCost);
+    if (est.data?.rooms && est.data.rooms.length > 0) {
+      setRooms(est.data.rooms);
+      loadRoomIntoForm(est.data.rooms[0], 0);
     }
-    calculate();
+    if (est.data?.rates) {
+      setCementRate(est.data.rates.cementRate || 550);
+      setSandRate(est.data.rates.sandRate || 45);
+    }
+    if (est.data?.multiplier) {
+      setMultiplier(est.data.multiplier);
+      setIsMultiplying(Boolean(est.data.isMultiplying));
+    }
+    calculate(est.data?.rooms || rooms);
   };
 
   useEffect(() => {
-    if (
-      loadedEstimate &&
-      (loadedEstimate.type === "tiles" || (loadedEstimate.type as string) === "tile") &&
-      loadedEstimate.id !== editingEstimateId
-    ) {
+    if (loadedEstimate && loadedEstimate.type === "tiles" && loadedEstimate.id !== editingEstimateId) {
       handleLoadSavedEstimate(loadedEstimate);
     }
   }, [loadedEstimate, editingEstimateId]);
@@ -217,297 +409,414 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
         setCurrentEstimateName={setEstimateName}
         currentEstimateId={editingEstimateId}
         onSave={() => handleSaveToProject(false)}
-        onSaveAsCopy={handleSaveAsCopy}
-        onClearEstimate={handleClearEstimate}
+        onSaveAsCopy={() => handleSaveToProject(true)}
+        onClearEstimate={() => {
+          setEditingEstimateId(null);
+          setEstimateName("New Tiles Estimate");
+          setRooms([]);
+          resetForm();
+          setResults(null);
+          if (onClearLoadedEstimate) onClearLoadedEstimate();
+        }}
         onLoadEstimate={handleLoadSavedEstimate}
         onDeleteEstimate={onDeleteEstimate}
         getCurrentPayload={() => ({
           totalCost: results?.totalCost || 0,
           summary: results || {},
-          data: {
-            tileType,
-            tilePrice,
-            tileSize,
-            length,
-            width,
-            includeSkirting,
-            skirtingHeight,
-            skirtingPrice,
-            labour,
-            cementCost,
-            sandCost,
-          },
+          data: { rooms, multiplier, isMultiplying, rates: { cementRate, sandRate } },
         })}
         onImportPayload={(payload) => {
-          if (payload.data?.length) setLength(payload.data.length);
-          if (payload.data?.width) setWidth(payload.data.width);
+          if (payload.data?.rooms) {
+            setRooms(payload.data.rooms);
+            calculate(payload.data.rooms);
+          }
         }}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
         <div className="max-w-2xl mx-auto space-y-3">
-          <div className="grid grid-cols-2 gap-2 bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg">
-            <div className="col-span-2">
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Type</label>
-              <select
-                value={tileType}
-                onChange={(e) => handleTileTypeChange(e.target.value)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
-              >
-                <option value="120">Ceramic Floor (120 ৳/sft)</option>
-                <option value="180">Porcelain (180 ৳/sft)</option>
-                <option value="95">Vitrified (95 ৳/sft)</option>
-                <option value="160">Homogeneous (160 ৳/sft)</option>
-                <option value="250">Marble Look (250 ৳/sft)</option>
-                <option value="320">Wooden Look (320 ৳/sft)</option>
-                <option value="75">Wall Tile (75 ৳/sft)</option>
-                <option value="custom">Custom / Other</option>
-              </select>
+          {errorMsg && (
+            <div className="bg-[#ff4d6d]/15 border border-[#ff4d6d] text-[#ffb3c1] p-2 rounded-lg text-xs">
+              {errorMsg}
             </div>
+          )}
 
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Price (৳/sft)</label>
-              <NumericInput
-                value={tilePrice}
-                step="1"
-                onChange={setTilePrice}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
-              />
+          {successMsg && (
+            <div className="bg-[#2ecc71]/15 border border-[#2ecc71] text-[#2ecc71] p-2 rounded-lg text-xs font-semibold animate-in fade-in duration-200">
+              {successMsg}
             </div>
+          )}
 
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Size</label>
-              <select
-                value={tileSize}
-                onChange={(e) => setTileSize(parseFloat(e.target.value) || 2)}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white"
-              >
-                <option value={1}>1 × 1 ft</option>
-                <option value={1.5}>1.5 × 1.5 ft</option>
-                <option value={2}>2 × 2 ft</option>
-                <option value={2.5}>2.5 × 2.5 ft</option>
-                <option value={3}>3 × 3 ft</option>
-              </select>
-            </div>
+          {/* Storey Multiplier Bar */}
+          <StoreyMultiplierBar
+            projectStories={projectStories}
+            multiplier={multiplier}
+            setMultiplier={setMultiplier}
+            isMultiplying={isMultiplying}
+            setIsMultiplying={setIsMultiplying}
+            itemTypeLabel="Tile Rooms"
+          />
 
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
-              <NumericInput
-                value={length}
-                step="0.1"
-                onChange={setLength}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft)</label>
-              <NumericInput
-                value={width}
-                step="0.1"
-                onChange={setWidth}
-                className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
-              />
-            </div>
-
-            <div className="col-span-2">
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Perimeter (Auto)</label>
-              <input
-                type="text"
-                value={`${(2 * (length + width)).toFixed(1)} ft`}
-                readOnly
-                className="w-full h-8 px-2.5 bg-[#1e334d] border border-[#2d4a6a] rounded-lg text-xs text-[#8ba3c1] cursor-not-allowed"
-              />
-            </div>
-
-            {/* Skirting Settings */}
-            <div className="col-span-2 bg-[#243b55] border border-[#2d4a6a] rounded-lg p-2.5 flex items-center justify-between">
-              <label htmlFor="includeSkirting" className="text-xs text-white font-medium cursor-pointer">
-                Include Skirting
-              </label>
-              <input
-                type="checkbox"
-                id="includeSkirting"
-                checked={includeSkirting}
-                onChange={(e) => setIncludeSkirting(e.target.checked)}
-                className="w-4 h-4 accent-[#00c2c7] cursor-pointer"
-              />
-            </div>
-
-            {includeSkirting && (
-              <>
-                <div>
-                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Skirting Ht (in)</label>
-                  <NumericInput
-                    value={skirtingHeight}
-                    step="0.5"
-                    onChange={setSkirtingHeight}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Skirting Price (৳/sft)</label>
-                  <NumericInput
-                    value={skirtingPrice}
-                    step="1"
-                    onChange={setSkirtingPrice}
-                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Other Costs */}
-            <div className="col-span-2 text-[10px] text-[#00c2c7] font-semibold border-b border-[#2d4a6a] pb-1 mt-1">
-              Mortar & Other Costs
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Mortar (inch)</label>
-              <NumericInput
-                value={mortarTh}
-                step="0.1"
-                onChange={setMortarTh}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Wastage (%)</label>
-              <NumericInput
-                value={wastage}
-                allowZero={true}
-                onChange={setWastage}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Labour (৳/sft)</label>
-              <NumericInput
-                value={labour}
-                onChange={setLabour}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Coating (৳/sft)</label>
-              <NumericInput
-                value={coatingCost}
-                onChange={setCoatingCost}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
-              <NumericInput
-                value={cementCost}
-                onChange={setCementCost}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
-              <NumericInput
-                value={sandCost}
-                onChange={setSandCost}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
-
-            <div className="col-span-2 flex gap-2 mt-2">
+          {/* Editing Banner */}
+          {editingRoomIndex !== null && editingRoomIndex < rooms.length && (
+            <div className="bg-[#00c2c7]/10 border border-[#00c2c7] text-[#00c2c7] px-3 py-1.5 rounded-xl text-xs flex items-center justify-between">
+              <span>
+                Editing: <strong>{rooms[editingRoomIndex].name}</strong> (Room {editingRoomIndex + 1} of {rooms.length})
+              </span>
               <button
                 type="button"
                 onClick={resetForm}
-                className="w-full h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                className="text-xs underline hover:text-white"
+              >
+                Cancel / Switch to New
+              </button>
+            </div>
+          )}
+
+          {/* Tile Form Inputs */}
+          <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-3">
+            <div className="flex items-center justify-between border-b border-[#2d4a6a] pb-2">
+              <span className="text-xs font-bold text-[#00c2c7] flex items-center gap-1.5">
+                <Grid3X3 className="w-3.5 h-3.5" />
+                {editingRoomIndex !== null ? "Edit Room / Tile Area" : "Room Geometry & Tile Specification"}
+              </span>
+              <span className="text-[10px] text-[#8ba3c1]">Floor & Skirting Work</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="col-span-2">
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Room / Space Name</label>
+                <input
+                  type="text"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder="e.g. Master Bedroom"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Quantity (Nos)</label>
+                <NumericInput
+                  value={roomNos}
+                  onChange={setRoomNos}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Quality Preset</label>
+                <select
+                  value={tileType}
+                  onChange={(e) => handleTileTypeChange(e.target.value)}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                >
+                  <option value="180">180 ৳/sft (Homogeneous)</option>
+                  <option value="160">160 ৳/sft (Ceramic)</option>
+                  <option value="240">240 ৳/sft (Porcelain)</option>
+                  <option value="custom">Custom Rate</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
+                <NumericInput
+                  value={length}
+                  onChange={setLength}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Width (ft)</label>
+                <NumericInput
+                  value={width}
+                  onChange={setWidth}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Tile Size (ft)</label>
+                <select
+                  value={tileSize}
+                  onChange={(e) => setTileSize(Number(e.target.value))}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                >
+                  <option value={2}>2' × 2' (4 sq.ft)</option>
+                  <option value={1}>1' × 1' (1 sq.ft)</option>
+                  <option value={1.5}>1.5' × 1.5'</option>
+                  <option value={2.5}>2' × 4' (8 sq.ft)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Floor Area</label>
+                <div className="w-full h-8 px-2 bg-[#0e1624] border border-[#2d4a6a] rounded text-xs text-[#00c2c7] font-mono flex items-center font-bold">
+                  {(length * width * roomNos).toFixed(0)} sq.ft
+                </div>
+              </div>
+            </div>
+
+            {/* Skirting & Laying Options */}
+            <div className="border-t border-[#2d4a6a] pt-2 space-y-2">
+              <span className="text-[11px] font-bold text-[#f5a623] block">
+                Skirting Border & Installation Options
+              </span>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="tileSkirting"
+                    checked={includeSkirting}
+                    onChange={(e) => setIncludeSkirting(e.target.checked)}
+                    className="w-4 h-4 rounded accent-[#00c2c7]"
+                  />
+                  <label htmlFor="tileSkirting" className="text-xs text-white font-medium cursor-pointer">
+                    Include Skirting
+                  </label>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Skirting Height (in)</label>
+                  <NumericInput
+                    value={skirtingHeight}
+                    onChange={setSkirtingHeight}
+                    disabled={!includeSkirting}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none disabled:opacity-40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Wastage (%)</label>
+                  <NumericInput
+                    value={wastage}
+                    onChange={setWastage}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Labour (৳/sq.ft)</label>
+                  <NumericInput
+                    value={labour}
+                    onChange={setLabour}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-2 border-t border-[#2d4a6a]">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reset Values
+                Reset
               </button>
+              <button
+                type="button"
+                onClick={editingRoomIndex !== null && editingRoomIndex < rooms.length ? handleUpdateRoom : handleAddNewRoom}
+                className="flex-2 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                {editingRoomIndex !== null && editingRoomIndex < rooms.length ? "Update Room in List" : "+ Add Room / Area to List"}
+              </button>
+            </div>
+          </div>
+
+          {/* Rooms List Schedule */}
+          <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg">
+            <div className="flex justify-between items-center text-xs font-semibold text-[#00c2c7] mb-2 border-b border-[#2d4a6a] pb-1.5">
+              <span>Added Rooms / Areas Schedule</span>
+              <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono text-[11px]">
+                {rooms.length} area{rooms.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            {rooms.length === 0 ? (
+              <div className="text-center py-6 text-xs text-[#8ba3c1]">
+                No rooms in list yet. Enter dimensions and click "+ Add Room / Area to List".
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {rooms.map((r, idx) => {
+                  const isBeingEdited = editingRoomIndex === idx;
+                  const fArea = r.length * r.width * r.nos;
+                  return (
+                    <div
+                      key={r.id || idx}
+                      className={`border rounded-xl p-2.5 flex items-center justify-between gap-2.5 transition ${
+                        isBeingEdited
+                          ? "bg-[#00c2c7]/10 border-[#00c2c7] shadow-sm"
+                          : "bg-[#1a2b42] border-[#2d4a6a] hover:border-[#00c2c7]/40"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white truncate">
+                            {r.nos} × {r.name}
+                          </span>
+                          <span className="text-[9px] bg-[#00c2c7]/20 text-[#00c2c7] px-1.5 py-0.2 rounded font-bold">
+                            {fArea} sq.ft
+                          </span>
+                          {isBeingEdited && (
+                            <span className="text-[9px] bg-[#00c2c7] text-[#0f1c2e] font-bold px-1.5 py-0.2 rounded">
+                              Editing
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#8ba3c1] truncate mt-0.5">
+                          {r.length}' × {r.width}' · {r.tileSize}'×{r.tileSize}' Tiles · ৳{r.tilePrice}/sft · {r.includeSkirting ? `Skirting ${r.skirtingHeight}"` : "No skirting"} · Labour ৳{r.labour}/sft
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => loadRoomIntoForm(r, idx)}
+                          className={`px-2 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${
+                            isBeingEdited
+                              ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
+                              : "bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7]"
+                          }`}
+                          title="Edit room in form"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateRoom(idx)}
+                          className="px-2 py-1 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded text-xs font-semibold transition flex items-center gap-1 border border-[#2d4a6a]"
+                          title="Duplicate room"
+                        >
+                          <Copy className="w-3 h-3 text-[#f5a623]" />
+                          <span className="hidden sm:inline">Copy</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteRoom(idx)}
+                          className="w-7 h-7 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center text-xs font-bold transition"
+                          title="Delete room"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Rates Settings */}
+          <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
+            <span className="text-xs font-semibold text-[#00c2c7] block">Bedding Mortar Rates</span>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
+                <NumericInput
+                  value={cementRate}
+                  onChange={setCementRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+                <NumericInput
+                  value={sandRate}
+                  onChange={setSandRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                />
+              </div>
             </div>
           </div>
 
           {/* Results Summary */}
           {results && (
-            <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3 shadow-xl space-y-2">
+            <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3 shadow-xl space-y-3">
               <div className="text-xs font-bold text-[#00c2c7] flex items-center justify-between">
-                <span>Calculation Result</span>
+                <span>Material & Cost Summary</span>
                 <span className="text-[10px] text-[#8ba3c1] font-mono">
-                  {results.area} sqft · {results.tiles} tiles
+                  {results.totalRoomsCount} Rooms · {results.totalFloorArea} sq.ft Floor Area
                 </span>
               </div>
 
+              {/* Material Badges */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Floor Area</div>
-                  <div className="text-sm font-bold text-[#f5a623]">{results.area} sqft</div>
+                <div className="bg-[#1a2b42] border border-[#00c2c7] rounded-lg p-2 text-center">
+                  <div className="text-[9px] text-[#8ba3c1]">Gross Tiles Area</div>
+                  <div className="text-sm font-bold text-[#00c2c7]">
+                    {isMultiplying ? results.multipliedTileArea : results.totalGrossTileArea} sq.ft
+                  </div>
+                  {isMultiplying && (
+                    <div className="text-[9px] text-[#8ba3c1]">
+                      ({results.totalGrossTileArea} sq.ft / floor)
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">+ Wastage ({wastage}%)</div>
-                  <div className="text-sm font-bold text-[#f5a623]">{results.areaWaste} sqft</div>
-                </div>
-
-                <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Total Tiles</div>
-                  <div className="text-sm font-bold text-[#f5a623]">{results.tiles} pcs</div>
-                </div>
-
-                <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Tile Cost</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Tiles Quantity</div>
                   <div className="text-sm font-bold text-[#f5a623]">
-                    ৳ {Math.round(results.tileCost).toLocaleString("en-IN")}
+                    {isMultiplying ? results.multipliedTilePieces : results.totalTilePieces} pcs
                   </div>
+                  <div className="text-[9px] text-[#8ba3c1]">
+                    ~{isMultiplying ? results.multipliedBoxes : results.totalBoxes} boxes
+                  </div>
+                </div>
+
+                <div className="bg-[#1a2b42] border border-[#2ecc71] rounded-lg p-2 text-center">
+                  <div className="text-[9px] text-[#8ba3c1]">Mortar Cement</div>
+                  <div className="text-sm font-bold text-[#2ecc71]">
+                    {isMultiplying ? results.multipliedCementBags : results.cementBags} bags
+                  </div>
+                  {isMultiplying && (
+                    <div className="text-[9px] text-[#8ba3c1]">
+                      ({results.cementBags} bags / floor)
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#1a2b42] border border-[#2ecc71] rounded-lg p-2 text-center">
+                  <div className="text-[9px] text-[#8ba3c1]">Mortar Sand</div>
+                  <div className="text-sm font-bold text-[#2ecc71]">
+                    {isMultiplying ? results.multipliedSandCft : results.sandVolume} cft
+                  </div>
+                  {isMultiplying && (
+                    <div className="text-[9px] text-[#8ba3c1]">
+                      ({results.sandVolume} cft / floor)
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Secondary Breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center">
-                <div className="bg-[#1a2b42] border border-[#2d4a6a] rounded p-1.5">
-                  <div className="text-[9px] text-[#8ba3c1]">Skirting Cost</div>
-                  <div className="text-xs font-bold text-white">
-                    ৳ {Math.round(results.skirtingCost).toLocaleString("en-IN")}
-                  </div>
-                </div>
-                <div className="bg-[#1a2b42] border border-[#2d4a6a] rounded p-1.5">
-                  <div className="text-[9px] text-[#8ba3c1]">Mortar Cost</div>
-                  <div className="text-xs font-bold text-white">
-                    ৳ {Math.round(results.mortarCost).toLocaleString("en-IN")}
-                  </div>
-                </div>
-                <div className="bg-[#1a2b42] border border-[#2d4a6a] rounded p-1.5">
-                  <div className="text-[9px] text-[#8ba3c1]">Labour Cost</div>
-                  <div className="text-xs font-bold text-white">
-                    ৳ {Math.round(results.labourCost).toLocaleString("en-IN")}
-                  </div>
-                </div>
-                <div className="bg-[#1a2b42] border border-[#2d4a6a] rounded p-1.5">
-                  <div className="text-[9px] text-[#8ba3c1]">Cement ({results.cementBags} bags)</div>
-                  <div className="text-xs font-bold text-white">{results.sandVol} cft Sand</div>
-                </div>
-              </div>
-
-              {/* Grand Total Bar */}
-              <div className="bg-gradient-to-r from-[#0f3d3e] to-[#1a4d3a] border border-[#00c2c7]/40 rounded-lg p-2.5 flex items-center justify-between">
+              {/* Total Cost Display with Multiplier Breakdown */}
+              <div className="bg-gradient-to-r from-[#1a3a2a] to-[#0f2a1e] border border-[#2ecc71] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg">
                 <div>
-                  <div className="text-[10px] text-[#a0d4d4]">Grand Total · Tile Works</div>
-                  <div className="text-lg font-bold text-[#00c2c7]">
+                  <div className="text-[10px] text-[#8ba3c1] uppercase font-bold tracking-wider">
+                    {isMultiplying
+                      ? `Full Building Tiles Budget (×${multiplier} Storeys)`
+                      : "Typical Floor Tiles Budget"}
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-[#2ecc71]">
                     ৳ {Math.round(results.totalCost).toLocaleString("en-IN")}
                   </div>
-                  <div className="text-[10px] text-[#86efac]">
-                    Per sft: ৳ {results.perSft}
-                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSaveToProject}
-                  className="bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition"
-                >
-                  Save to Project
-                </button>
+
+                {isMultiplying && (
+                  <div className="text-right sm:border-l sm:border-[#2ecc71]/30 sm:pl-3">
+                    <div className="text-[10px] text-[#8ba3c1]">Per Typical Floor</div>
+                    <div className="text-sm font-bold text-white">
+                      ৳ {Math.round(results.singleFloorTotalCost).toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem, ColumnItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
-import { Plus, Minus, Trash2, RotateCcw } from "lucide-react";
+import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
+import { Plus, Minus, Trash2, RotateCcw, Copy, Edit3, Check, X } from "lucide-react";
 
 interface ColumnCalculatorProps {
   activeProject: Project | null;
@@ -28,6 +29,20 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
 }) => {
   const [estimateName, setEstimateName] = useState("Column Estimate");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
+
+  // Multi-Storey Building Multiplier
+  const projectStories = activeProject?.stories || 1;
+  const [multiplier, setMultiplier] = useState(projectStories);
+  const [isMultiplying, setIsMultiplying] = useState(projectStories > 1);
+
+  // Sync multiplier when project changes
+  useEffect(() => {
+    if (activeProject?.stories) {
+      setMultiplier(activeProject.stories);
+      setIsMultiplying(activeProject.stories > 1);
+    }
+  }, [activeProject?.id, activeProject?.stories]);
+
   const [columns, setColumns] = useState<ColumnItem[]>([
     {
       nos: 4,
@@ -43,7 +58,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     },
   ]);
 
-  // Form
+  // Form - starts ready for adding next column (or click Edit to modify C1)
   const [colName, setColName] = useState("C2");
   const [mixRatio, setMixRatio] = useState("1:1.5:3");
   const [colType, setColType] = useState<"rectangular" | "circular">("rectangular");
@@ -75,8 +90,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
   const [steelRate, setSteelRate] = useState(95);
 
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [results, setResults] = useState<any>(null);
-  const [editingColIndex, setEditingColIndex] = useState<number | null>(0);
+  const [editingColIndex, setEditingColIndex] = useState<number | null>(null);
 
   const addRebarRow = () => {
     setRebars([...rebars, { dia: 16, nos: 4 }]);
@@ -131,45 +147,114 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     if (Array.isArray(c.rebars) && c.rebars.length > 0) {
       setRebars(c.rebars);
     }
+    setErrorMsg("");
   };
 
-  const saveColFromForm = () => {
+  // 1. Add current form as a brand new column to list
+  const handleAddNewColumn = () => {
     setErrorMsg("");
     const validRebars = rebars.filter((r) => r.dia > 0 && r.nos > 0);
     if (validRebars.length === 0) {
       setErrorMsg("Add at least one valid main rebar.");
       return;
     }
-    const current = getCurrentFormColumn();
-    let nextList = [...columns];
-    if (editingColIndex !== null && editingColIndex >= 0 && editingColIndex < nextList.length) {
-      nextList[editingColIndex] = current;
-    } else {
-      nextList.push(current);
-      setEditingColIndex(nextList.length - 1);
+    if (colHeight <= 0) {
+      setErrorMsg("Please enter a valid column height (> 0).");
+      return;
     }
+    const current = getCurrentFormColumn();
+    const nextList = [...columns, current];
     setColumns(nextList);
     calculate(nextList);
+
+    // Auto-advance for next column
+    setEditingColIndex(null);
+    setColName(`C${nextList.length + 1}`);
+    setColNos(4);
+    setSuccessMsg(`✓ Added ${current.name} to column list!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
   };
 
-  const addColAsNew = () => {
+  // 2. Update existing column at editingColIndex
+  const handleUpdateColumn = () => {
+    setErrorMsg("");
+    if (editingColIndex === null || editingColIndex < 0 || editingColIndex >= columns.length) {
+      handleAddNewColumn();
+      return;
+    }
+    const validRebars = rebars.filter((r) => r.dia > 0 && r.nos > 0);
+    if (validRebars.length === 0) {
+      setErrorMsg("Add at least one valid main rebar.");
+      return;
+    }
+    const current = getCurrentFormColumn();
+    const nextList = [...columns];
+    nextList[editingColIndex] = current;
+    setColumns(nextList);
+    calculate(nextList);
+
+    setSuccessMsg(`✓ Updated ${current.name} in list!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  // 3. Switch to Add New mode
+  const handleStartNewColumn = () => {
     setEditingColIndex(null);
     setColName(`C${columns.length + 1}`);
-    setColNos(1);
+    setColNos(4);
+    setErrorMsg("");
   };
 
+  // 4. Duplicate an existing column
+  const handleDuplicateColumn = (idx: number) => {
+    const original = columns[idx];
+    if (!original) return;
+    const duplicated: ColumnItem = {
+      ...original,
+      name: `${original.name} (Copy)`,
+    };
+    const nextList = [...columns, duplicated];
+    setColumns(nextList);
+    calculate(nextList);
+    setSuccessMsg(`✓ Duplicated ${original.name} as ${duplicated.name}!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  // 5. Reset input fields only (never deletes columns list!)
+  const handleResetFormFields = () => {
+    setEditingColIndex(null);
+    setColName(`C${columns.length + 1}`);
+    setColNos(4);
+    setColType("rectangular");
+    setColCategory("long");
+    setColX(12);
+    setColY(12);
+    setColDia(12);
+    setColHeight(10);
+    setShortHeight(3);
+    setLongHeight(10);
+    setStirrupDia(10);
+    setStirrupSpacing(6);
+    setMixRatio("1:1.5:3");
+    setRebars([{ dia: 16, nos: 8 }]);
+    setErrorMsg("");
+  };
+
+  // 6. Delete column
   const deleteColumn = (index: number) => {
     const nextList = columns.filter((_, i) => i !== index);
     setColumns(nextList);
     if (nextList.length > 0) {
       calculate(nextList);
       if (editingColIndex === index) {
-        loadColIntoForm(nextList[0], 0);
+        setEditingColIndex(null);
+        setColName(`C${nextList.length + 1}`);
       } else if (editingColIndex !== null && editingColIndex > index) {
         setEditingColIndex(editingColIndex - 1);
       }
     } else {
       setEditingColIndex(null);
+      setColName("C1");
       setResults(null);
     }
   };
@@ -272,28 +357,48 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     const sandCost = sandCft * sandRate;
     const aggCost = useAggregate ? aggCft * aggRate : 0;
     const steelCost = totalSteelKg * steelRate;
-    const totalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
+    const singleFloorTotalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
+
+    // Apply Storey Multiplier
+    const effMultiplier = isMultiplying ? Math.max(1, multiplier) : 1;
+    const multipliedCost = singleFloorTotalCost * effMultiplier;
 
     const totalColsCount = list.reduce((sum, c) => sum + c.nos, 0);
 
     const calcResult = {
-      cementBags,
-      sandCft: Number(sandCft.toFixed(1)),
-      aggCft: Number(aggCft.toFixed(1)),
-      brickQty,
+      cementBags: isMultiplying ? Math.ceil(cementBags * effMultiplier) : cementBags,
+      sandCft: Number((sandCft * effMultiplier).toFixed(1)),
+      aggCft: Number((aggCft * effMultiplier).toFixed(1)),
+      brickQty: brickQty * effMultiplier,
       useAggregate,
-      totalSteelKg: Number(totalSteelKg.toFixed(1)),
-      steelBreakdown: steel,
-      totalWetVol: Number(totalWetVol.toFixed(2)),
-      totalWastageVol: Number(totalWastageVol.toFixed(2)),
-      totalDryVol: Number(totalDryVol.toFixed(2)),
-      totalColsCount,
+      totalSteelKg: Number((totalSteelKg * effMultiplier).toFixed(1)),
+      steelBreakdown: Object.fromEntries(
+        Object.entries(steel).map(([d, w]) => [d, Number((w * effMultiplier).toFixed(1))])
+      ),
+      totalWetVol: Number((totalWetVol * effMultiplier).toFixed(2)),
+      totalWastageVol: Number((totalWastageVol * effMultiplier).toFixed(2)),
+      totalDryVol: Number((totalDryVol * effMultiplier).toFixed(2)),
+      totalColsCount: totalColsCount * effMultiplier,
+      singleFloorColsCount: totalColsCount,
+      // Single floor details
+      singleFloorCementBags: cementBags,
+      singleFloorSandCft: Number(sandCft.toFixed(1)),
+      singleFloorAggCft: Number(aggCft.toFixed(1)),
+      singleFloorSteelKg: Number(totalSteelKg.toFixed(1)),
       cementCost,
       sandCost,
       aggCost,
       steelCost,
       picketCost,
-      totalCost,
+      singleFloorTotalCost,
+      multiplier: effMultiplier,
+      isMultiplying,
+      totalCost: multipliedCost,
+      multipliedCementBags: Math.ceil(cementBags * effMultiplier),
+      multipliedSandCft: Number((sandCft * effMultiplier).toFixed(1)),
+      multipliedAggCft: Number((aggCft * effMultiplier).toFixed(1)),
+      multipliedSteelKg: Number((totalSteelKg * effMultiplier).toFixed(1)),
+      multipliedBricks: brickQty * effMultiplier,
     };
     setResults(calcResult);
     return calcResult;
@@ -301,41 +406,32 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
 
   useEffect(() => {
     calculate(columns);
-  }, []);
+  }, [multiplier, isMultiplying, cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft, baseType]);
 
   const resetForm = () => {
-    setColName("C1");
-    setColNos(4);
-    setColType("rectangular");
-    setColCategory("long");
-    setColX(12);
-    setColY(12);
-    setColDia(12);
-    setColHeight(10);
-    setShortHeight(3);
-    setLongHeight(10);
-    setStirrupDia(10);
-    setStirrupSpacing(6);
-    setMixRatio("1:1.5:3");
-    setBaseType("none");
-    setRebars([{ dia: 16, nos: 8 }]);
+    handleResetFormFields();
+  };
+
+  const handleClearAllColumns = () => {
     setColumns([]);
-    setEditingColIndex(null);
+    handleResetFormFields();
     setResults(null);
-    setErrorMsg("");
+  };
+
+  const saveColFromForm = () => {
+    if (editingColIndex !== null && editingColIndex < columns.length) {
+      handleUpdateColumn();
+    } else {
+      handleAddNewColumn();
+    }
   };
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentCols = [...columns];
-    const formCol = getCurrentFormColumn();
-    if (editingColIndex !== null && editingColIndex >= 0 && editingColIndex < currentCols.length) {
-      currentCols[editingColIndex] = formCol;
-    } else if (currentCols.length === 0) {
-      currentCols = [formCol];
-    } else {
-      currentCols[0] = formCol;
+    if (currentCols.length === 0) {
+      currentCols = [getCurrentFormColumn()];
+      setColumns(currentCols);
     }
-    setColumns(currentCols);
     const boq = calculate(currentCols);
     if (!boq) return;
 
@@ -349,6 +445,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         columns: currentCols,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
+        multiplier,
+        isMultiplying,
       },
     });
   };
@@ -360,7 +458,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
   const handleClearEstimate = () => {
     setEditingEstimateId(null);
     setEstimateName("New Column Estimate");
-    resetForm();
+    setColumns([]);
+    handleResetFormFields();
+    setResults(null);
     if (onClearLoadedEstimate) onClearLoadedEstimate();
   };
 
@@ -369,7 +469,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     setEstimateName(est.name);
     if (est.data?.columns && est.data.columns.length > 0) {
       setColumns(est.data.columns);
-      loadColIntoForm(est.data.columns[0], 0);
+      setEditingColIndex(null);
+      setColName(`C${est.data.columns.length + 1}`);
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
@@ -379,6 +480,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         if (est.data.rates.bricksPerCft) setBricksPerCft(est.data.rates.bricksPerCft);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
+      if (est.data.multiplier) setMultiplier(est.data.multiplier);
+      if (est.data.isMultiplying !== undefined) setIsMultiplying(Boolean(est.data.isMultiplying));
       calculate(est.data.columns);
     }
   };
@@ -406,7 +509,13 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         getCurrentPayload={() => ({
           totalCost: results?.totalCost || 0,
           summary: results || {},
-          data: { columns, baseType, rates: { cementRate, sandRate, aggRate, steelRate } },
+          data: {
+            columns,
+            baseType,
+            rates: { cementRate, sandRate, aggRate, steelRate },
+            multiplier,
+            isMultiplying,
+          },
         })}
         onImportPayload={(payload) => {
           if (payload.data?.columns) {
@@ -421,6 +530,55 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
           {errorMsg && (
             <div className="bg-[#ff4d6d]/15 border border-[#ff4d6d] text-[#ffb3c1] p-2 rounded-lg text-xs">
               {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-[#2ecc71]/15 border border-[#2ecc71] text-[#2ecc71] p-2 rounded-lg text-xs font-semibold animate-in fade-in duration-200">
+              {successMsg}
+            </div>
+          )}
+
+          {/* Storey Multiplier Bar */}
+          <StoreyMultiplierBar
+            projectStories={projectStories}
+            multiplier={multiplier}
+            setMultiplier={setMultiplier}
+            isMultiplying={isMultiplying}
+            setIsMultiplying={setIsMultiplying}
+            itemTypeLabel="Columns"
+          />
+
+          {/* Active Mode Banner: Editing vs Add New */}
+          {editingColIndex !== null && editingColIndex < columns.length ? (
+            <div className="bg-[#1a2b42] border border-[#00c2c7]/50 rounded-xl px-3 py-2 flex items-center justify-between text-xs shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00c2c7] animate-pulse" />
+                <span className="text-white font-bold">
+                  Editing: <span className="text-[#00c2c7]">{colName}</span>{" "}
+                  <span className="text-[#8ba3c1] font-normal text-[11px]">
+                    (Item #{editingColIndex + 1} of {columns.length})
+                  </span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleStartNewColumn}
+                className="text-[11px] bg-[#243b55] hover:bg-[#2d4a6a] text-[#00c2c7] hover:text-white px-2.5 py-1 rounded-lg border border-[#00c2c7]/40 flex items-center gap-1 font-semibold transition cursor-pointer"
+                title="Switch back to creating a new column"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Create New</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+              <span className="text-[#8ba3c1]">
+                Mode: <strong className="text-[#00c2c7]">Creating New Column</strong> (C{columns.length + 1})
+              </span>
+              <span className="text-[10px] text-[#8ba3c1]">
+                {columns.length} column{columns.length !== 1 ? "s" : ""} in list
+              </span>
             </div>
           )}
 
@@ -700,60 +858,155 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
             <div className="col-span-2 flex gap-2 mt-2">
               <button
                 type="button"
-                onClick={resetForm}
-                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                onClick={handleResetFormFields}
+                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Reset input fields"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset
               </button>
-              <button
-                type="button"
-                onClick={saveColFromForm}
-                className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {editingColIndex !== null && editingColIndex < columns.length ? "Update Column" : "+ Add Column to List"}
-              </button>
+
+              {editingColIndex !== null && editingColIndex < columns.length ? (
+                <div className="flex-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUpdateColumn}
+                    className="flex-1 h-9 bg-[#2ecc71] hover:bg-[#27ae60] text-[#0f1c2e] font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    Update Column in List
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartNewColumn}
+                    className="px-3 h-9 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded-lg text-xs font-semibold transition flex items-center justify-center cursor-pointer"
+                    title="Cancel editing"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAddNewColumn}
+                  className="flex-2 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>+ Add Column to List</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* Added Columns List */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg">
             <div className="flex justify-between items-center text-xs font-semibold text-[#00c2c7] mb-2 border-b border-[#2d4a6a] pb-1.5">
-              <span>Added Columns</span>
-              <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono">
-                {columns.length} items
-              </span>
+              <div className="flex items-center gap-2">
+                <span>Added Columns</span>
+                <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono text-[11px]">
+                  {columns.length} items {isMultiplying && `(×${multiplier} = ${columns.reduce((s, c) => s + c.nos, 0) * multiplier} total)`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleStartNewColumn}
+                  className="text-[10px] bg-[#00c2c7]/20 hover:bg-[#00c2c7]/30 text-[#00c2c7] border border-[#00c2c7]/40 px-2 py-0.5 rounded font-bold transition flex items-center gap-1 cursor-pointer"
+                  title="Switch form to enter a new column"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>+ New</span>
+                </button>
+                {columns.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllColumns}
+                    className="text-[10px] text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/30 px-2 py-0.5 rounded transition font-semibold cursor-pointer"
+                    title="Remove all columns from current list"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
             </div>
 
             {columns.length === 0 ? (
-              <div className="text-center py-4 text-xs text-[#8ba3c1]">
-                No columns in list yet. Enter details and click "+ Add Column".
+              <div className="text-center py-5 text-xs text-[#8ba3c1]">
+                No columns in list yet. Enter details above and click <strong className="text-[#00c2c7]">"+ Add Column to List"</strong>.
               </div>
             ) : (
               <div className="space-y-1.5">
-                {columns.map((c, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-[#1a2b42] border border-[#2d4a6a] rounded-lg p-2 flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-white">
-                        {c.nos} × {c.name} ({c.category})
+                {columns.map((c, idx) => {
+                  const isBeingEdited = editingColIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-2.5 flex items-center justify-between gap-2 transition cursor-pointer ${
+                        isBeingEdited
+                          ? "bg-[#00c2c7]/15 border-[#00c2c7] shadow-sm ring-1 ring-[#00c2c7]/40"
+                          : "bg-[#1a2b42] border-[#2d4a6a] hover:border-[#00c2c7]/50"
+                      }`}
+                      onClick={() => loadColIntoForm(c, idx)}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-white">
+                            {c.nos} × {c.name} ({c.category})
+                          </span>
+                          {isBeingEdited && (
+                            <span className="text-[9px] bg-[#00c2c7] text-[#0f1c2e] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                              Editing
+                            </span>
+                          )}
+                          {isMultiplying && (
+                            <span className="text-[10px] text-[#f5a623] font-mono">
+                              [×{multiplier} = {c.nos * multiplier} pcs]
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#8ba3c1] truncate mt-0.5">
+                          {c.type} · {c.size}" · {c.height} ft · {c.rebars.map((r) => `${r.nos}Ø${r.dia}`).join(", ")} · Ties {c.stirrupDia}mm@{c.stirrupSpacing}"
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#8ba3c1] truncate">
-                        {c.type} · {c.size} · {c.height} ft · {c.rebars.map((r) => `${r.nos}Ø${r.dia}`).join(", ")} · Ties {c.stirrupDia}mm@{c.stirrupSpacing}"
+
+                      <div
+                        className="flex items-center gap-1 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => loadColIntoForm(c, idx)}
+                          className={`px-2 py-1 rounded text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
+                            isBeingEdited
+                              ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
+                              : "bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7]"
+                          }`}
+                          title="Edit this column in form"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicateColumn(idx)}
+                          className="px-2 py-1 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded text-xs font-semibold transition flex items-center gap-1 border border-[#2d4a6a] cursor-pointer"
+                          title="Duplicate this column"
+                        >
+                          <Copy className="w-3 h-3 text-[#f5a623]" />
+                          <span className="hidden sm:inline">Copy</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteColumn(idx)}
+                          className="w-7 h-7 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center text-xs font-bold transition cursor-pointer"
+                          title="Delete column from list"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteColumn(idx)}
-                      className="w-6 h-6 bg-[#ff4d6d] hover:bg-[#ff4d6d]/80 text-white rounded flex items-center justify-center text-xs font-bold"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -772,11 +1025,17 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Cement</div>
                   <div className="text-sm font-bold text-[#f5a623]">{results.cementBags} bags</div>
+                  {isMultiplying && multiplier > 1 && (
+                    <div className="text-[9px] text-[#8ba3c1]">({results.singleFloorCementBags} bags / floor)</div>
+                  )}
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Sand</div>
                   <div className="text-sm font-bold text-[#f5a623]">{results.sandCft} cft</div>
+                  {isMultiplying && multiplier > 1 && (
+                    <div className="text-[9px] text-[#8ba3c1]">({results.singleFloorSandCft} cft / floor)</div>
+                  )}
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
@@ -786,11 +1045,19 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                   <div className="text-sm font-bold text-[#f5a623]">
                     {results.useAggregate ? `${results.aggCft} cft` : `${results.brickQty} pcs`}
                   </div>
+                  {isMultiplying && multiplier > 1 && (
+                    <div className="text-[9px] text-[#8ba3c1]">
+                      ({results.useAggregate ? `${results.singleFloorAggCft} cft / floor` : `${results.brickQty / multiplier} pcs / floor`})
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Total Steel</div>
                   <div className="text-sm font-bold text-[#f5a623]">{results.totalSteelKg} kg</div>
+                  {isMultiplying && multiplier > 1 && (
+                    <div className="text-[9px] text-[#8ba3c1]">({results.singleFloorSteelKg} kg / floor)</div>
+                  )}
                 </div>
               </div>
 

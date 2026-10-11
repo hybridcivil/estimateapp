@@ -30,8 +30,14 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
   // Inputs
-  const [floors, setFloors] = useState(5);
+  const [floors, setFloors] = useState(activeProject?.stories || 1);
   const [plinthArea, setPlinthArea] = useState(1500); // sqft per floor
+
+  useEffect(() => {
+    if (activeProject?.stories) {
+      setFloors(activeProject.stories);
+    }
+  }, [activeProject?.id, activeProject?.stories]);
   const [buildingType, setBuildingType] = useState<"residential" | "commercial" | "industrial">("residential");
   const [foundationType, setFoundationType] = useState<"isolated" | "mat" | "pile">("isolated");
 

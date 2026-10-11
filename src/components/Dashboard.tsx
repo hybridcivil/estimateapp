@@ -24,9 +24,12 @@ import {
   Receipt,
   FileText,
   Edit3,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
+import { useTheme } from "../context/ThemeContext";
 
 interface DashboardProps {
   projects: Project[];
@@ -40,6 +43,8 @@ interface DashboardProps {
   onNavigateToCalculator: (type: EstimateType, estimateToLoad?: ProjectEstimateItem) => void;
   onOpenReportModal: () => void;
   onImportProject: (projectData: any) => Promise<void>;
+  onAddDefaultBuildingList?: () => Promise<void>;
+  onUpdateProject?: (id: string, data: any) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -54,7 +59,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToCalculator,
   onOpenReportModal,
   onImportProject,
+  onAddDefaultBuildingList,
+  onUpdateProject,
 }) => {
+  const { isLight, toggleTheme } = useTheme();
   const [filterType, setFilterType] = useState<string>("all");
   const [fileImportError, setFileImportError] = useState("");
 
@@ -96,23 +104,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   estimates.forEach((e) => {
     const s = e.summary || {};
-    if (s.cementBags) totalCementBags += s.cementBags;
-    if (s.totalCementBags) totalCementBags += s.totalCementBags;
+    const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
+    totalCementBags += cBags;
 
-    if (s.sandVolume) totalSandCft += s.sandVolume;
-    if (s.sandVol) totalSandCft += s.sandVol;
-    if (s.totalSand) totalSandCft += s.totalSand;
-    if (s.totalSandCft) totalSandCft += s.totalSandCft;
+    const sCft = s.multipliedSandCft || s.sandCft || s.sandVolume || s.sandVol || s.totalSand || s.totalSandCft || 0;
+    totalSandCft += sCft;
 
-    if (s.aggregateVolume) totalAggCft += s.aggregateVolume;
-    if (s.aggregateVol) totalAggCft += s.aggregateVol;
-    if (s.totalAggCft) totalAggCft += s.totalAggCft;
+    const aCft = s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.aggregateVol || s.totalAggCft || 0;
+    totalAggCft += aCft;
 
-    if (s.totalSteel) totalSteelKg += s.totalSteel;
-    if (s.totalSteelKg) totalSteelKg += s.totalSteelKg;
+    const stKg = s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || 0;
+    totalSteelKg += stKg;
 
-    if (s.totalBricks) totalBricks += s.totalBricks;
-    if (s.brickQty) totalBricks += s.brickQty;
+    const brk = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
+    totalBricks += brk;
   });
 
   const handleExportSingleEstimate = (est: ProjectEstimateItem) => {
@@ -233,13 +238,39 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-[11px] font-bold text-[#00c2c7] tracking-wider uppercase bg-[#00c2c7]/10 px-2 py-0.5 rounded border border-[#00c2c7]/30">
                 Ashraf Civil Studio
               </span>
               <span className="text-xs text-[#8ba3c1]">
                 · Project Estimation & File Dashboard
               </span>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-semibold transition cursor-pointer border ${
+                  isLight
+                    ? "bg-amber-100 text-amber-950 border-amber-300 hover:bg-amber-200"
+                    : "bg-[#121a2b] text-[#8ba3c1] border-[#2d4a6a] hover:text-[#f5a623]"
+                }`}
+                title={
+                  isLight
+                    ? "High-Contrast Site Mode is Active (optimized for sunlight). Click to switch to Dark Mode."
+                    : "Studio Dark Mode is Active. Click to switch to High-Contrast Site Mode for outdoor visits."
+                }
+              >
+                {isLight ? (
+                  <>
+                    <Sun className="w-3 h-3 text-amber-600 fill-amber-500" />
+                    <span>Site Mode Active (Sunlight)</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3 h-3 text-[#f5a623]" />
+                    <span>Dark Mode · Click for Site Mode</span>
+                  </>
+                )}
+              </button>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Civil Engineering Estimation & File System
@@ -362,6 +393,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Engineer: <strong className="text-white">{activeProject.engineer}</strong>
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={onOpenEditProjectModal}
+                  className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] px-2 py-0.5 rounded-lg border border-[#00c2c7]/30 transition text-left cursor-pointer group"
+                  title="Click to edit project storeys & metadata"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <span>Building:</span>
+                  <strong className="text-[#00c2c7] group-hover:underline">
+                    {activeProject.stories || 1} {activeProject.stories === 1 ? 'Storey' : 'Storeys'}
+                  </strong>
+                  {(activeProject.stories || 1) > 1 && (
+                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] px-1 rounded text-[10px] font-mono font-bold">
+                      ×{activeProject.stories} Multiplied
+                    </span>
+                  )}
+                </button>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-[#8ba3c1]" />
                   Updated: {new Date(activeProject.updatedAt).toLocaleDateString()}
@@ -476,6 +524,166 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Plus className="w-4 h-4" />
             Create Your First Project
           </button>
+        </div>
+      )}
+
+      {/* Building Elements Schedule (Beam, Column, Footing, Slab, Stair, Tiles, Brick) */}
+      {activeProject && (
+        <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2 py-0.5 rounded font-semibold border border-[#00c2c7]/40">
+                  Building Elements Schedule
+                </span>
+                <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2 py-0.5 rounded-lg border border-[#00c2c7]/40">
+                  <Building2 className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <span className="text-xs font-bold text-white">Building:</span>
+                  {onUpdateProject ? (
+                    <div className="flex items-center gap-1 bg-[#121c2d] px-1 py-0.5 rounded border border-[#2d4a6a]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = activeProject.stories || 1;
+                          if (cur > 1) {
+                            onUpdateProject(activeProject.id, { stories: cur - 1 });
+                          }
+                        }}
+                        disabled={(activeProject.stories || 1) <= 1}
+                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] disabled:opacity-30 disabled:hover:bg-[#1e2f47] text-white text-xs font-bold transition cursor-pointer"
+                        title="Decrease building storeys"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-bold text-xs text-[#00c2c7] px-1 min-w-[18px] text-center">
+                        {activeProject.stories || 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = activeProject.stories || 1;
+                          onUpdateProject(activeProject.id, { stories: cur + 1 });
+                        }}
+                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] text-white text-xs font-bold transition cursor-pointer"
+                        title="Increase building storeys"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <strong className="text-[#00c2c7] text-xs">{activeProject.stories || 1}</strong>
+                  )}
+                  <span className="text-xs text-white">Storeys Multiplier</span>
+                  {(activeProject.stories || 1) > 1 && (
+                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">
+                      ×{activeProject.stories} Active
+                    </span>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-white mt-1">
+                Beam, Column, Footing, Slab, Stair, Tiles & Brick Checklist
+              </h3>
+              <p className="text-[11px] text-[#8ba3c1]">
+                All structural and finishing estimates in this list multiply according to the building's {activeProject.stories || 1} storeys.
+              </p>
+            </div>
+
+            {onAddDefaultBuildingList && (
+              <button
+                type="button"
+                onClick={onAddDefaultBuildingList}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md active:scale-95 shrink-0"
+                title="Automatically populate/initialize any missing building elements with the storey multiplier applied"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Auto-Add Full 7 Elements to List</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5">
+            {[
+              { type: "beam" as EstimateType, label: "Beam", sublabel: "Grade & Floor Beams", icon: Columns, accent: "#00c2c7" },
+              { type: "column" as EstimateType, label: "Column", sublabel: "Ground & Floor Columns", icon: Building2, accent: "#f5a623" },
+              { type: "footing" as EstimateType, label: "Footing", sublabel: "Foundation Footings", icon: SquareDashedBottom, accent: "#38bdf8" },
+              { type: "slab" as EstimateType, label: "Slab", sublabel: "Two-Way RCC Slabs", icon: Layers, accent: "#a78bfa" },
+              { type: "stair" as EstimateType, label: "Stair", sublabel: "Flights & Landings", icon: Footprints, accent: "#fb7185" },
+              { type: "tiles" as EstimateType, label: "Tiles", sublabel: "Floor Tiles & Skirting", icon: Grid3X3, accent: "#34d399" },
+              { type: "brick" as EstimateType, label: "Brick", sublabel: "Walls & 12mm Plaster", icon: BrickWall, accent: "#fb923c" },
+            ].map((el) => {
+              const matching = estimates.filter((e) => e.type === el.type);
+              const count = matching.length;
+              const elCost = matching.reduce((sum, e) => sum + (e.totalCost || 0), 0);
+              const Icon = el.icon;
+              return (
+                <div
+                  key={el.type}
+                  className={`bg-[#121a2b] border rounded-xl p-3 flex flex-col justify-between transition group ${
+                    count > 0 ? "border-[#00c2c7]/40 hover:border-[#00c2c7]" : "border-[#2d4a6a] hover:border-[#8ba3c1]"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${el.accent}20`, color: el.accent }}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 font-bold">
+                        ×{activeProject.stories || 1}F
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-white group-hover:text-[#00c2c7] transition">
+                      {el.label}
+                    </div>
+                    <div className="text-[10px] text-[#8ba3c1] leading-tight mt-0.5 line-clamp-1">
+                      {el.sublabel}
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-[#2d4a6a]/60">
+                      {count > 0 ? (
+                        <div>
+                          <div className="text-[10px] text-[#2ecc71] font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>{count} {count === 1 ? "file" : "files"}</span>
+                          </div>
+                          <div className="text-xs font-bold text-[#f5a623] mt-0.5 font-mono truncate">
+                            ৳ {Math.round(elCost).toLocaleString("en-IN")}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-[#8ba3c1] italic">
+                          Not estimated yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t border-[#2d4a6a]/40 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToCalculator(el.type)}
+                      className="w-full text-center py-1 bg-[#1a2b42] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded-lg text-[10px] font-bold transition cursor-pointer"
+                    >
+                      + Add / Calculate
+                    </button>
+                    {count > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToCalculator(el.type, matching[0])}
+                        className="w-full text-center py-0.5 text-[9px] text-[#8ba3c1] hover:text-white transition cursor-pointer"
+                      >
+                        Open latest
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

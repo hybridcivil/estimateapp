@@ -26,6 +26,7 @@ export interface Project {
   location: string;
   engineer: string;
   notes?: string;
+  stories?: number; // Number of storeys/floors (e.g. 1, 3, 5, 10)
   createdAt: string;
   updatedAt: string;
   estimates: ProjectEstimateItem[];
@@ -79,6 +80,83 @@ export interface FootingItem {
   hook: number;
   rebars: { role: string; dia: number; spacing: number }[];
   mix: string;
+}
+
+export interface SlabItem {
+  id?: string;
+  nos: number;
+  name: string;
+  length: number;
+  width: number;
+  thicknessIn: number;
+  mixRatio: string;
+  mainBar: number;
+  spacingIn: number;
+  distBar: number;
+  distSpacingIn: number;
+  extraBar: number;
+  extraBarsNum: number;
+}
+
+export interface StairItem {
+  id?: string;
+  nos: number;
+  name: string;
+  lengthFeet: number;
+  lengthInches: number;
+  widthFeet: number;
+  widthInches: number;
+  thicknessIn: number;
+  mixRatio: string;
+  risers: number;
+  treads: number;
+  riserHeightIn: number;
+  treadWidthIn: number;
+  mainBar: number;
+  mainSpacingIn: number;
+  distBar: number;
+  distSpacingIn: number;
+}
+
+export interface BrickWallItem {
+  id?: string;
+  nos: number;
+  name: string;
+  length: number;
+  width: number;
+  lengthSpans: number;
+  widthSpans: number;
+  height: number;
+  wallThickness: number; // 10 or 5 inches
+  windowCount: number;
+  windowWidth: number;
+  windowHeight: number;
+  doorCount: number;
+  doorWidth: number;
+  doorHeight: number;
+  brickLengthIn: number;
+  brickWidthIn: number;
+  brickHeightIn: number;
+  brickMix: string;
+  plasterMix: string;
+  plasterThicknessMm: number;
+}
+
+export interface TileRoomItem {
+  id?: string;
+  nos: number;
+  name: string;
+  length: number;
+  width: number;
+  tileType: string;
+  tilePrice: number;
+  tileSize: number;
+  includeSkirting: boolean;
+  skirtingHeight: number;
+  skirtingPrice: number;
+  mortarTh: number;
+  wastage: number;
+  labour: number;
 }
 
 export interface SlabConfig {

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem, FootingItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
-import { Plus, Minus, Trash2, RotateCcw } from "lucide-react";
+import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
+import { Plus, Minus, Trash2, RotateCcw, Copy, Edit3, Building2, Check, X } from "lucide-react";
 
 interface FootingCalculatorProps {
   activeProject: Project | null;
@@ -28,6 +29,20 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 }) => {
   const [estimateName, setEstimateName] = useState("Footing Estimate");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
+
+  // Multi-Storey Building Multiplier
+  const projectStories = activeProject?.stories || 1;
+  const [multiplier, setMultiplier] = useState(projectStories);
+  const [isMultiplying, setIsMultiplying] = useState(projectStories > 1);
+
+  // Sync multiplier when project changes
+  useEffect(() => {
+    if (activeProject?.stories) {
+      setMultiplier(activeProject.stories);
+      setIsMultiplying(activeProject.stories > 1);
+    }
+  }, [activeProject?.id, activeProject?.stories]);
+
   const [footings, setFootings] = useState<FootingItem[]>([
     {
       nos: 4,
@@ -44,6 +59,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       ],
     },
   ]);
+  const [editingFtIndex, setEditingFtIndex] = useState<number | null>(null);
 
   // Form Inputs
   const [ftName, setFtName] = useState("F2");
@@ -72,8 +88,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   const [steelRate, setSteelRate] = useState(95);
 
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [results, setResults] = useState<any>(null);
-  const [editingFtIndex, setEditingFtIndex] = useState<number | null>(0);
 
   const getCurrentFormFooting = (): FootingItem => {
     const validRebars = rebars.filter((r) => r.dia > 0 && r.spacing > 0);
@@ -148,7 +164,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     return total;
   };
 
-  const addFooting = () => {
+  const handleAddNewFooting = () => {
     setErrorMsg("");
     if (length <= 0 || breadth <= 0 || thicknessIn <= 0) {
       setErrorMsg("Enter valid footing dimensions.");
@@ -178,18 +194,70 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
     const nextList = [...footings, newFooting];
     setFootings(nextList);
+    setEditingFtIndex(null);
     setFtName(`F${nextList.length + 1}`);
     calculate(nextList);
+    setSuccessMsg(`✓ Added ${newFooting.name} to footing list!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleUpdateFooting = () => {
+    setErrorMsg("");
+    if (editingFtIndex === null || editingFtIndex < 0 || editingFtIndex >= footings.length) {
+      setErrorMsg("No footing selected for update.");
+      return;
+    }
+    const validRebars = rebars.filter((r) => r.dia > 0 && r.spacing > 0);
+    const updatedFooting: FootingItem = {
+      nos: Math.max(1, ftNos),
+      name: ftName.trim() || `F${editingFtIndex + 1}`,
+      length,
+      breadth,
+      thickness: thicknessIn / 12,
+      cover: coverIn / 12,
+      hook: hookIn / 12,
+      mix: mixRatio,
+      rebars: validRebars.length > 0 ? validRebars : [{ role: "bottom", dia: 16, spacing: 6 }],
+    };
+    const nextList = [...footings];
+    nextList[editingFtIndex] = updatedFooting;
+    setFootings(nextList);
+    calculate(nextList);
+    setSuccessMsg(`✓ Updated ${updatedFooting.name}!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  const handleCopyFooting = (index: number) => {
+    const src = footings[index];
+    if (!src) return;
+    const copied: FootingItem = {
+      ...src,
+      name: `${src.name} (Copy)`,
+    };
+    const nextList = [...footings, copied];
+    setFootings(nextList);
+    calculate(nextList);
+    setSuccessMsg(`✓ Duplicated ${src.name}!`);
+    setTimeout(() => setSuccessMsg(""), 3000);
   };
 
   const deleteFooting = (index: number) => {
     const nextList = footings.filter((_, i) => i !== index);
     setFootings(nextList);
+    if (editingFtIndex === index) {
+      setEditingFtIndex(null);
+    } else if (editingFtIndex !== null && editingFtIndex > index) {
+      setEditingFtIndex(editingFtIndex - 1);
+    }
     if (nextList.length > 0) calculate(nextList);
     else setResults(null);
   };
 
-  const calculate = (list = footings) => {
+  const calculate = (
+    list = footings,
+    mult = multiplier,
+    isMult = isMultiplying
+  ) => {
     setErrorMsg("");
     if (list.length === 0) {
       setErrorMsg("Add at least one footing first.");
@@ -197,6 +265,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       return;
     }
 
+    const effMultiplier = isMult ? Math.max(1, mult) : 1;
     const isPicket = baseType === "picket";
     const mixVolumes: Record<string, number> = {};
     const steel: Record<number, number> = {};
@@ -240,9 +309,9 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     });
 
     let totalDryVol = 0;
-    let cementBags = 0;
-    let sandCft = 0;
-    let aggCft = 0;
+    let baseCementBags = 0;
+    let baseSandCft = 0;
+    let baseAggCft = 0;
 
     Object.keys(mixVolumes).forEach((mix) => {
       const dryVol = mixVolumes[mix];
@@ -252,15 +321,31 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       const sR = ratio[1] || 1.5;
       const aR = ratio[2] || 3;
       const totalParts = cR + sR + aR;
-      cementBags += (dryVol * (cR / totalParts)) / 1.25;
-      sandCft += dryVol * (sR / totalParts);
-      aggCft += dryVol * (aR / totalParts);
+      baseCementBags += (dryVol * (cR / totalParts)) / 1.25;
+      baseSandCft += dryVol * (sR / totalParts);
+      baseAggCft += dryVol * (aR / totalParts);
     });
-    cementBags = Math.ceil(cementBags);
 
-    let totalSteelKg = 0;
+    // Apply storey / element multiplier
+    const cementBags = Math.ceil(baseCementBags * effMultiplier);
+    const sandCft = Number((baseSandCft * effMultiplier).toFixed(1));
+    const aggCft = Number((baseAggCft * effMultiplier).toFixed(1));
+
+    let baseTotalSteelKg = 0;
+    const multipliedSteel: Record<number, number> = {};
     Object.keys(steel).forEach((d) => {
-      totalSteelKg += steel[Number(d)];
+      const w = steel[Number(d)];
+      baseTotalSteelKg += w;
+      multipliedSteel[Number(d)] = w * effMultiplier;
+    });
+    const totalSteelKg = Number((baseTotalSteelKg * effMultiplier).toFixed(1));
+
+    const multipliedSteelByRole: Record<string, Record<number, number>> = {};
+    Object.keys(steelByRole).forEach((role) => {
+      multipliedSteelByRole[role] = {};
+      Object.keys(steelByRole[role]).forEach((dia) => {
+        multipliedSteelByRole[role][Number(dia)] = steelByRole[role][Number(dia)] * effMultiplier;
+      });
     });
 
     let brickQty = 0;
@@ -274,24 +359,28 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     const cementCost = cementBags * cementRate;
     const sandCost = sandCft * sandRate;
     const aggCost = useAggregate ? aggCft * aggRate : 0;
-    const steelCost = totalSteelKg * steelRate;
+    const steelCost = Math.round(totalSteelKg * steelRate);
     const totalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
 
-    const totalFtCount = list.reduce((sum, f) => sum + f.nos, 0);
+    const baseFtCount = list.reduce((sum, f) => sum + f.nos, 0);
+    const totalFtCount = baseFtCount * effMultiplier;
 
     const calcResult = {
       cementBags,
-      sandCft: Number(sandCft.toFixed(1)),
-      aggCft: Number(aggCft.toFixed(1)),
+      sandCft,
+      aggCft,
       brickQty,
       useAggregate,
-      totalSteelKg: Number(totalSteelKg.toFixed(1)),
-      steelBreakdown: steel,
-      steelByRole,
-      totalWetVol: Number(totalWetVol.toFixed(2)),
-      totalWastageVol: Number(totalWastageVol.toFixed(2)),
-      totalDryVol: Number(totalDryVol.toFixed(2)),
+      totalSteelKg,
+      steelBreakdown: multipliedSteel,
+      steelByRole: multipliedSteelByRole,
+      totalWetVol: Number((totalWetVol * effMultiplier).toFixed(2)),
+      totalWastageVol: Number((totalWastageVol * effMultiplier).toFixed(2)),
+      totalDryVol: Number((totalDryVol * effMultiplier).toFixed(2)),
+      baseFtCount,
       totalFtCount,
+      multiplier: effMultiplier,
+      isMultiplying,
       cementCost,
       sandCost,
       aggCost,
@@ -304,8 +393,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   };
 
   useEffect(() => {
-    calculate(footings);
-  }, []);
+    calculate(footings, multiplier, isMultiplying);
+  }, [footings, multiplier, isMultiplying, baseType, brickRate, bricksPerCft, cementRate, sandRate, aggRate, steelRate]);
 
   const resetForm = () => {
     setFtName("F1");
@@ -318,24 +407,17 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     setHookIn(6);
     setBaseType("none");
     setRebars([{ role: "bottom", dia: 16, spacing: 6 }]);
-    setFootings([]);
     setEditingFtIndex(null);
-    setResults(null);
     setErrorMsg("");
   };
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentFts = [...footings];
-    const formFt = getCurrentFormFooting();
-    if (editingFtIndex !== null && editingFtIndex >= 0 && editingFtIndex < currentFts.length) {
-      currentFts[editingFtIndex] = formFt;
-    } else if (currentFts.length === 0) {
-      currentFts = [formFt];
-    } else {
-      currentFts[0] = formFt;
+    if (currentFts.length === 0) {
+      currentFts = [getCurrentFormFooting()];
+      setFootings(currentFts);
     }
-    setFootings(currentFts);
-    const boq = calculate(currentFts);
+    const boq = calculate(currentFts, multiplier, isMultiplying);
     if (!boq) return;
 
     await onSaveEstimate({
@@ -348,6 +430,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
         footings: currentFts,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
+        multiplier,
+        isMultiplying,
       },
     });
   };
@@ -378,7 +462,9 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
         if (est.data.rates.bricksPerCft) setBricksPerCft(est.data.rates.bricksPerCft);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
-      calculate(est.data.footings);
+      if (est.data.multiplier) setMultiplier(est.data.multiplier);
+      if (est.data.isMultiplying !== undefined) setIsMultiplying(Boolean(est.data.isMultiplying));
+      calculate(est.data.footings, est.data.multiplier || multiplier, Boolean(est.data.isMultiplying));
     }
   };
 
@@ -405,18 +491,41 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
         getCurrentPayload={() => ({
           totalCost: results?.totalCost || 0,
           summary: results || {},
-          data: { footings, baseType, rates: { cementRate, sandRate, aggRate, steelRate } },
+          data: {
+            footings,
+            baseType,
+            rates: { cementRate, sandRate, aggRate, steelRate },
+            multiplier,
+            isMultiplying,
+          },
         })}
         onImportPayload={(payload) => {
           if (payload.data?.footings) {
             setFootings(payload.data.footings);
-            calculate(payload.data.footings);
+            calculate(payload.data.footings, payload.data.multiplier || multiplier, payload.data.isMultiplying);
           }
         }}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
         <div className="max-w-2xl mx-auto space-y-3">
+          {/* Multi-Storey Building Multiplier Bar */}
+          <StoreyMultiplierBar
+            projectStories={projectStories}
+            multiplier={multiplier}
+            setMultiplier={setMultiplier}
+            isMultiplying={isMultiplying}
+            setIsMultiplying={setIsMultiplying}
+            itemTypeLabel="Footings"
+          />
+
+          {successMsg && (
+            <div className="bg-[#2ecc71]/15 border border-[#2ecc71] text-[#2ecc71] p-2 rounded-lg text-xs font-semibold flex items-center gap-2">
+              <Check className="w-4 h-4" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="bg-[#ff4d6d]/15 border border-[#ff4d6d] text-[#ffb3c1] p-2 rounded-lg text-xs">
               {errorMsg}
@@ -659,14 +768,38 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset
               </button>
-              <button
-                type="button"
-                onClick={addFooting}
-                className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                + Add Footing to List
-              </button>
+              {editingFtIndex !== null ? (
+                <div className="flex-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUpdateFooting}
+                    className="flex-1 h-9 bg-[#2ecc71] hover:bg-[#27ae60] text-[#0f1c2e] font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5 shadow-md"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    Update Footing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingFtIndex(null);
+                      setFtName(`F${footings.length + 1}`);
+                    }}
+                    className="px-3 h-9 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded-lg text-xs font-semibold transition"
+                    title="Cancel editing"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAddNewFooting}
+                  className="flex-1 h-9 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] text-[#0f1c2e] hover:opacity-90 rounded-lg font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  + Add Footing to List
+                </button>
+              )}
             </div>
           </div>
 
@@ -675,36 +808,73 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
             <div className="flex justify-between items-center text-xs font-semibold text-[#00c2c7] mb-2 border-b border-[#2d4a6a] pb-1.5">
               <span>Added Footings</span>
               <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono">
-                {footings.length} items
+                {footings.length} types {isMultiplying && `(×${multiplier} = ${results?.totalFtCount || footings.length * multiplier} total)`}
               </span>
             </div>
 
             {footings.length === 0 ? (
               <div className="text-center py-4 text-xs text-[#8ba3c1]">
-                No footings in list. Enter dimensions and click "+ Add Footing".
+                No footings in list. Enter dimensions and click "+ Add Footing to List".
               </div>
             ) : (
               <div className="space-y-1.5">
                 {footings.map((f, idx) => (
                   <div
                     key={idx}
-                    className="bg-[#1a2b42] border border-[#2d4a6a] rounded-lg p-2 flex items-center justify-between gap-2"
+                    className={`bg-[#1a2b42] border rounded-lg p-2 flex items-center justify-between gap-2 transition ${
+                      editingFtIndex === idx
+                        ? "border-[#00c2c7] bg-[#1a2b42]/90 ring-1 ring-[#00c2c7]"
+                        : "border-[#2d4a6a] hover:border-[#00c2c7]/50"
+                    }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-white">
-                        {f.nos} × {f.name}
+                    <div
+                      className="min-w-0 flex-1 cursor-pointer"
+                      onClick={() => loadFtIntoForm(f, idx)}
+                      title="Click to edit footing"
+                    >
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>{f.nos} × {f.name}</span>
+                        {editingFtIndex === idx && (
+                          <span className="text-[10px] text-[#00c2c7] font-mono font-normal">
+                            (Editing)
+                          </span>
+                        )}
+                        {isMultiplying && (
+                          <span className="text-[10px] text-[#f5a623] font-mono">
+                            [×{multiplier} = {f.nos * multiplier} pcs]
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-[#8ba3c1] truncate">
                         {f.length}×{f.breadth} ft · {(f.thickness * 12).toFixed(0)}" thk · {f.rebars.map((r) => `${r.role === 'top' ? 'T' : r.role === 'bottom' ? 'B' : 'X'}:${r.dia}@${r.spacing}"`).join(", ")}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => deleteFooting(idx)}
-                      className="w-6 h-6 bg-[#ff4d6d] hover:bg-[#ff4d6d]/80 text-white rounded flex items-center justify-center text-xs font-bold"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => loadFtIntoForm(f, idx)}
+                        className="w-6 h-6 bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#8ba3c1] rounded flex items-center justify-center transition"
+                        title="Edit footing"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyFooting(idx)}
+                        className="w-6 h-6 bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#8ba3c1] rounded flex items-center justify-center transition"
+                        title="Duplicate footing"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteFooting(idx)}
+                        className="w-6 h-6 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center transition"
+                        title="Delete footing"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

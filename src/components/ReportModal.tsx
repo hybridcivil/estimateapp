@@ -255,7 +255,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     if (d.tilePrice) defaultTileRate = d.tilePrice;
 
     // Cement
-    const cBags = s.cementBags || s.totalCementBags || 0;
+    const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
     totalCementBags += cBags;
     const cCost =
       s.cementCost !== undefined ? s.cementCost : cBags * (r.cementRate || defaultCementRate);
@@ -263,7 +263,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
     // Sand
     const sCft =
-      s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || 0;
+      s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || 0;
     totalSandCft += sCft;
     const sCost =
       s.sandCost !== undefined ? s.sandCost : sCft * (r.sandRate || defaultSandRate);
@@ -271,7 +271,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
     // Aggregate
     const aCft =
-      s.aggregateVolume || s.aggregateVol || s.aggCft || s.totalAggCft || 0;
+      s.multipliedAggCft || s.aggregateVolume || s.aggregateVol || s.aggCft || s.totalAggCft || 0;
     totalAggCft += aCft;
     const aCost =
       (s.aggCost !== undefined ? s.aggCost : aCft * (r.aggRate || defaultAggRate)) +
@@ -279,21 +279,21 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     totalAggCost += aCost;
 
     // Steel
-    const stKg = s.totalSteel || s.totalSteelKg || 0;
+    const stKg = s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || 0;
     totalSteelKg += stKg;
     const stCost =
       s.steelCost !== undefined ? s.steelCost : stKg * (r.steelRate || defaultSteelRate);
     totalSteelCost += stCost;
 
     // Bricks
-    const bQty = s.totalBricks || s.brickQty || 0;
+    const bQty = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
     totalBricks += bQty;
     const bCost =
       s.brickCost !== undefined ? s.brickCost : bQty * (r.brickRate || defaultBrickRate);
     totalBrickCost += bCost;
 
     // Tiles
-    const tQty = s.tiles || 0;
+    const tQty = s.multipliedTilePieces || s.tiles || 0;
     totalTiles += tQty;
     const tCost =
       s.tileCost !== undefined ? s.tileCost : tQty * (d.tilePrice || defaultTileRate);
@@ -688,6 +688,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     <div>
       <div class="grid-label">Project Site Location</div>
       <div class="grid-val">${project.location || "Bangladesh"}</div>
+    </div>
+    <div>
+      <div class="grid-label">Building Storeys</div>
+      <div class="grid-val">${project.stories || 1} Floor(s)${(project.stories || 1) > 1 ? ` (×${project.stories} Multiplied)` : ""}</div>
     </div>
     <div>
       <div class="grid-label">Calculation Sheets</div>
@@ -1541,7 +1545,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </div>
 
             {/* Project Details Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-[#152033] print:bg-slate-50 border border-[#2d4a6a] print:border-slate-300 rounded-lg p-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs bg-[#152033] print:bg-slate-50 border border-[#2d4a6a] print:border-slate-300 rounded-lg p-2.5">
               <div>
                 <span className="text-[#8ba3c1] print:text-slate-500 block text-[9px] uppercase font-bold tracking-wider">
                   Project Title:
@@ -1564,6 +1568,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 </span>
                 <strong className="text-white print:text-slate-900 block truncate">
                   {project.location || "Bangladesh"}
+                </strong>
+              </div>
+              <div>
+                <span className="text-[#8ba3c1] print:text-slate-500 block text-[9px] uppercase font-bold tracking-wider">
+                  Building Storeys:
+                </span>
+                <strong className="text-[#00c2c7] print:text-blue-700 block truncate font-bold">
+                  {project.stories || 1} Floor(s) {(project.stories || 1) > 1 ? `(×${project.stories} Multiplied)` : ""}
                 </strong>
               </div>
               <div>
