@@ -21,6 +21,8 @@ import { SplashScreen } from "./components/SplashScreen";
 import { BeamCalculator } from "./components/calculators/BeamCalculator";
 import { ColumnCalculator } from "./components/calculators/ColumnCalculator";
 import { FootingCalculator } from "./components/calculators/FootingCalculator";
+import { SituPileCalculator } from "./components/calculators/SituPileCalculator";
+import { SandPileCalculator } from "./components/calculators/SandPileCalculator";
 import { SlabCalculator } from "./components/calculators/SlabCalculator";
 import { StairCalculator } from "./components/calculators/StairCalculator";
 import { BrickCalculator } from "./components/calculators/BrickCalculator";
@@ -443,6 +445,26 @@ function MainAppContent() {
 
             {activeTab === "footing" && (
               <FootingCalculator
+                activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
+                onSaveEstimate={handleSaveEstimate}
+                onDeleteEstimate={handleDeleteEstimate}
+              />
+            )}
+
+            {activeTab === "situ_pile" && (
+              <SituPileCalculator
+                activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
+                onSaveEstimate={handleSaveEstimate}
+                onDeleteEstimate={handleDeleteEstimate}
+              />
+            )}
+
+            {activeTab === "sand_pile" && (
+              <SandPileCalculator
                 activeProject={activeProject}
                 loadedEstimate={loadedEstimate}
                 onClearLoadedEstimate={() => setLoadedEstimate(null)}

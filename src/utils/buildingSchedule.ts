@@ -35,6 +35,22 @@ export const BUILDING_ELEMENTS: BuildingElementMeta[] = [
     accent: "#38bdf8",
   },
   {
+    type: "situ_pile",
+    name: "Situ Pile",
+    category: "structural",
+    unitDescription: "Cast-in-Situ Bored Piles & Steel Reinforcement",
+    defaultTitle: "Cast-in-Situ Bored Pile Takeoff",
+    accent: "#06b6d4",
+  },
+  {
+    type: "sand_pile",
+    name: "Sand Pile",
+    category: "structural",
+    unitDescription: "Sand Compaction Piles (SCP) Foundation",
+    defaultTitle: "Sand Compaction Pile Takeoff",
+    accent: "#f59e0b",
+  },
+  {
     type: "slab",
     name: "Slab",
     category: "structural",

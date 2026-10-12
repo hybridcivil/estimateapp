@@ -10,6 +10,8 @@ import {
   BrickWall,
   Calculator,
   Building2,
+  CircleDot,
+  Cylinder,
 } from "lucide-react";
 
 interface NavigationProps {
@@ -31,6 +33,8 @@ const NAV_ITEMS: NavItem[] = [
   { id: "beam", label: "Beam", shortLabel: "Beam", icon: Columns },
   { id: "column", label: "Column", shortLabel: "Column", icon: Building2 },
   { id: "footing", label: "Footing", shortLabel: "Footing", icon: SquareDashedBottom },
+  { id: "situ_pile", label: "Situ Pile", shortLabel: "Bored Pile", icon: CircleDot },
+  { id: "sand_pile", label: "Sand Pile", shortLabel: "Sand Pile", icon: Cylinder },
   { id: "slab", label: "Two-Way Slab", shortLabel: "Slab", icon: Layers },
   { id: "stair", label: "Staircase", shortLabel: "Stairs", icon: Footprints },
   { id: "brick", label: "Brickwork", shortLabel: "Brick", icon: BrickWall },

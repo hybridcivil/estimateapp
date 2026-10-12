@@ -133,6 +133,36 @@ export interface TileRow {
   cost: number;
 }
 
+export interface SituPileRow {
+  sl: number;
+  name: string;
+  pileNos: number;
+  dimensions: string;
+  mix: string;
+  mainRebars: string;
+  spiralTies: string;
+  wetVolCft: number;
+  cementBags: number;
+  sandCft: number;
+  aggCft: number;
+  steelKg: number;
+  boringCost: number;
+  cost: number;
+}
+
+export interface SandPileRow {
+  sl: number;
+  name: string;
+  landArea: number;
+  numPiles: number;
+  dimensions: string;
+  spacing: string;
+  sandCft: number;
+  sandCost: number;
+  boringCost: number;
+  cost: number;
+}
+
 export interface SteelDiaBreakdown {
   dia: number;
   kg: number;
@@ -144,6 +174,8 @@ export interface SteelDiaBreakdown {
 export interface FullProjectBreakdown {
   allocations: ComponentMaterialAllocation[];
   footings: FootingRow[];
+  situPiles: SituPileRow[];
+  sandPiles: SandPileRow[];
   columns: ColumnRow[];
   beams: BeamRow[];
   slabs: SlabRow[];
@@ -177,6 +209,8 @@ export function computeFullProjectBreakdown(
   }
 ): FullProjectBreakdown {
   const footings: FootingRow[] = [];
+  const situPiles: SituPileRow[] = [];
+  const sandPiles: SandPileRow[] = [];
   const columns: ColumnRow[] = [];
   const beams: BeamRow[] = [];
   const slabs: SlabRow[] = [];
@@ -194,6 +228,36 @@ export function computeFullProjectBreakdown(
       category: "structural",
       count: 0,
       unit: "Nos",
+      concreteVolCft: 0,
+      cementBags: 0,
+      sandCft: 0,
+      aggCft: 0,
+      steelKg: 0,
+      bricksPcs: 0,
+      tilesPcs: 0,
+      cost: 0,
+    },
+    situ_pile: {
+      key: "situ_pile",
+      label: "Cast-in-Situ Bored Piles",
+      category: "structural",
+      count: 0,
+      unit: "Piles",
+      concreteVolCft: 0,
+      cementBags: 0,
+      sandCft: 0,
+      aggCft: 0,
+      steelKg: 0,
+      bricksPcs: 0,
+      tilesPcs: 0,
+      cost: 0,
+    },
+    sand_pile: {
+      key: "sand_pile",
+      label: "Sand Compaction Piles (SCP)",
+      category: "structural",
+      count: 0,
+      unit: "Piles",
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
@@ -402,6 +466,64 @@ export function computeFullProjectBreakdown(
           cost,
         });
       }
+    }
+
+    // 1b. CAST-IN-SITU BORED PILES
+    else if (est.type === "situ_pile") {
+      const pNos = s.pileNos || d.pileNos || 24;
+      const pLen = s.pileLength || d.pileLength || 50;
+      const pDia = s.pileDiameter || d.pileDiameter || 20;
+      const bSize = d.barSize || 20;
+      const bNos = d.barNos || 8;
+      const spDia = d.spiralDia || 8;
+      const spSpacing = d.spiralSpacing || 5;
+      const mix = d.mixRatio || "1:1.5:3";
+      const boringCost = s.constructionCost || Math.round(pLen * (d.constructionCostPerFoot || 200) * pNos);
+
+      alloc.count += pNos;
+
+      situPiles.push({
+        sl: situPiles.length + 1,
+        name: est.name || `Cast-in-Situ Bored Pile (${pNos} Nos)`,
+        pileNos: pNos,
+        dimensions: `${pDia}"ø × ${pLen}' Depth`,
+        mix,
+        mainRebars: `${bNos} Nos × ${bSize}mmø (with 50d lap)`,
+        spiralTies: `${spDia}mmø spiral @ ${spSpacing}" pitch`,
+        wetVolCft: Number((wVol || s.wetVolCft || s.totalWetVolume || 0).toFixed(1)),
+        cementBags: Math.ceil(cBags || s.cementBags || s.totalCementBags || 0),
+        sandCft: Number((sCft || s.sandCft || s.totalSandVolume || 0).toFixed(1)),
+        aggCft: Number((aCft || s.aggCft || s.totalAggregateVolume || 0).toFixed(1)),
+        steelKg: Math.round(stKg || s.totalSteelKg || s.totalSteelWeight || 0),
+        boringCost,
+        cost,
+      });
+    }
+
+    // 1c. SAND COMPACTION PILES (SCP)
+    else if (est.type === "sand_pile") {
+      const pNos = s.numPiles || d.numPiles || Math.ceil((d.landArea || 2160) / Math.pow((d.pileSpacing || 48) / 12, 2));
+      const pLen = s.pileLength || d.pileLength || 20;
+      const pDia = s.pileDiameter || d.pileDiameter || 10;
+      const pSpacing = s.pileSpacing || d.pileSpacing || 48;
+      const lArea = d.landArea || Math.round(pNos * Math.pow(pSpacing / 12, 2));
+      const sCost = s.totalSandCost || Math.round((s.sandCft || 0) * (d.costPerCft || 45));
+      const boringCost = s.totalPileCost || Math.round(pNos * pLen * (d.costPerFoot || 30));
+
+      alloc.count += pNos;
+
+      sandPiles.push({
+        sl: sandPiles.length + 1,
+        name: est.name || `Sand Compaction Piles (${pNos} Nos)`,
+        landArea: lArea,
+        numPiles: pNos,
+        dimensions: `${pDia}"ø × ${pLen}' Length`,
+        spacing: `${pSpacing}" c/c (${(pSpacing / 12).toFixed(1)}' grid)`,
+        sandCft: Number((sCft || s.sandCft || s.totalVolume || 0).toFixed(1)),
+        sandCost: sCost,
+        boringCost,
+        cost,
+      });
     }
 
     // 2. COLUMNS
@@ -800,6 +922,8 @@ export function computeFullProjectBreakdown(
   return {
     allocations: activeAllocations,
     footings,
+    situPiles,
+    sandPiles,
     columns,
     beams,
     slabs,

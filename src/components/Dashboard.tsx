@@ -26,6 +26,8 @@ import {
   Edit3,
   Sun,
   Moon,
+  CircleDot,
+  Cylinder,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
@@ -192,6 +194,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
       description: "Isolated footings with mat rebar, sand filling & brick soling",
       icon: SquareDashedBottom,
       accent: "#2ecc71",
+    },
+    {
+      type: "situ_pile",
+      name: "Cast-in-Situ Pile",
+      description: "Bored concrete piles with longitudinal bars, spiral ties & boring costs",
+      icon: CircleDot,
+      accent: "#06b6d4",
+    },
+    {
+      type: "sand_pile",
+      name: "Sand Pile Calculator",
+      description: "Ground improvement sand compaction piles, boring feet & sand volume",
+      icon: Cylinder,
+      accent: "#f59e0b",
     },
     {
       type: "slab",
@@ -582,7 +598,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
               <h3 className="text-sm sm:text-base font-bold text-white mt-1">
-                Beam, Column, Footing, Slab, Stair, Tiles & Brick Checklist
+                Beam, Column, Footing, Piles, Slab, Stair, Tiles & Brick Checklist
               </h3>
               <p className="text-[11px] text-[#8ba3c1]">
                 All structural and finishing estimates in this list multiply according to the building's {activeProject.stories || 1} storeys.
@@ -602,11 +618,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2.5">
             {[
               { type: "beam" as EstimateType, label: "Beam", sublabel: "Grade & Floor Beams", icon: Columns, accent: "#00c2c7" },
               { type: "column" as EstimateType, label: "Column", sublabel: "Ground & Floor Columns", icon: Building2, accent: "#f5a623" },
               { type: "footing" as EstimateType, label: "Footing", sublabel: "Foundation Footings", icon: SquareDashedBottom, accent: "#38bdf8" },
+              { type: "situ_pile" as EstimateType, label: "Situ Pile", sublabel: "Cast-in-Situ Bored", icon: CircleDot, accent: "#06b6d4" },
+              { type: "sand_pile" as EstimateType, label: "Sand Pile", sublabel: "Compacted Sand Pile", icon: Cylinder, accent: "#f59e0b" },
               { type: "slab" as EstimateType, label: "Slab", sublabel: "Two-Way RCC Slabs", icon: Layers, accent: "#a78bfa" },
               { type: "stair" as EstimateType, label: "Stair", sublabel: "Flights & Landings", icon: Footprints, accent: "#fb7185" },
               { type: "tiles" as EstimateType, label: "Tiles", sublabel: "Floor Tiles & Skirting", icon: Grid3X3, accent: "#34d399" },
@@ -707,6 +725,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
               { id: "beam", label: "Beams" },
               { id: "column", label: "Columns" },
               { id: "footing", label: "Footings" },
+              { id: "situ_pile", label: "Situ Piles" },
+              { id: "sand_pile", label: "Sand Piles" },
               { id: "slab", label: "Slabs" },
               { id: "stair", label: "Stairs" },
               { id: "brick", label: "Brickwork" },

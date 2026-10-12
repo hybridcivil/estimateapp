@@ -247,7 +247,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     if (e.data?.tilePrice) defaultTileRate = e.data.tilePrice;
   });
 
-  const { allocations, footings, columns, beams, slabs, stairs, bricks, tiles, steelBreakdown, totals } = breakdown;
+  const { allocations, footings, situPiles, sandPiles, columns, beams, slabs, stairs, bricks, tiles, steelBreakdown, totals } = breakdown;
 
   // Dimensions for paper aspect ratio in preview mode
   const getPaperDimensionsClass = () => {
@@ -863,6 +863,128 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       : ""
   }
 
+  <!-- SECTION 4B: CAST-IN-SITU BORED PILES BREAKDOWN -->
+  ${
+    situPiles.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>4B. Deep Foundation: Cast-in-Situ Bored Piles Schedule</span>
+    <span class="section-badge">${situPiles.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Pile Mark / Name</th>
+          <th style="width: 95px">Size (Dia × L)</th>
+          <th class="text-center" style="width: 45px">Nos</th>
+          <th style="width: 55px">Mix</th>
+          <th>Cage Reinforcement (Main & Spiral)</th>
+          <th class="text-right" style="width: 50px">Wet cft</th>
+          <th class="text-right" style="width: 50px">Cement</th>
+          <th class="text-right" style="width: 50px">Sand</th>
+          <th class="text-right" style="width: 50px">Stone</th>
+          <th class="text-right" style="width: 55px">Steel kg</th>
+          <th class="text-right" style="width: 75px">Boring (BDT)</th>
+          <th class="text-right" style="width: 85px">Total (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${situPiles
+          .map(
+            (p) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${p.sl}</td>
+          <td class="font-bold">${p.name}</td>
+          <td class="font-mono text-[9px]">${p.dimensions}</td>
+          <td class="text-center font-mono font-bold">${p.pileNos}</td>
+          <td class="font-mono text-[9px]">${p.mix}</td>
+          <td style="font-size: 8.5px; color: #334155;">${p.mainRebars}; ${p.spiralTies}</td>
+          <td class="text-right font-mono">${p.wetVolCft}</td>
+          <td class="text-right font-mono font-bold">${p.cementBags}</td>
+          <td class="text-right font-mono">${p.sandCft}</td>
+          <td class="text-right font-mono">${p.aggCft}</td>
+          <td class="text-right font-mono font-bold">${p.steelKg}</td>
+          <td class="text-right font-mono">৳ ${p.boringCost.toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono font-bold">৳ ${p.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" class="font-bold">Total Bored Piles Subtotal:</td>
+          <td class="text-center font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.pileNos, 0)}</td>
+          <td colspan="2"></td>
+          <td class="text-right font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.wetVolCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.cementBags, 0)}</td>
+          <td class="text-right font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.sandCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.aggCft, 0).toFixed(1)}</td>
+          <td class="text-right font-mono font-bold">${situPiles.reduce((sum, p) => sum + p.steelKg, 0)}</td>
+          <td class="text-right font-mono font-bold">৳ ${situPiles.reduce((sum, p) => sum + p.boringCost, 0).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${situPiles.reduce((sum, p) => sum + p.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
+  <!-- SECTION 4C: SAND COMPACTION PILES (SCP) BREAKDOWN -->
+  ${
+    sandPiles.length > 0
+      ? `<div class="section-title avoid-break">
+    <span>4C. Soil Improvement: Sand Compaction Piles (SCP) Schedule</span>
+    <span class="section-badge">${sandPiles.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Pile Mark / Name</th>
+          <th style="width: 85px">Land Area</th>
+          <th style="width: 95px">Grid Spacing</th>
+          <th style="width: 90px">Size (Dia × L)</th>
+          <th class="text-center" style="width: 50px">Nos</th>
+          <th class="text-right" style="width: 75px">Sand Vol (cft)</th>
+          <th class="text-right" style="width: 80px">Sand Cost</th>
+          <th class="text-right" style="width: 80px">Rig Boring Cost</th>
+          <th class="text-right" style="width: 90px">Total Cost (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sandPiles
+          .map(
+            (sp) => `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${sp.sl}</td>
+          <td class="font-bold">${sp.name}</td>
+          <td class="font-mono text-[9px]">${sp.landArea.toLocaleString()} sq.ft</td>
+          <td class="font-mono text-[9px]">${sp.spacing}</td>
+          <td class="font-mono text-[9px]">${sp.dimensions}</td>
+          <td class="text-center font-mono font-bold">${sp.numPiles}</td>
+          <td class="text-right font-mono font-bold">${sp.sandCft.toLocaleString()}</td>
+          <td class="text-right font-mono">৳ ${sp.sandCost.toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${sp.boringCost.toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono font-bold">৳ ${sp.cost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5" class="font-bold">Total Sand Piles Subtotal:</td>
+          <td class="text-center font-mono font-bold">${sandPiles.reduce((sum, sp) => sum + sp.numPiles, 0)}</td>
+          <td class="text-right font-mono font-bold">${sandPiles.reduce((sum, sp) => sum + sp.sandCft, 0).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">৳ ${sandPiles.reduce((sum, sp) => sum + sp.sandCost, 0).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono font-bold">৳ ${sandPiles.reduce((sum, sp) => sum + sp.boringCost, 0).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono grand-total-val">৳ ${sandPiles.reduce((sum, sp) => sum + sp.cost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
   <!-- SECTION 5: COLUMNS BREAKDOWN -->
   ${
     columns.length > 0
@@ -1375,6 +1497,26 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       csv += `SL,Footing Mark,Dimensions,Total Nos,Mix,Reinforcement,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Cost (BDT)\n`;
       footings.forEach((f) => {
         csv += `${f.sl},"${f.name}","${f.dimensions}",${f.totalNos},"${f.mix}","${f.rebars}",${f.wetVolCft},${f.cementBags},${f.sandCft},${f.aggCft},${f.steelKg},${f.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 4B. Cast-in-Situ Bored Piles Breakdown
+    if (situPiles.length > 0) {
+      csv += `4B. CAST-IN-SITU BORED PILES SCHEDULE\n`;
+      csv += `SL,Pile Mark,Dimensions,Total Nos,Mix,Cage Reinforcement,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Boring Cost (BDT),Total Cost (BDT)\n`;
+      situPiles.forEach((p) => {
+        csv += `${p.sl},"${p.name}","${p.dimensions}",${p.pileNos},"${p.mix}","${p.mainRebars}; ${p.spiralTies}",${p.wetVolCft},${p.cementBags},${p.sandCft},${p.aggCft},${p.steelKg},${p.boringCost},${p.cost}\n`;
+      });
+      csv += `\n`;
+    }
+
+    // 4C. Sand Compaction Piles (SCP) Breakdown
+    if (sandPiles.length > 0) {
+      csv += `4C. SAND COMPACTION PILES (SCP) SCHEDULE\n`;
+      csv += `SL,Pile Mark,Land Area (sq.ft),Grid Spacing,Dimensions,Total Piles,Sand Vol (cft),Sand Cost (BDT),Boring Cost (BDT),Total Cost (BDT)\n`;
+      sandPiles.forEach((sp) => {
+        csv += `${sp.sl},"${sp.name}",${sp.landArea},"${sp.spacing}","${sp.dimensions}",${sp.numPiles},${sp.sandCft},${sp.sandCost},${sp.boringCost},${sp.cost}\n`;
       });
       csv += `\n`;
     }
@@ -2253,6 +2395,140 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{footings.reduce((sum, f) => sum + f.aggCft, 0).toFixed(1)}</td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{footings.reduce((sum, f) => sum + f.steelKg, 0)}</td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {footings.reduce((sum, f) => sum + f.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 4B: CAST-IN-SITU BORED PILES BREAKDOWN */}
+            {situPiles.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      4B
+                    </span>
+                    Deep Foundation: Cast-in-Situ Bored Piles Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {situPiles.length} Item(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Pile Mark / Name</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }}>Size (Dia × L)</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }}>Mix</th>
+                        <th style={{ padding: cellPaddingCss }}>Cage Reinforcement (Main & Spiral)</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Wet cft</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Cement</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Sand</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Stone</th>
+                        <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Steel kg</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Boring (BDT)</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }} className="text-right">Total (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {situPiles.map((p) => (
+                        <tr key={p.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{p.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{p.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{p.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{p.pileNos}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{p.mix}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] text-[#8ba3c1] print:text-slate-700">{p.mainRebars}; {p.spiralTies}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{p.wetVolCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{p.cementBags}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{p.sandCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{p.aggCft}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{p.steelKg}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {p.boringCost.toLocaleString("en-IN")}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {p.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={3} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Bored Piles Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.pileNos, 0)}</td>
+                        <td colSpan={2}></td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.wetVolCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.cementBags, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.sandCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.aggCft, 0).toFixed(1)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{situPiles.reduce((sum, p) => sum + p.steelKg, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">৳ {situPiles.reduce((sum, p) => sum + p.boringCost, 0).toLocaleString("en-IN")}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {situPiles.reduce((sum, p) => sum + p.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 4C: SAND COMPACTION PILES (SCP) BREAKDOWN */}
+            {sandPiles.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
+                      4C
+                    </span>
+                    Soil Improvement: Sand Compaction Piles (SCP) Schedule
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {sandPiles.length} Item(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Pile Mark / Name</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }}>Land Area</th>
+                        <th style={{ padding: cellPaddingCss, width: "95px" }}>Grid Spacing</th>
+                        <th style={{ padding: cellPaddingCss, width: "90px" }}>Size (Dia × L)</th>
+                        <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-center">Nos</th>
+                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Sand Vol (cft)</th>
+                        <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Sand Cost</th>
+                        <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Rig Boring</th>
+                        <th style={{ padding: cellPaddingCss, width: "90px" }} className="text-right">Total Cost (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
+                      {sandPiles.map((sp) => (
+                        <tr key={sp.sl} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{sp.sl}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{sp.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{sp.landArea.toLocaleString()} sq.ft</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{sp.spacing}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-[10px] text-[#8ba3c1] print:text-slate-700">{sp.dimensions}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{sp.numPiles}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{sp.sandCft.toLocaleString()}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {sp.sandCost.toLocaleString("en-IN")}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {sp.boringCost.toLocaleString("en-IN")}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {sp.cost.toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
+                      <tr>
+                        <td colSpan={5} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Sand Piles Subtotal:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">{sandPiles.reduce((sum, sp) => sum + sp.numPiles, 0)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{sandPiles.reduce((sum, sp) => sum + sp.sandCft, 0).toLocaleString()}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">৳ {sandPiles.reduce((sum, sp) => sum + sp.sandCost, 0).toLocaleString("en-IN")}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">৳ {sandPiles.reduce((sum, sp) => sum + sp.boringCost, 0).toLocaleString("en-IN")}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {sandPiles.reduce((sum, sp) => sum + sp.cost, 0).toLocaleString("en-IN")}</td>
                       </tr>
                     </tfoot>
                   </table>

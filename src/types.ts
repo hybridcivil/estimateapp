@@ -3,6 +3,8 @@ export type EstimateType =
   | "beam"
   | "column"
   | "footing"
+  | "situ_pile"
+  | "sand_pile"
   | "slab"
   | "stair"
   | "brick"
@@ -257,4 +259,73 @@ export interface StructuralConfig {
   fc: number;
   fy: number;
   rebarSets: { barSize: number; barNos: number }[];
+}
+
+export interface SandPileInputs {
+  landArea: number; // sq ft
+  pileDiameter: number; // inches
+  pileSpacing: number; // inches c/c
+  pileLength: number; // feet
+  costPerFoot: number; // TK/ft
+  costPerCft: number; // TK/cft
+  compactionFactor?: number; // e.g. 1.15
+  sandType?: string;
+  notes?: string;
+}
+
+export interface SandPileResults {
+  spacingFeet: number;
+  areaPerPile: number;
+  numPiles: number;
+  volumePerPile: number;
+  totalVolume: number;
+  totalSandCost: number;
+  totalPileCost: number;
+  totalCost: number;
+  multiplier?: number;
+  isMultiplying?: boolean;
+}
+
+export interface SituPileInputs {
+  pileNos: number;
+  pileLength: number; // feet
+  pileDiameter: number; // inches
+  barSize: number; // mm
+  barNos: number;
+  spiralSpacing: number; // inches
+  spiralDia?: number; // mm (default 8)
+  mixRatio: string; // "1:1.5:3" | "1:2:4"
+  constructionCostPerFoot: number; // TK/ft
+  cementCost: number; // TK/bag
+  sandCost: number; // TK/cft
+  aggregateCost: number; // TK/cft
+  steelCost: number; // TK/kg
+  clearCoverIn?: number;
+  notes?: string;
+}
+
+export interface SituPileResults {
+  wetVolumePerPile: number;
+  dryVolumePerPile: number;
+  totalWetVolume: number;
+  totalDryVolume: number;
+  cementBagsPerPile: number;
+  totalCementBags: number;
+  sandVolumePerPile: number;
+  totalSandVolume: number;
+  aggregateVolumePerPile: number;
+  totalAggregateVolume: number;
+  mainBarWeightPerPile: number;
+  totalMainBarWeight: number;
+  spiralWeightPerPile: number;
+  totalSpiralWeight: number;
+  totalSteelWeight: number;
+  constructionCost: number;
+  cementCostTotal: number;
+  sandCostTotal: number;
+  aggregateCostTotal: number;
+  steelCostTotal: number;
+  totalCost: number;
+  multiplier?: number;
+  isMultiplying?: boolean;
 }
