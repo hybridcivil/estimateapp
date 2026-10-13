@@ -28,6 +28,7 @@ import {
 import {
   computeFullProjectBreakdown,
   FullProjectBreakdown,
+  extractEstimateMaterials,
 } from "../utils/reportBreakdown";
 
 interface ReportModalProps {
@@ -1350,40 +1351,60 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       : ""
   }
 
-  <!-- SECTION 11: ESTIMATE FILE LIST -->
+  <!-- SECTION 11: ESTIMATE FILE LIST & ALL MATERIALS -->
   <div class="section-title avoid-break">
-    <span>11. Consolidated Project Budget & Saved Estimate Files (${estimates.length} Sheets)</span>
-    <span class="section-badge">Grand Summary</span>
+    <span>11. Consolidated Project Budget & Saved Estimate Files with All Materials (${estimates.length} Sheets)</span>
+    <span class="section-badge">Grand Materials Summary</span>
   </div>
   <div class="table-container avoid-break">
     <table>
       <thead>
         <tr>
-          <th style="width: 28px" class="text-center">#</th>
+          <th style="width: 25px" class="text-center">#</th>
           <th>Estimate File Title</th>
-          <th style="width: 85px">Component</th>
-          <th class="text-center" style="width: 75px">Date</th>
-          <th class="text-center" style="width: 65px">Multiplier</th>
-          <th class="text-right" style="width: 120px">Total Amount (BDT)</th>
+          <th style="width: 70px">Component</th>
+          <th class="text-center" style="width: 45px">Mult</th>
+          <th class="text-right" style="width: 52px">Wet cft</th>
+          <th class="text-right" style="width: 55px">Cement</th>
+          <th class="text-right" style="width: 55px">Sand</th>
+          <th class="text-right" style="width: 55px">Stone</th>
+          <th class="text-right" style="width: 60px">Steel kg</th>
+          <th class="text-right" style="width: 55px">Bricks</th>
+          <th class="text-right" style="width: 55px">Tiles</th>
+          <th class="text-right" style="width: 95px">Total (BDT)</th>
         </tr>
       </thead>
       <tbody>
         ${estimates
-          .map(
-            (e, idx) => `<tr>
+          .map((e, idx) => {
+            const m = extractEstimateMaterials(e);
+            return `<tr>
           <td class="font-mono text-center" style="color: #64748b;">${idx + 1}</td>
           <td class="font-bold">${e.name}</td>
           <td style="text-transform: uppercase; font-size: 8.5px; font-weight: 700; color: #007791;">${e.type}</td>
-          <td class="text-center font-mono text-[9px]">${new Date(e.date).toLocaleDateString()}</td>
-          <td class="text-center font-mono">×${e.summary?.multiplier || e.data?.multiplier || 1}</td>
+          <td class="text-center font-mono font-bold">×${m.multiplier}</td>
+          <td class="text-right font-mono">${m.wetVolCft > 0 ? m.wetVolCft : "-"}</td>
+          <td class="text-right font-mono font-bold" style="color: #b45309;">${m.cementBags > 0 ? m.cementBags.toLocaleString() : "-"}</td>
+          <td class="text-right font-mono">${m.sandCft > 0 ? m.sandCft.toLocaleString() : "-"}</td>
+          <td class="text-right font-mono">${m.aggCft > 0 ? m.aggCft.toLocaleString() : "-"}</td>
+          <td class="text-right font-mono font-bold" style="color: #0369a1;">${m.steelKg > 0 ? m.steelKg.toLocaleString() : "-"}</td>
+          <td class="text-right font-mono" style="color: #c2410c;">${m.bricksPcs > 0 ? m.bricksPcs.toLocaleString() : "-"}</td>
+          <td class="text-right font-mono" style="color: #047857;">${m.tilesPcs > 0 ? m.tilesPcs.toLocaleString() : "-"}</td>
           <td class="text-right font-bold font-mono">৳ ${Math.round(e.totalCost || 0).toLocaleString("en-IN")}</td>
-        </tr>`
-          )
+        </tr>`;
+          })
           .join("")}
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="5" class="text-right font-bold">Consolidated Project Estimate Grand Total:</td>
+          <td colspan="4" class="font-bold">Total Across All Estimate Files:</td>
+          <td class="text-right font-mono font-bold">${totals.concreteVolCft.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.cementBags.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${Math.round(totals.sandCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${Math.round(totals.aggCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.steelKg.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.bricksPcs.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.tilesPcs.toLocaleString()}</td>
           <td class="text-right grand-total-val font-mono">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
         </tr>
       </tfoot>
@@ -1580,6 +1601,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       });
       csv += `\n`;
     }
+
+    // 11. Saved Estimate Files with All Materials
+    csv += `11. CONSOLIDATED ESTIMATE FILES & MATERIALS BREAKDOWN\n`;
+    csv += `SL,Estimate Title,Component,Multiplier,Wet Vol (cft),Cement (Bags),Sand (cft),Stone (cft),Steel (kg),Bricks (Pcs),Tiles (Pcs),Total Cost (BDT)\n`;
+    estimates.forEach((e, idx) => {
+      const m = extractEstimateMaterials(e);
+      csv += `${idx + 1},"${e.name}","${e.type}",×${m.multiplier},${m.wetVolCft},${m.cementBags},${m.sandCft},${m.aggCft},${m.steelKg},${m.bricksPcs},${m.tilesPcs},${e.totalCost}\n`;
+    });
+    csv += `Total Across All Files,,,${totals.concreteVolCft},${totals.cementBags},${Math.round(totals.sandCft)},${Math.round(totals.aggCft)},${totals.steelKg},${totals.bricksPcs},${totals.tilesPcs},${totals.grandTotalCost}\n\n`;
 
     csv += `Consolidated Project Estimate Grand Total Cost,,,,,,,,,,${totals.grandTotalCost}\n`;
 
@@ -2939,50 +2969,72 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               </div>
             )}
 
-            {/* SECTION 11: ESTIMATE FILE LIST */}
+            {/* SECTION 11: ESTIMATE FILE LIST WITH ALL MATERIALS */}
             <div className="space-y-1.5 print-avoid-break">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-[#00c2c7] print:text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] print:bg-blue-100 print:text-blue-800 text-[10px] flex items-center justify-center font-bold">
                     11
                   </span>
-                  Consolidated Project Budget & Saved Estimate Files ({estimates.length} Sheets)
+                  Consolidated Estimate Files & All Materials Breakdown ({estimates.length} Sheets)
                 </h4>
                 <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
-                  Module Summary
+                  All Materials Itemized
                 </span>
               </div>
 
-              <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-hidden shadow-sm">
+              <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-x-auto shadow-sm">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
                     <tr>
-                      <th style={{ padding: cellPaddingCss, width: "28px" }} className="text-center">#</th>
+                      <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
                       <th style={{ padding: cellPaddingCss }}>Estimate File Title</th>
-                      <th style={{ padding: cellPaddingCss, width: "85px" }}>Component</th>
-                      <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-center">Date</th>
-                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-center">Multiplier</th>
-                      <th style={{ padding: cellPaddingCss, width: "125px" }} className="text-right">Total Amount (BDT)</th>
+                      <th style={{ padding: cellPaddingCss, width: "65px" }}>Component</th>
+                      <th style={{ padding: cellPaddingCss, width: "40px" }} className="text-center">Mult</th>
+                      <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Wet cft</th>
+                      <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Cement</th>
+                      <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Sand</th>
+                      <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Stone</th>
+                      <th style={{ padding: cellPaddingCss, width: "55px" }} className="text-right">Steel kg</th>
+                      <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Bricks</th>
+                      <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-right">Tiles</th>
+                      <th style={{ padding: cellPaddingCss, width: "95px" }} className="text-right">Total (BDT)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
-                    {estimates.map((e, idx) => (
-                      <tr key={e.id} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="font-mono text-center text-[#8ba3c1] print:text-slate-500">{idx + 1}</td>
-                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{e.name}</td>
-                        <td style={{ padding: cellPaddingCss }} className="uppercase font-mono text-[9px] text-[#00c2c7] print:text-blue-800 font-bold">{e.type}</td>
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[9px] text-[#8ba3c1] print:text-slate-600">{new Date(e.date).toLocaleDateString()}</td>
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-white print:text-slate-900">×{e.summary?.multiplier || e.data?.multiplier || 1}</td>
-                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {Math.round(e.totalCost || 0).toLocaleString("en-IN")}</td>
-                      </tr>
-                    ))}
+                    {estimates.map((e, idx) => {
+                      const m = extractEstimateMaterials(e);
+                      return (
+                        <tr key={e.id} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="font-mono text-center text-[#8ba3c1] print:text-slate-500">{idx + 1}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{e.name}</td>
+                          <td style={{ padding: cellPaddingCss }} className="uppercase font-mono text-[9px] text-[#00c2c7] print:text-blue-800 font-bold">{e.type}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">×{m.multiplier}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{m.wetVolCft > 0 ? m.wetVolCft : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{m.cementBags > 0 ? m.cementBags.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{m.sandCft > 0 ? m.sandCft.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{m.aggCft > 0 ? m.aggCft.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{m.steelKg > 0 ? m.steelKg.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#fb923c] print:text-slate-900">{m.bricksPcs > 0 ? m.bricksPcs.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#2ecc71] print:text-slate-900">{m.tilesPcs > 0 ? m.tilesPcs.toLocaleString() : "-"}</td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">৳ {Math.round(e.totalCost || 0).toLocaleString("en-IN")}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
                     <tr>
-                      <td colSpan={5} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
-                        Consolidated Project Grand Total Estimated Cost:
+                      <td colSpan={4} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">
+                        Total Across All Estimate Files:
                       </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right text-sm text-[#2ecc71] print:text-slate-950 font-black font-mono">
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{totals.concreteVolCft.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{totals.cementBags.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{Math.round(totals.sandCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{Math.round(totals.aggCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">{totals.steelKg.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#fb923c] print:text-slate-900">{totals.bricksPcs.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">{totals.tilesPcs.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">
                         ৳ {totals.grandTotalCost.toLocaleString("en-IN")}
                       </td>
                     </tr>

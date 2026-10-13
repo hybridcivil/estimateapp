@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
             <p className="text-[10px] text-[#8ba3c1] leading-tight mt-0.5">
-              copyright@engr.ashraf · Engineering Estimation & File System
+              Civil Engineering Estimation & Multi-Storey BOQ File System
             </p>
           </div>
         </div>

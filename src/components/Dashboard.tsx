@@ -28,10 +28,15 @@ import {
   Moon,
   CircleDot,
   Cylinder,
+  LayoutGrid,
+  Table,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
 import { useTheme } from "../context/ThemeContext";
+import { extractItemMaterials } from "../utils/reportBreakdown";
 
 interface DashboardProps {
   projects: Project[];
@@ -67,6 +72,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const { isLight, toggleTheme } = useTheme();
   const [filterType, setFilterType] = useState<string>("all");
   const [fileImportError, setFileImportError] = useState("");
+  const [fileViewMode, setFileViewMode] = useState<"cards" | "table">("cards");
+  const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>({});
+
+  const toggleFileExpand = (id: string) => {
+    setExpandedFiles((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // In-app modal confirmations (no window.confirm!)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
@@ -706,45 +717,77 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* Estimates File System Section */}
-      <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#2d4a6a] pb-2.5">
+      <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3">
           <div>
             <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-[#00c2c7]" />
               Project Estimate Files ({filteredEstimates.length})
             </h3>
             <p className="text-[11px] text-[#8ba3c1]">
-              Saved calculation sheets in this project. Every file can be opened, edited, renamed, or deleted.
+              Saved calculation sheets in this project with complete itemized material takeoffs, specifications, and costs.
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-            {[
-              { id: "all", label: "All Files" },
-              { id: "beam", label: "Beams" },
-              { id: "column", label: "Columns" },
-              { id: "footing", label: "Footings" },
-              { id: "situ_pile", label: "Situ Piles" },
-              { id: "sand_pile", label: "Sand Piles" },
-              { id: "slab", label: "Slabs" },
-              { id: "stair", label: "Stairs" },
-              { id: "brick", label: "Brickwork" },
-              { id: "tiles", label: "Tiles" },
-              { id: "structural", label: "Structural" },
-            ].map((f) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* View Mode Toggle: Cards vs All Materials Table */}
+            <div className="flex items-center bg-[#0e1624] border border-[#2d4a6a] rounded-xl p-0.5 shrink-0">
               <button
-                key={f.id}
-                onClick={() => setFilterType(f.id)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition whitespace-nowrap ${
-                  filterType === f.id
-                    ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
-                    : "bg-[#243b55] text-[#8ba3c1] hover:text-white"
+                type="button"
+                onClick={() => setFileViewMode("cards")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  fileViewMode === "cards"
+                    ? "bg-[#00c2c7] text-[#0f1c2e]"
+                    : "text-[#8ba3c1] hover:text-white"
                 }`}
+                title="Cards View with Full Material Matrix"
               >
-                {f.label}
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Cards</span>
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setFileViewMode("table")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  fileViewMode === "table"
+                    ? "bg-[#00c2c7] text-[#0f1c2e]"
+                    : "text-[#8ba3c1] hover:text-white"
+                }`}
+                title="All Materials Engineering Table"
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>All Materials Table</span>
+              </button>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar max-w-full">
+              {[
+                { id: "all", label: "All Files" },
+                { id: "beam", label: "Beams" },
+                { id: "column", label: "Columns" },
+                { id: "footing", label: "Footings" },
+                { id: "situ_pile", label: "Situ Piles" },
+                { id: "sand_pile", label: "Sand Piles" },
+                { id: "slab", label: "Slabs" },
+                { id: "stair", label: "Stairs" },
+                { id: "brick", label: "Brickwork" },
+                { id: "tiles", label: "Tiles" },
+                { id: "structural", label: "Structural" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilterType(f.id)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition whitespace-nowrap ${
+                    filterType === f.id
+                      ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
+                      : "bg-[#243b55] text-[#8ba3c1] hover:text-white"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -758,17 +801,267 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Select one of the calculators below to calculate quantities and click "Save File".
             </p>
           </div>
+        ) : fileViewMode === "table" ? (
+          /* =========================================================
+             VIEW MODE: FULL MATERIALS ENGINEERING BOQ TABLE
+             ========================================================= */
+          <div className="overflow-x-auto border border-[#2d4a6a] rounded-xl bg-[#0e1624]">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-[#1a2b42] text-white border-b border-[#2d4a6a]">
+                  <th className="py-2.5 px-3 font-bold w-10 text-center">#</th>
+                  <th className="py-2.5 px-3 font-bold">Estimate File / Element</th>
+                  <th className="py-2.5 px-2 font-bold text-center">Mult</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#f5a623]">Cement (Bags)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#f1f5f9]">Sand (cft)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#38bdf8]">Stone/Khoa (cft)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#00c2c7]">Steel (kg)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#e67e22]">Bricks (pcs)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#1abc9c]">Tiles (pcs)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#c4b5fd]">Vol / Boring</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#2ecc71]">Total Cost (৳)</th>
+                  <th className="py-2.5 px-3 font-bold text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#2d4a6a]/60 text-white">
+                {filteredEstimates.map((est, idx) => {
+                  const mat = extractItemMaterials(est);
+                  const calcMeta = calculatorCards.find((c) => c.type === est.type);
+                  const Icon = calcMeta?.icon || FileText;
+                  return (
+                    <tr
+                      key={est.id}
+                      className="hover:bg-[#152338] transition font-sans"
+                    >
+                      <td className="py-2.5 px-3 text-center text-[#8ba3c1] font-mono font-bold text-[11px]">
+                        {idx + 1}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                            style={{
+                              backgroundColor: `${calcMeta?.accent || "#00c2c7"}20`,
+                              color: calcMeta?.accent || "#00c2c7",
+                            }}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-white text-xs truncate max-w-[200px] sm:max-w-[280px]" title={est.name}>
+                              {est.name}
+                            </div>
+                            <div className="text-[10px] text-[#8ba3c1] truncate font-mono">
+                              {est.type.toUpperCase()} · {new Date(est.date).toLocaleDateString()}
+                              {mat.mixRatio ? ` · Mix ${mat.mixRatio}` : ""}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-2 text-center">
+                        <span className="bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                          {mat.multiplier}x
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.cementBags > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#f5a623]">{mat.cementBags}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">৳{mat.cementCost.toLocaleString("en-IN")}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.sandCft > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#f1f5f9]">{mat.sandCft}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">৳{mat.sandCost.toLocaleString("en-IN")}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.aggCft > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#38bdf8]">{mat.aggCft}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">
+                              {mat.aggType === "brick_khoa" ? "Khoa" : "Stone"} · ৳{mat.aggCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.steelKg > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#00c2c7]">{mat.steelKg.toLocaleString("en-IN")}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">৳{mat.steelCost.toLocaleString("en-IN")}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.bricksPcs > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#e67e22]">{mat.bricksPcs.toLocaleString("en-IN")}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">৳{mat.brickCost.toLocaleString("en-IN")}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.tilesPcs > 0 ? (
+                          <div>
+                            <span className="font-bold text-[#1abc9c]">{mat.tilesPcs.toLocaleString("en-IN")}</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">{mat.tilesBoxes} bxs ({mat.tileAreaSqft} sqft)</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono">
+                        {mat.pilesCount > 0 ? (
+                          <div className="text-[#f43f5e]">
+                            <span className="font-bold">{mat.boringRft} rft</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">{mat.pilesCount} piles</div>
+                          </div>
+                        ) : (mat.wetVolCft > 0 || mat.dryVolCft > 0) ? (
+                          <div className="text-[#c4b5fd]">
+                            <span className="font-bold">{mat.wetVolCft || mat.dryVolCft} cft</span>
+                            <div className="text-[9px] text-[#8ba3c1]/70">Wet vol</div>
+                          </div>
+                        ) : (
+                          <span className="text-[#8ba3c1]/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#2ecc71] whitespace-nowrap">
+                        ৳ {Math.round(est.totalCost).toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onNavigateToCalculator(
+                                (est.type === "tile" ? "tiles" : est.type) as EstimateType,
+                                est
+                              )
+                            }
+                            className="p-1 text-[#00c2c7] hover:bg-[#243b55] rounded transition"
+                            title="Open in Calculator"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEstimateToEdit(est)}
+                            className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
+                            title="Edit / Rename File"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExportSingleEstimate(est)}
+                            className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
+                            title="Download JSON"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEstimateToDelete(est)}
+                            className="p-1 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/20 rounded transition"
+                            title="Delete File"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                {(() => {
+                  const totals = filteredEstimates.reduce(
+                    (acc, e) => {
+                      const m = extractItemMaterials(e);
+                      return {
+                        cement: acc.cement + m.cementBags,
+                        sand: acc.sand + m.sandCft,
+                        agg: acc.agg + m.aggCft,
+                        steel: acc.steel + m.steelKg,
+                        bricks: acc.bricks + m.bricksPcs,
+                        tiles: acc.tiles + m.tilesPcs,
+                        vol: acc.vol + (m.wetVolCft || m.dryVolCft),
+                        cost: acc.cost + (e.totalCost || 0),
+                      };
+                    },
+                    { cement: 0, sand: 0, agg: 0, steel: 0, bricks: 0, tiles: 0, vol: 0, cost: 0 }
+                  );
+                  return (
+                    <tr className="bg-[#152033] border-t-2 border-[#00c2c7] text-white font-bold text-xs">
+                      <td colSpan={3} className="py-3 px-3 uppercase tracking-wider text-[#00c2c7]">
+                        Grand Total Material Sums ({filteredEstimates.length} Files):
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#f5a623]">
+                        {totals.cement.toLocaleString()} bags
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#f1f5f9]">
+                        {Number(totals.sand.toFixed(1)).toLocaleString()} cft
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#38bdf8]">
+                        {Number(totals.agg.toFixed(1)).toLocaleString()} cft
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#00c2c7]">
+                        {Math.round(totals.steel).toLocaleString()} kg
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#e67e22]">
+                        {totals.bricks > 0 ? `${totals.bricks.toLocaleString()} pcs` : "-"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#1abc9c]">
+                        {totals.tiles > 0 ? `${totals.tiles.toLocaleString()} pcs` : "-"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#c4b5fd]">
+                        {totals.vol > 0 ? `${Number(totals.vol.toFixed(1))} cft` : "-"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-[#2ecc71] text-sm font-extrabold whitespace-nowrap">
+                        ৳ {Math.round(totals.cost).toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-3 px-3 text-center text-[10px] text-[#8ba3c1]">
+                        Consolidated
+                      </td>
+                    </tr>
+                  );
+                })()}
+              </tfoot>
+            </table>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          /* =========================================================
+             VIEW MODE: DETAILED CARDS SHOWING ALL MATERIALS OF EVERY ITEM
+             ========================================================= */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {filteredEstimates.map((est) => {
               const calcMeta = calculatorCards.find((c) => c.type === est.type);
               const Icon = calcMeta?.icon || FileText;
+              const mat = extractItemMaterials(est);
+              const isExpanded = Boolean(expandedFiles[est.id]);
+
               return (
                 <div
                   key={est.id}
-                  className="bg-[#121a2b] border border-[#2d4a6a] hover:border-[#00c2c7]/50 rounded-xl p-3.5 transition shadow flex flex-col justify-between group"
+                  className="bg-[#121a2b] border border-[#2d4a6a] hover:border-[#00c2c7]/60 rounded-xl p-3.5 transition shadow-lg flex flex-col justify-between group space-y-3"
                 >
-                  <div>
+                  <div className="space-y-2.5">
+                    {/* Header: Icon, Name, Date, Mult, Cost */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
@@ -784,9 +1077,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <h4 className="text-xs font-bold text-white truncate" title={est.name}>
                             {est.name}
                           </h4>
-                          <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
-                            {est.type} · {new Date(est.date).toLocaleDateString()}
-                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
+                              {est.type} · {new Date(est.date).toLocaleDateString()}
+                            </span>
+                            {mat.isMultiplying && (
+                              <span className="bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1 py-0.2 rounded text-[9px] font-mono font-bold">
+                                {mat.multiplier}x Multiplier
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -797,43 +1097,167 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     </div>
 
-                    {/* Summary snippets */}
-                    <div className="mt-2.5 pt-2 border-t border-[#2d4a6a]/60 grid grid-cols-3 gap-1 text-[10px] text-center">
-                      {(est.summary?.cementBags || est.summary?.totalCementBags) && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#f5a623]">
-                          {est.summary.cementBags || est.summary.totalCementBags} bags
+                    {/* ALL MATERIALS SHOWCASE */}
+                    <div className="pt-2 border-t border-[#2d4a6a]/60 space-y-2">
+                      <div className="text-[10px] font-bold text-[#00c2c7] flex items-center justify-between">
+                        <span>All Item Materials:</span>
+                        <span className="text-[9px] text-[#8ba3c1] font-mono">
+                          {mat.isMultiplying ? `${mat.multiplier} Storeys Total` : "1 Storey"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                        {/* Cement */}
+                        {mat.cementBags > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#f5a623]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Cement</div>
+                            <div className="font-bold text-[#f5a623] text-[11px]">
+                              {mat.cementBags} bags
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              ৳ {mat.cementCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Sand */}
+                        {mat.sandCft > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#f1f5f9]/15 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Sand</div>
+                            <div className="font-bold text-[#f1f5f9] text-[11px]">
+                              {mat.sandCft} cft
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              ৳ {mat.sandCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Aggregates (Stone / Khoa) */}
+                        {mat.aggCft > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#38bdf8]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">
+                              {mat.aggType === "brick_khoa" ? "Khoa Agg" : "Stone Agg"}
+                            </div>
+                            <div className="font-bold text-[#38bdf8] text-[11px]">
+                              {mat.aggCft} cft
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              ৳ {mat.aggCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Rebar Steel */}
+                        {mat.steelKg > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#00c2c7]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Rebar Steel</div>
+                            <div className="font-bold text-[#00c2c7] text-[11px]">
+                              {mat.steelKg.toLocaleString("en-IN")} kg
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              ৳ {mat.steelCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bricks */}
+                        {mat.bricksPcs > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#e67e22]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Bricks</div>
+                            <div className="font-bold text-[#e67e22] text-[11px]">
+                              {mat.bricksPcs.toLocaleString("en-IN")} pcs
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              ৳ {mat.brickCost.toLocaleString("en-IN")}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tiles */}
+                        {mat.tilesPcs > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#1abc9c]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Tiles</div>
+                            <div className="font-bold text-[#1abc9c] text-[11px]">
+                              {mat.tilesPcs.toLocaleString("en-IN")} tiles
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              {mat.tilesBoxes} boxes ({mat.tileAreaSqft} sqft)
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Concrete Volume */}
+                        {(mat.wetVolCft > 0 || mat.dryVolCft > 0) && (
+                          <div className="bg-[#1a2b42] border border-[#c4b5fd]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Concrete Vol</div>
+                            <div className="font-bold text-[#c4b5fd] text-[11px]">
+                              {mat.wetVolCft || mat.dryVolCft} cft
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              Dry: {mat.dryVolCft || (mat.wetVolCft * 1.54).toFixed(1)} cft
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Piles / Boring */}
+                        {mat.pilesCount > 0 && (
+                          <div className="bg-[#1a2b42] border border-[#f43f5e]/25 rounded-lg p-1.5">
+                            <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Piles & Depth</div>
+                            <div className="font-bold text-[#f43f5e] text-[11px]">
+                              {mat.pilesCount} Piles
+                            </div>
+                            <div className="text-[8px] text-[#8ba3c1]/70">
+                              {mat.boringRft} rft ({mat.pileDiameterIn}" dia)
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Rebar Diameter Breakdown tags if present */}
+                      {Object.keys(mat.steelBreakdown).length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1 pt-1">
+                          <span className="text-[9px] text-[#8ba3c1] font-semibold">Rebars:</span>
+                          {Object.entries(mat.steelBreakdown).map(([dia, w]) => (
+                            <span
+                              key={dia}
+                              className="text-[9px] bg-[#0e1624] border border-[#00c2c7]/30 text-[#00c2c7] px-1.5 py-0.2 rounded font-mono font-medium"
+                            >
+                              Ø{dia}mm: {w}kg
+                            </span>
+                          ))}
                         </div>
                       )}
-                      {(est.summary?.totalSteel || est.summary?.totalSteelKg) && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#00c2c7]">
-                          {est.summary.totalSteel || est.summary.totalSteelKg} kg
-                        </div>
-                      )}
-                      {est.summary?.dryVolume !== undefined && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#c4b5fd]">
-                          {est.summary.dryVolume} cft
-                        </div>
-                      )}
-                      {est.summary?.totalBricks !== undefined && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#e67e22]">
-                          {est.summary.totalBricks} bricks
-                        </div>
-                      )}
-                      {est.summary?.tiles !== undefined && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#1abc9c]">
-                          {est.summary.tiles} tiles
-                        </div>
-                      )}
-                      {est.summary?.totalBuiltUpArea !== undefined && (
-                        <div className="bg-[#1a2b42] rounded px-1 py-0.5 text-[#3498db]">
-                          {est.summary.totalBuiltUpArea} sqft
-                        </div>
-                      )}
+
+                      {/* Expand / Collapse Full Specs */}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => toggleFileExpand(est.id)}
+                          className="w-full flex items-center justify-between text-[10px] text-[#8ba3c1] hover:text-[#00c2c7] py-0.5 transition cursor-pointer"
+                        >
+                          <span>{isExpanded ? "▲ Hide Specifications" : "▼ Show Full Specifications"}</span>
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-1 p-2 bg-[#0e1624] border border-[#2d4a6a]/60 rounded-lg text-[10px] text-[#8ba3c1] space-y-1">
+                            {mat.specifications.map((s, idx) => (
+                              <div key={idx} className="flex items-start gap-1">
+                                <span className="text-[#00c2c7] font-bold">•</span>
+                                <span>{s}</span>
+                              </div>
+                            ))}
+                            <div className="pt-1 border-t border-[#2d4a6a]/40 text-[9px] text-[#8ba3c1]/80">
+                              Applied Rates: Cement @ ৳{mat.rates.cementRate} | Sand @ ৳{mat.rates.sandRate} | Agg @ ৳{mat.rates.aggRate} | Steel @ ৳{mat.rates.steelRate}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* Actions: Open & Edit, Rename/Details, Export, Delete */}
-                  <div className="flex items-center justify-between gap-1.5 mt-3 pt-2.5 border-t border-[#2d4a6a]/60">
+                  <div className="flex items-center justify-between gap-1.5 pt-2.5 border-t border-[#2d4a6a]/60">
                     <button
                       type="button"
                       onClick={() =>
@@ -853,7 +1277,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       type="button"
                       onClick={() => setEstimateToEdit(est)}
                       className="p-1.5 text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55] rounded-lg transition"
-                      title="Rename or edit file details"
+                      title="Rename or view all materials details"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>

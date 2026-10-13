@@ -197,6 +197,80 @@ export interface FullProjectBreakdown {
   };
 }
 
+export interface EstimateMaterials {
+  cementBags: number;
+  sandCft: number;
+  aggCft: number;
+  steelKg: number;
+  bricksPcs: number;
+  tilesPcs: number;
+  wetVolCft: number;
+  multiplier: number;
+}
+
+export function extractEstimateMaterials(est: ProjectEstimateItem): EstimateMaterials {
+  const s = est.summary || {};
+  const d = est.data || {};
+  const mult = Math.max(1, s.multiplier || d.multiplier || 1);
+
+  const cementBags = Math.ceil(
+    s.multipliedCementBags || s.cementBags || s.totalCementBags || 0
+  );
+  const sandCft = Number(
+    (
+      s.multipliedSandCft ||
+      s.sandVolume ||
+      s.sandVol ||
+      s.sandCft ||
+      s.totalSandVolume ||
+      s.totalSand ||
+      s.totalSandCft ||
+      s.totalVolume || // sand pile
+      0
+    ).toFixed(1)
+  );
+  const aggCft = Number(
+    (
+      s.multipliedAggCft ||
+      s.aggregateVolume ||
+      s.aggregateVol ||
+      s.aggCft ||
+      s.totalAggregateVolume ||
+      s.totalAggCft ||
+      0
+    ).toFixed(1)
+  );
+  const steelKg = Math.round(
+    s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || s.totalSteelWeight || 0
+  );
+  const bricksPcs = Math.round(
+    s.multipliedBricks || s.totalBricks || s.brickQty || s.bricksPcs || 0
+  );
+  const tilesPcs = Math.round(
+    s.multipliedTilePieces || s.tiles || s.totalTiles || s.tilesPcs || 0
+  );
+  const wetVolCft = Number(
+    (
+      s.wetVolCft ||
+      s.totalWetVolume ||
+      s.totalWetVol ||
+      s.wetVolume ||
+      0
+    ).toFixed(1)
+  );
+
+  return {
+    cementBags,
+    sandCft,
+    aggCft,
+    steelKg,
+    bricksPcs,
+    tilesPcs,
+    wetVolCft,
+    multiplier: mult,
+  };
+}
+
 export function computeFullProjectBreakdown(
   estimates: ProjectEstimateItem[],
   defaultRates = {
@@ -943,5 +1017,241 @@ export function computeFullProjectBreakdown(
       materialsCost: Math.round(materialsCost),
       grandTotalCost: Math.round(totalCost),
     },
+  };
+}
+
+export interface ItemMaterialsReport {
+  cementBags: number;
+  cementCost: number;
+  sandCft: number;
+  sandCost: number;
+  aggCft: number;
+  aggCost: number;
+  aggType: "stone" | "brick_khoa" | "aggregate";
+  steelKg: number;
+  steelCost: number;
+  steelBreakdown: Record<string, number>;
+  bricksPcs: number;
+  brickCost: number;
+  tilesPcs: number;
+  tilesBoxes: number;
+  tilesCost: number;
+  tileAreaSqft: number;
+  wetVolCft: number;
+  dryVolCft: number;
+  pilesCount: number;
+  pileLengthFt: number;
+  pileDiameterIn: number;
+  boringRft: number;
+  boringCost: number;
+  mixRatio: string;
+  itemCount: number;
+  multiplier: number;
+  isMultiplying: boolean;
+  totalCost: number;
+  rates: {
+    cementRate: number;
+    sandRate: number;
+    aggRate: number;
+    steelRate: number;
+    brickRate: number;
+    tileRate: number;
+  };
+  specifications: string[];
+}
+
+/**
+ * Extracts complete, normalized materials and specifications for any estimate file item.
+ */
+export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsReport {
+  const s = est.summary || {};
+  const d = est.data || {};
+  const mult = Math.max(1, s.multiplier || d.multiplier || 1);
+  const isMultiplying = Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
+
+  // Extract saved or default rates
+  const savedRates = d.rates || {};
+  const cementRate = Number(savedRates.cementRate || d.cementRate || s.cementRate || 550);
+  const sandRate = Number(savedRates.sandRate || d.sandRate || s.sandRate || 45);
+  const aggRate = Number(savedRates.aggRate || d.aggRate || s.aggRate || 120);
+  const steelRate = Number(savedRates.steelRate || d.steelRate || s.steelRate || 95);
+  const brickRate = Number(savedRates.brickRate || d.brickRate || s.brickRate || 15);
+  const tileRate = Number(savedRates.tileRate || d.tileRate || s.tileRate || 180);
+
+  // Cement (bags)
+  const cementBags = Math.round(
+    s.multipliedCementBags || s.cementBags || s.totalCementBags || 0
+  );
+  const cementCost = s.cementCost !== undefined ? Math.round(s.cementCost) : Math.round(cementBags * cementRate);
+
+  // Sand (cft)
+  const sandCft = Number(
+    (s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || 0).toFixed(1)
+  );
+  const sandCost = s.sandCost !== undefined ? Math.round(s.sandCost) : (s.totalSandCost !== undefined ? Math.round(s.totalSandCost) : Math.round(sandCft * sandRate));
+
+  // Stone / Khoa Aggregates (cft)
+  const aggCft = Number(
+    (s.multipliedAggCft || s.aggregateVolume || s.aggregateVol || s.aggCft || s.totalAggCft || 0).toFixed(1)
+  );
+  const isBrickKhoa = Boolean(
+    d.baseType === "brick" ||
+    (s.brickQty && s.brickQty > 0 && est.type !== "brick" && est.type !== "tiles")
+  );
+  const aggType: "stone" | "brick_khoa" | "aggregate" = isBrickKhoa ? "brick_khoa" : "stone";
+  const aggCost = s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(aggCft * aggRate);
+
+  // Rebar Steel (kg)
+  const steelKg = Math.round(
+    s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || s.steelKg || s.totalSteelWeight || 0
+  );
+  const steelCost = s.steelCost !== undefined ? Math.round(s.steelCost) : Math.round(steelKg * steelRate);
+
+  // Steel breakdown map
+  const steelBreakdown: Record<string, number> = {};
+  if (s.steelBreakdown && typeof s.steelBreakdown === "object") {
+    Object.entries(s.steelBreakdown).forEach(([dia, w]) => {
+      const numDia = Number(dia);
+      const numW = typeof w === "number" ? w : Number(w);
+      if (!isNaN(numDia) && numDia > 0 && !isNaN(numW) && numW > 0) {
+        steelBreakdown[dia] = Math.round(numW);
+      }
+    });
+  }
+
+  // Bricks (pcs)
+  const bricksPcs = Math.round(
+    s.multipliedBricks || s.totalBricks || s.brickQty || 0
+  );
+  const brickCost = s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate);
+
+  // Tiles (pcs & boxes & area)
+  const tilesPcs = Math.round(
+    s.multipliedTilePieces || s.tiles || s.totalTilePieces || 0
+  );
+  const tilesBoxes = s.multipliedBoxes || s.boxes || Math.ceil(tilesPcs / 4);
+  const tileAreaSqft = Number(
+    (s.multipliedTileArea || s.totalTileArea || s.totalGrossTileArea || 0).toFixed(1)
+  );
+  const tilesCost = s.totalTileCost !== undefined ? Math.round(s.totalTileCost) : Math.round(tilesPcs * tileRate);
+
+  // Concrete volumes
+  const wetVolCft = Number((s.wetVolCft || s.totalWetVol || s.totalWetVolume || 0).toFixed(1));
+  const dryVolCft = Number((s.dryVolCft || s.totalDryVol || s.totalDryVolume || 0).toFixed(1));
+
+  // Pile details
+  const pilesCount = Math.round(s.pileNos || s.numPiles || d.pileNos || d.numPiles || 0);
+  const pileLengthFt = Number((s.pileLength || d.pileLength || 0).toFixed(1));
+  const pileDiameterIn = Number((s.pileDiameter || d.pileDiameter || 0).toFixed(1));
+  const boringRft = pilesCount > 0 && pileLengthFt > 0 ? Math.round(pilesCount * pileLengthFt) : 0;
+  const boringCost = Math.round(s.constructionCost || s.totalPileCost || 0);
+
+  // Item counts and specs
+  let itemCount = 0;
+  let mixRatio = "";
+  const specs: string[] = [];
+
+  if (est.type === "beam") {
+    itemCount = s.totalBeamsCount || (Array.isArray(d.beams) ? d.beams.reduce((sum: number, b: any) => sum + (b.nos || 1), 0) * mult : mult);
+    mixRatio = d.beams?.[0]?.mix || "1:1.5:3";
+    specs.push(`${itemCount} Beams Total (${mult} storey multiplier)`);
+    specs.push(`Mix: ${mixRatio}`);
+    if (d.beams?.[0]) {
+      const b = d.beams[0];
+      specs.push(`Sample Size: ${b.width || 12}" × ${b.depth || 18}", Span: ${b.length || 20}ft`);
+    }
+  } else if (est.type === "column") {
+    itemCount = s.totalColsCount || (Array.isArray(d.columns) ? d.columns.reduce((sum: number, c: any) => sum + (c.nos || 1), 0) * mult : mult);
+    mixRatio = d.columns?.[0]?.mix || "1:1.5:3";
+    specs.push(`${itemCount} Columns Total (${mult} storey multiplier)`);
+    specs.push(`Mix: ${mixRatio}`);
+    if (d.columns?.[0]) {
+      const c = d.columns[0];
+      specs.push(`Size: ${c.size || "12x15"}, Height: ${c.height || 10}ft`);
+    }
+  } else if (est.type === "footing") {
+    itemCount = s.totalFtCount || (Array.isArray(d.footings) ? d.footings.reduce((sum: number, f: any) => sum + (f.nos || 1), 0) : 1);
+    mixRatio = d.footings?.[0]?.mix || "1:1.5:3";
+    specs.push(`${itemCount} Isolated / Mat Footings`);
+    specs.push(`Mix: ${mixRatio}`);
+    if (d.footings?.[0]) {
+      const f = d.footings[0];
+      specs.push(`Base: ${f.length || 7}ft × ${f.breadth || 7}ft × ${f.thickness || 1.5}ft thick`);
+    }
+  } else if (est.type === "situ_pile") {
+    specs.push(`${pilesCount} Bored Piles, ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
+    specs.push(`Total Boring: ${boringRft} running feet`);
+    mixRatio = d.mixRatio || "1:1.5:3";
+    specs.push(`Mix: ${mixRatio}`);
+  } else if (est.type === "sand_pile") {
+    specs.push(`${pilesCount} Sand Compaction Piles (SCP), ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
+    specs.push(`Total Compaction: ${boringRft} rft`);
+    specs.push(`Sand Volume: ${sandCft} cft (${Math.ceil(sandCft / 500)} Truckloads)`);
+  } else if (est.type === "slab") {
+    itemCount = Array.isArray(d.slabs) ? d.slabs.reduce((sum: number, sl: any) => sum + (sl.nos || 1), 0) * mult : mult;
+    mixRatio = d.slabs?.[0]?.mixRatio || "1:1.5:3";
+    specs.push(`${itemCount} Two-Way RCC Slabs (${mult} floor multiplier)`);
+    specs.push(`Mix: ${mixRatio}, Thickness: ${d.slabs?.[0]?.thicknessIn || 5}"`);
+  } else if (est.type === "stair") {
+    itemCount = mult;
+    mixRatio = d.stairs?.[0]?.mixRatio || "1:1.5:3";
+    specs.push(`${itemCount} Staircase Flights (${mult} flight multiplier)`);
+    specs.push(`Mix: ${mixRatio}, Waist Slab: ${d.stairs?.[0]?.thicknessIn || 6}"`);
+  } else if (est.type === "brick") {
+    specs.push(`${bricksPcs.toLocaleString()} Bricks (${mult} floor multiplier)`);
+    if (s.totalWallArea || s.singleFloorNetArea) {
+      specs.push(`Wall Area: ${s.totalWallArea || s.singleFloorNetArea} sqft`);
+    }
+    if (s.brickCementBags && s.plasterCementBags) {
+      specs.push(`Mortar: ${s.brickCementBags} bags, Plaster: ${s.plasterCementBags} bags`);
+    }
+  } else if (est.type === "tiles") {
+    specs.push(`${tilesPcs.toLocaleString()} Tiles (${tilesBoxes} Boxes)`);
+    if (tileAreaSqft > 0) specs.push(`Coverage: ${tileAreaSqft} sqft`);
+    specs.push(`Bedding Mortar: ${cementBags} bags cement, ${sandCft} cft sand`);
+  } else if (est.type === "structural") {
+    specs.push(`Full Building Plinth Area: ${s.totalBuiltUpArea || 1500} sqft`);
+  }
+
+  const totalCost = Math.round(est.totalCost || 0);
+
+  return {
+    cementBags,
+    cementCost,
+    sandCft,
+    sandCost,
+    aggCft,
+    aggCost,
+    aggType,
+    steelKg,
+    steelCost,
+    steelBreakdown,
+    bricksPcs,
+    brickCost,
+    tilesPcs,
+    tilesBoxes,
+    tilesCost,
+    tileAreaSqft,
+    wetVolCft,
+    dryVolCft,
+    pilesCount,
+    pileLengthFt,
+    pileDiameterIn,
+    boringRft,
+    boringCost,
+    mixRatio,
+    itemCount,
+    multiplier: mult,
+    isMultiplying,
+    totalCost,
+    rates: {
+      cementRate,
+      sandRate,
+      aggRate,
+      steelRate,
+      brickRate,
+      tileRate,
+    },
+    specifications: specs,
   };
 }
