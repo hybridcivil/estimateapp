@@ -94,8 +94,8 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
   const [length, setLength] = useState(14);
   const [width, setWidth] = useState(12);
 
-  const [tileType, setTileType] = useState("180");
-  const [tilePrice, setTilePrice] = useState(180);
+  const [tileType, setTileType] = useState(() => String(activeProject?.rates?.tileRate || 180));
+  const [tilePrice, setTilePrice] = useState(() => activeProject?.rates?.tileRate || 180);
   const [tileSize, setTileSize] = useState(2); // 2' x 2'
 
   const [includeSkirting, setIncludeSkirting] = useState(true);
@@ -106,8 +106,20 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
   const [wastage, setWastage] = useState(8); // %
   const [labour, setLabour] = useState(45); // ৳/sqft
 
-  const [cementRate, setCementRate] = useState(550);
-  const [sandRate, setSandRate] = useState(45);
+  // Rates initialized from activeProject.rates or defaults
+  const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.tileRate) {
+        setTilePrice(activeProject.rates.tileRate);
+        setTileType(String(activeProject.rates.tileRate));
+      }
+      if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+    }
+  }, [activeProject?.rates]);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");

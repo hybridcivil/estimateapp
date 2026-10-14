@@ -136,8 +136,8 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
   if (idx !== -1) {
     const oldStories = local[idx].stories || 1;
     const newStories = data.stories !== undefined ? Math.max(1, data.stories) : oldStories;
-    let rescaledEstimates = local[idx].estimates || [];
-    if (newStories !== oldStories && Array.isArray(rescaledEstimates) && rescaledEstimates.length > 0) {
+    let rescaledEstimates = data.estimates || local[idx].estimates || [];
+    if (!data.estimates && newStories !== oldStories && Array.isArray(rescaledEstimates) && rescaledEstimates.length > 0) {
       rescaledEstimates = rescaleEstimatesForStories(rescaledEstimates, newStories, oldStories);
     }
 

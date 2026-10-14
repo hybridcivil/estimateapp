@@ -108,10 +108,18 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   const [plasterMix, setPlasterMix] = useState("1:4");
   const [plasterThicknessMm, setPlasterThicknessMm] = useState(12);
 
-  // Rates
-  const [brickRate, setBrickRate] = useState(15);
-  const [cementRate, setCementRate] = useState(550);
-  const [sandRate, setSandRate] = useState(45);
+  // Rates initialized from activeProject.rates or defaults
+  const [brickRate, setBrickRate] = useState(() => activeProject?.rates?.brickRate || 15);
+  const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
+      if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+    }
+  }, [activeProject?.rates]);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");

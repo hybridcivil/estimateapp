@@ -49,12 +49,22 @@ export const StructuralCalculator: React.FC<StructuralCalculatorProps> = ({
   const [brickFactor, setBrickFactor] = useState(24); // bricks / sqft
   const [labourRateSqft, setLabourRateSqft] = useState(280); // ৳ / sqft
 
-  // Unit Rates (৳ BDT)
-  const [steelRate, setSteelRate] = useState(95); // ৳/kg
-  const [cementRate, setCementRate] = useState(550); // ৳/bag
-  const [sandRate, setSandRate] = useState(45); // ৳/cft
-  const [aggRate, setAggRate] = useState(120); // ৳/cft
-  const [brickRate, setBrickRate] = useState(15); // ৳/pcs
+  // Unit Rates (৳ BDT) initialized from activeProject.rates or defaults
+  const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95); // ৳/kg
+  const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550); // ৳/bag
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45); // ৳/cft
+  const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120); // ৳/cft
+  const [brickRate, setBrickRate] = useState(() => activeProject?.rates?.brickRate || 15); // ৳/pcs
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
+      if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
+      if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
+    }
+  }, [activeProject?.rates]);
 
   // Extra Works Percentages
   const [includeFinishing, setIncludeFinishing] = useState(true);

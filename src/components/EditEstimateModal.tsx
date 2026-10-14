@@ -122,13 +122,14 @@ export const EditEstimateModal: React.FC<EditEstimateModalProps> = ({
             {/* All Materials Takeoff & Specification Section */}
             {(() => {
               const mat = extractItemMaterials(estimate);
+              const isFoundation = estimate.type === "footing" || estimate.type === "situ_pile" || estimate.type === "sand_pile";
               const hasSteelBreakdown = Object.keys(mat.steelBreakdown).length > 0;
               return (
                 <div className="space-y-2 pt-2 border-t border-[#2d4a6a]/60">
                   <div className="text-[11px] font-bold text-[#00c2c7] flex items-center justify-between">
                     <span>All Item Materials Takeoff</span>
                     <span className="text-[10px] text-[#8ba3c1] font-mono">
-                      {mat.isMultiplying ? `${mat.multiplier} Storeys Multiplier` : "Single Floor Baseline"}
+                      {isFoundation ? "1× Foundation Substructure (Used Once)" : mat.isMultiplying ? `${mat.multiplier} Storeys Multiplier` : "Single Floor Baseline"}
                     </span>
                   </div>
 

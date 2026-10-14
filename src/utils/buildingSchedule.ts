@@ -185,7 +185,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
   const footingItem: ProjectEstimateItem = {
     id: "est_ft_init_" + Date.now(),
     type: "footing",
-    name: `Foundation Isolated Footings F1-F8 (${s} Storey Load)`,
+    name: `Foundation Isolated Footings F1-F8 (Substructure 1x)`,
     date: now,
     totalCost: footingCost,
     summary: {
@@ -431,11 +431,27 @@ export function rescaleEstimatesForStories(
   defaultTemplates.forEach((t) => templateMap.set(t.type, t));
 
   return estimates.map((est) => {
+    // Foundation elements (Footing, Situ Pile, Sand Pile) are substructure used only once: NEVER scale with storeys!
+    if (est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile") {
+      return {
+        ...est,
+        summary: {
+          ...est.summary,
+          multiplier: 1,
+          isMultiplying: false,
+        },
+        data: {
+          ...est.data,
+          multiplier: 1,
+          isMultiplying: false,
+        },
+      };
+    }
+
     const isStandardInit =
       est.id.includes("_init_") ||
       est.id.startsWith("est_beam_01") ||
-      est.id.startsWith("est_col_01") ||
-      est.id.startsWith("est_footing_01");
+      est.id.startsWith("est_col_01");
 
     const template = templateMap.get(est.type);
 
@@ -542,8 +558,6 @@ export function rescaleEstimatesForStories(
           storeyRegex,
           `(${flights} ${flights === 1 ? "Flight" : "Flights"} × Multiplied)`
         );
-      } else if (est.type === "footing") {
-        updatedName = updatedName.replace(storeyRegex, `(${s} Storey Load)`);
       } else if (est.type === "beam" || est.type === "column") {
         updatedName = updatedName.replace(
           storeyRegex,

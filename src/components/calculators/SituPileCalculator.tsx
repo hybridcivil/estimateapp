@@ -50,12 +50,22 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
   const [mixRatio, setMixRatio] = useState<string>("1:1.5:3");
   const [clearCoverIn, setClearCoverIn] = useState<number>(3); // 3 inches for bored pile
 
-  // Rates & Costs
-  const [constructionCostPerFoot, setConstructionCostPerFoot] = useState<number>(200); // TK / running foot
-  const [cementCost, setCementCost] = useState<number>(550); // TK / bag
-  const [sandCost, setSandCost] = useState<number>(45); // TK / cft
-  const [aggregateCost, setAggregateCost] = useState<number>(120); // TK / cft
-  const [steelCost, setSteelCost] = useState<number>(95); // TK / kg
+  // Rates & Costs initialized from activeProject.rates or defaults
+  const [constructionCostPerFoot, setConstructionCostPerFoot] = useState<number>(() => activeProject?.rates?.boringRatePerFt || 200);
+  const [cementCost, setCementCost] = useState<number>(() => activeProject?.rates?.cementRate || 550);
+  const [sandCost, setSandCost] = useState<number>(() => activeProject?.rates?.sandRate || 45);
+  const [aggregateCost, setAggregateCost] = useState<number>(() => activeProject?.rates?.aggRate || 120);
+  const [steelCost, setSteelCost] = useState<number>(() => activeProject?.rates?.steelRate || 95);
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.boringRatePerFt) setConstructionCostPerFoot(activeProject.rates.boringRatePerFt);
+      if (activeProject.rates.cementRate) setCementCost(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandCost(activeProject.rates.sandRate);
+      if (activeProject.rates.aggRate) setAggregateCost(activeProject.rates.aggRate);
+      if (activeProject.rates.steelRate) setSteelCost(activeProject.rates.steelRate);
+    }
+  }, [activeProject?.rates]);
 
   const [results, setResults] = useState<SituPileResults | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
@@ -357,6 +367,9 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                 </span>
                 <span className="text-xs bg-[#f5a623]/20 text-[#f5a623] px-2 py-0.5 rounded font-semibold border border-[#f5a623]/40">
                   Cast-in-Situ Bored Pile
+                </span>
+                <span className="text-xs bg-[#38bdf8]/20 text-[#38bdf8] px-2 py-0.5 rounded font-semibold border border-[#38bdf8]/40">
+                  Foundation (Used Once · No Storey Mult)
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-white">

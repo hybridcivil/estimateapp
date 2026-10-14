@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Project, ProjectEstimateItem, FootingItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
-import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
-import { Plus, Minus, Trash2, RotateCcw, Copy, Edit3, Building2, Check, X } from "lucide-react";
+import { Plus, Minus, Trash2, RotateCcw, Copy, Edit3, Building2, Check, X, ShieldCheck } from "lucide-react";
 
 interface FootingCalculatorProps {
   activeProject: Project | null;
@@ -27,21 +26,12 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
-  const [estimateName, setEstimateName] = useState("Footing Estimate");
+  const [estimateName, setEstimateName] = useState("Footing Foundation Estimate");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
-  // Multi-Storey Building Multiplier
-  const projectStories = activeProject?.stories || 1;
-  const [multiplier, setMultiplier] = useState(projectStories);
-  const [isMultiplying, setIsMultiplying] = useState(projectStories > 1);
-
-  // Sync multiplier when project changes
-  useEffect(() => {
-    if (activeProject?.stories) {
-      setMultiplier(activeProject.stories);
-      setIsMultiplying(activeProject.stories > 1);
-    }
-  }, [activeProject?.id, activeProject?.stories]);
+  // Foundation Substructure: Footings are constructed once for entire building (no storey multiplier)
+  const multiplier = 1;
+  const isMultiplying = false;
 
   const [footings, setFootings] = useState<FootingItem[]>([
     {
@@ -81,11 +71,20 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   const [brickRate, setBrickRate] = useState(15);
   const [bricksPerCft, setBricksPerCft] = useState(10);
 
-  // Rates
-  const [cementRate, setCementRate] = useState(550);
-  const [sandRate, setSandRate] = useState(45);
-  const [aggRate, setAggRate] = useState(120);
-  const [steelRate, setSteelRate] = useState(95);
+  // Rates initialized from activeProject.rates or BNBC defaults
+  const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
+  const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
+      if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
+    }
+  }, [activeProject?.rates]);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -462,9 +461,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
         if (est.data.rates.bricksPerCft) setBricksPerCft(est.data.rates.bricksPerCft);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
-      if (est.data.multiplier) setMultiplier(est.data.multiplier);
-      if (est.data.isMultiplying !== undefined) setIsMultiplying(Boolean(est.data.isMultiplying));
-      calculate(est.data.footings, est.data.multiplier || multiplier, Boolean(est.data.isMultiplying));
+      calculate(est.data.footings, 1, false);
     }
   };
 
@@ -509,15 +506,26 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
         <div className="max-w-2xl mx-auto space-y-3">
-          {/* Multi-Storey Building Multiplier Bar */}
-          <StoreyMultiplierBar
-            projectStories={projectStories}
-            multiplier={multiplier}
-            setMultiplier={setMultiplier}
-            isMultiplying={isMultiplying}
-            setIsMultiplying={setIsMultiplying}
-            itemTypeLabel="Footings"
-          />
+          {/* Foundation Substructure Notice: Footings are constructed once for entire building */}
+          <div className="bg-[#152033] border border-[#38bdf8]/40 rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-[#38bdf8]/20 text-[#38bdf8] flex items-center justify-center font-bold text-xs shrink-0">
+                1×
+              </div>
+              <div>
+                <div className="font-bold text-white flex items-center gap-2">
+                  <span>Foundation Substructure (Isolated Footings)</span>
+                  <span className="bg-[#38bdf8]/20 text-[#38bdf8] text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold">
+                    Used Once (No Storey Multiplier)
+                  </span>
+                </div>
+                <div className="text-[11px] text-[#8ba3c1] mt-0.5">
+                  Footings support the building foundation and are built once at base ground level.
+                </div>
+              </div>
+            </div>
+            <ShieldCheck className="w-5 h-5 text-[#38bdf8] shrink-0 hidden sm:block" />
+          </div>
 
           {successMsg && (
             <div className="bg-[#2ecc71]/15 border border-[#2ecc71] text-[#2ecc71] p-2 rounded-lg text-xs font-semibold flex items-center gap-2">
@@ -808,7 +816,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
             <div className="flex justify-between items-center text-xs font-semibold text-[#00c2c7] mb-2 border-b border-[#2d4a6a] pb-1.5">
               <span>Added Footings</span>
               <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono">
-                {footings.length} types {isMultiplying && `(×${multiplier} = ${results?.totalFtCount || footings.length * multiplier} total)`}
+                {footings.length} {footings.length === 1 ? "type" : "types"} ({footings.reduce((sum, f) => sum + f.nos, 0)} total)
               </span>
             </div>
 
@@ -837,11 +845,6 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
                         {editingFtIndex === idx && (
                           <span className="text-[10px] text-[#00c2c7] font-mono font-normal">
                             (Editing)
-                          </span>
-                        )}
-                        {isMultiplying && (
-                          <span className="text-[10px] text-[#f5a623] font-mono">
-                            [×{multiplier} = {f.nos * multiplier} pcs]
                           </span>
                         )}
                       </div>

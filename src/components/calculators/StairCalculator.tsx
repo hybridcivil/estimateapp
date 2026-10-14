@@ -96,10 +96,20 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
   const [distSpacingIn, setDistSpacingIn] = useState(5);
 
   // Rates
-  const [cementRate, setCementRate] = useState(550);
-  const [sandRate, setSandRate] = useState(45);
-  const [aggRate, setAggRate] = useState(120);
-  const [steelRate, setSteelRate] = useState(95);
+  // Rates initialized from activeProject.rates or defaults
+  const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
+  const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
+      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
+      if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
+    }
+  }, [activeProject?.rates]);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");

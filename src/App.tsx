@@ -196,6 +196,8 @@ function MainAppContent() {
     engineer: string;
     notes?: string;
     stories?: number;
+    rates?: any;
+    estimates?: ProjectEstimateItem[];
   }>) => {
     const updated = await updateProject(id, data);
     if (updated) {

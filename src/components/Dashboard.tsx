@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Project, ProjectEstimateItem, EstimateType } from "../types";
+import React, { useState, useEffect } from "react";
+import { Project, ProjectEstimateItem, EstimateType, GlobalMaterialRates } from "../types";
 import {
   FolderKanban,
   Plus,
@@ -32,11 +32,19 @@ import {
   Table,
   ChevronDown,
   ChevronUp,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  Coins,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
 import { useTheme } from "../context/ThemeContext";
-import { extractItemMaterials } from "../utils/reportBreakdown";
+import {
+  extractItemMaterials,
+  DEFAULT_MATERIAL_RATES,
+  recalculateEstimateWithRates,
+} from "../utils/reportBreakdown";
 
 interface DashboardProps {
   projects: Project[];
@@ -77,6 +85,70 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const toggleFileExpand = (id: string) => {
     setExpandedFiles((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Unified Material Rates state (set once for all items)
+  const [rates, setRates] = useState<GlobalMaterialRates>(() => {
+    return (
+      activeProject?.rates || {
+        cementRate: DEFAULT_MATERIAL_RATES.cementRate,
+        sandRate: DEFAULT_MATERIAL_RATES.sandRate,
+        aggRate: DEFAULT_MATERIAL_RATES.aggRate,
+        steelRate: DEFAULT_MATERIAL_RATES.steelRate,
+        brickRate: DEFAULT_MATERIAL_RATES.brickRate,
+        tileRate: DEFAULT_MATERIAL_RATES.tileRate,
+        boringRatePerFt: DEFAULT_MATERIAL_RATES.boringRatePerFt,
+        sandPileCostPerFt: DEFAULT_MATERIAL_RATES.sandPileCostPerFt,
+      }
+    );
+  });
+  const [ratesUpdatedMsg, setRatesUpdatedMsg] = useState("");
+  const [isApplyingRates, setIsApplyingRates] = useState(false);
+
+  // Sync rates when activeProject changes
+  useEffect(() => {
+    if (activeProject?.rates) {
+      setRates({
+        cementRate: activeProject.rates.cementRate ?? DEFAULT_MATERIAL_RATES.cementRate,
+        sandRate: activeProject.rates.sandRate ?? DEFAULT_MATERIAL_RATES.sandRate,
+        aggRate: activeProject.rates.aggRate ?? DEFAULT_MATERIAL_RATES.aggRate,
+        steelRate: activeProject.rates.steelRate ?? DEFAULT_MATERIAL_RATES.steelRate,
+        brickRate: activeProject.rates.brickRate ?? DEFAULT_MATERIAL_RATES.brickRate,
+        tileRate: activeProject.rates.tileRate ?? DEFAULT_MATERIAL_RATES.tileRate,
+        boringRatePerFt: activeProject.rates.boringRatePerFt ?? DEFAULT_MATERIAL_RATES.boringRatePerFt,
+        sandPileCostPerFt: activeProject.rates.sandPileCostPerFt ?? DEFAULT_MATERIAL_RATES.sandPileCostPerFt,
+      });
+    }
+  }, [activeProject?.id, activeProject?.rates]);
+
+  // Recalculates all items across project whenever materials price is saved/updated
+  const handleApplyMaterialRates = async (newRatesToApply?: GlobalMaterialRates) => {
+    if (!activeProject || !onUpdateProject) return;
+    const targetRates = newRatesToApply || rates;
+    setIsApplyingRates(true);
+
+    try {
+      // Recalculate every estimate item in the project with the new material rates
+      const updatedEstimates = (activeProject.estimates || []).map((est) =>
+        recalculateEstimateWithRates(est, targetRates)
+      );
+
+      await onUpdateProject(activeProject.id, {
+        rates: targetRates,
+        estimates: updatedEstimates,
+      });
+
+      try {
+        localStorage.setItem("ashraf_global_material_rates", JSON.stringify(targetRates));
+      } catch (e) {}
+
+      setRatesUpdatedMsg(`✓ Material rates updated! Recalculated all ${updatedEstimates.length} estimate items.`);
+      setTimeout(() => setRatesUpdatedMsg(""), 3500);
+    } catch (err) {
+      console.error("Error applying material rates", err);
+    } finally {
+      setIsApplyingRates(false);
+    }
   };
 
   // In-app modal confirmations (no window.confirm!)
@@ -420,23 +492,51 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Engineer: <strong className="text-white">{activeProject.engineer}</strong>
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={onOpenEditProjectModal}
-                  className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] px-2 py-0.5 rounded-lg border border-[#00c2c7]/30 transition text-left cursor-pointer group"
-                  title="Click to edit project storeys & metadata"
-                >
+                <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2 py-0.5 rounded-lg border border-[#00c2c7]/40">
                   <Building2 className="w-3.5 h-3.5 text-[#00c2c7]" />
-                  <span>Building:</span>
-                  <strong className="text-[#00c2c7] group-hover:underline">
-                    {activeProject.stories || 1} {activeProject.stories === 1 ? 'Storey' : 'Storeys'}
-                  </strong>
-                  {(activeProject.stories || 1) > 1 && (
-                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] px-1 rounded text-[10px] font-mono font-bold">
-                      ×{activeProject.stories} Multiplied
-                    </span>
+                  <span className="text-xs font-bold text-white">Storeys:</span>
+                  {onUpdateProject ? (
+                    <div className="flex items-center gap-1 bg-[#121c2d] px-1 py-0.5 rounded border border-[#2d4a6a]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = activeProject.stories || 1;
+                          if (cur > 1) {
+                            onUpdateProject(activeProject.id, { stories: cur - 1 });
+                          }
+                        }}
+                        disabled={(activeProject.stories || 1) <= 1}
+                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] disabled:opacity-30 disabled:hover:bg-[#1e2f47] text-white text-xs font-bold transition cursor-pointer"
+                        title="Decrease building storeys"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-bold text-xs text-[#00c2c7] px-1 min-w-[18px] text-center">
+                        {activeProject.stories || 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = activeProject.stories || 1;
+                          onUpdateProject(activeProject.id, { stories: cur + 1 });
+                        }}
+                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] text-white text-xs font-bold transition cursor-pointer"
+                        title="Increase building storeys"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <strong className="text-[#00c2c7] text-xs">{activeProject.stories || 1}</strong>
                   )}
-                </button>
+                  {(activeProject.stories || 1) > 1 ? (
+                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">
+                      ×{activeProject.stories} Multiplied (Superstructure)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-[#8ba3c1]">Single Floor</span>
+                  )}
+                </div>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-[#8ba3c1]" />
                   Updated: {new Date(activeProject.updatedAt).toLocaleDateString()}
@@ -446,6 +546,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Project Actions: Edit, BOQ, Export, Delete */}
             <div className="flex flex-wrap items-center gap-2">
+              {onAddDefaultBuildingList && (
+                <button
+                  type="button"
+                  onClick={onAddDefaultBuildingList}
+                  className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/40 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
+                  title="Auto-populate default 7 building elements (Beam, Column, Footing, Slab, Stair, Tile, Brick)"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Auto-Add 7 Elements</span>
+                </button>
+              )}
               <button
                 onClick={onOpenEditProjectModal}
                 className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
@@ -554,164 +665,331 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
-      {/* Building Elements Schedule (Beam, Column, Footing, Slab, Stair, Tiles, Brick) */}
+      {/* Unified Project Materials Price Option (Set Once For All Items) */}
       {activeProject && (
-        <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-3.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3">
+        <div className="bg-[#152033] border border-[#00c2c7]/50 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3.5">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2 py-0.5 rounded font-semibold border border-[#00c2c7]/40">
-                  Building Elements Schedule
+                <span className="text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2.5 py-0.5 rounded-full font-bold border border-[#00c2c7]/40 flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  Materials Price Option
                 </span>
-                <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2 py-0.5 rounded-lg border border-[#00c2c7]/40">
-                  <Building2 className="w-3.5 h-3.5 text-[#00c2c7]" />
-                  <span className="text-xs font-bold text-white">Building:</span>
-                  {onUpdateProject ? (
-                    <div className="flex items-center gap-1 bg-[#121c2d] px-1 py-0.5 rounded border border-[#2d4a6a]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const cur = activeProject.stories || 1;
-                          if (cur > 1) {
-                            onUpdateProject(activeProject.id, { stories: cur - 1 });
-                          }
-                        }}
-                        disabled={(activeProject.stories || 1) <= 1}
-                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] disabled:opacity-30 disabled:hover:bg-[#1e2f47] text-white text-xs font-bold transition cursor-pointer"
-                        title="Decrease building storeys"
-                      >
-                        -
-                      </button>
-                      <span className="font-mono font-bold text-xs text-[#00c2c7] px-1 min-w-[18px] text-center">
-                        {activeProject.stories || 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const cur = activeProject.stories || 1;
-                          onUpdateProject(activeProject.id, { stories: cur + 1 });
-                        }}
-                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] text-white text-xs font-bold transition cursor-pointer"
-                        title="Increase building storeys"
-                      >
-                        +
-                      </button>
-                    </div>
-                  ) : (
-                    <strong className="text-[#00c2c7] text-xs">{activeProject.stories || 1}</strong>
-                  )}
-                  <span className="text-xs text-white">Storeys Multiplier</span>
-                  {(activeProject.stories || 1) > 1 && (
-                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">
-                      ×{activeProject.stories} Active
-                    </span>
-                  )}
-                </div>
+                <span className="text-xs bg-[#2ecc71]/15 text-[#2ecc71] px-2 py-0.5 rounded-md font-mono font-semibold border border-[#2ecc71]/30">
+                  Set Once For All Items
+                </span>
               </div>
-              <h3 className="text-sm sm:text-base font-bold text-white mt-1">
-                Beam, Column, Footing, Piles, Slab, Stair, Tiles & Brick Checklist
+              <h3 className="text-base sm:text-lg font-bold text-white mt-1 flex items-center gap-2">
+                <span>Unified Material Rates & Price Master</span>
               </h3>
-              <p className="text-[11px] text-[#8ba3c1]">
-                All structural and finishing estimates in this list multiply according to the building's {activeProject.stories || 1} storeys.
+              <p className="text-xs text-[#8ba3c1] mt-0.5 max-w-2xl">
+                Set material rates once here for this project. When rates are changed, it automatically updates pricing across <strong className="text-white">all {estimates.length} items</strong>, calculation sheets, and BOQ totals below.
               </p>
             </div>
 
-            {onAddDefaultBuildingList && (
+            {/* Presets and Apply Button */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 bg-[#0e1624] border border-[#2d4a6a] rounded-xl p-1 text-[11px]">
+                <span className="text-[#8ba3c1] px-1 font-semibold hidden sm:inline">Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const preset: GlobalMaterialRates = {
+                      cementRate: 550,
+                      sandRate: 45,
+                      aggRate: 120,
+                      steelRate: 95,
+                      brickRate: 15,
+                      tileRate: 180,
+                      boringRatePerFt: 180,
+                      sandPileCostPerFt: 120,
+                    };
+                    setRates(preset);
+                    handleApplyMaterialRates(preset);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#00c2c7] font-semibold transition cursor-pointer"
+                  title="PWD / BNBC Standard Rates"
+                >
+                  PWD Standard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const preset: GlobalMaterialRates = {
+                      cementRate: 580,
+                      sandRate: 52,
+                      aggRate: 135,
+                      steelRate: 98,
+                      brickRate: 16,
+                      tileRate: 195,
+                      boringRatePerFt: 200,
+                      sandPileCostPerFt: 130,
+                    };
+                    setRates(preset);
+                    handleApplyMaterialRates(preset);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#f5a623] font-semibold transition cursor-pointer"
+                  title="Current Market 2025 Rates"
+                >
+                  Market 2025
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const preset: GlobalMaterialRates = {
+                      cementRate: 620,
+                      sandRate: 60,
+                      aggRate: 150,
+                      steelRate: 105,
+                      brickRate: 18,
+                      tileRate: 220,
+                      boringRatePerFt: 220,
+                      sandPileCostPerFt: 140,
+                    };
+                    setRates(preset);
+                    handleApplyMaterialRates(preset);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#38bdf8] font-semibold transition cursor-pointer"
+                  title="Dhaka / Metro High-End Rates"
+                >
+                  Metro High
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={onAddDefaultBuildingList}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md active:scale-95 shrink-0"
-                title="Automatically populate/initialize any missing building elements with the storey multiplier applied"
+                onClick={() => handleApplyMaterialRates()}
+                disabled={isApplyingRates}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] font-bold text-xs px-4 py-2 rounded-xl transition shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                title="Save and recalculate all project estimates with these rates"
               >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Auto-Add Full 7 Elements to List</span>
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span>{isApplyingRates ? "Updating All..." : "Update All Items"}</span>
               </button>
-            )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-2.5">
-            {[
-              { type: "beam" as EstimateType, label: "Beam", sublabel: "Grade & Floor Beams", icon: Columns, accent: "#00c2c7" },
-              { type: "column" as EstimateType, label: "Column", sublabel: "Ground & Floor Columns", icon: Building2, accent: "#f5a623" },
-              { type: "footing" as EstimateType, label: "Footing", sublabel: "Foundation Footings", icon: SquareDashedBottom, accent: "#38bdf8" },
-              { type: "situ_pile" as EstimateType, label: "Situ Pile", sublabel: "Cast-in-Situ Bored", icon: CircleDot, accent: "#06b6d4" },
-              { type: "sand_pile" as EstimateType, label: "Sand Pile", sublabel: "Compacted Sand Pile", icon: Cylinder, accent: "#f59e0b" },
-              { type: "slab" as EstimateType, label: "Slab", sublabel: "Two-Way RCC Slabs", icon: Layers, accent: "#a78bfa" },
-              { type: "stair" as EstimateType, label: "Stair", sublabel: "Flights & Landings", icon: Footprints, accent: "#fb7185" },
-              { type: "tiles" as EstimateType, label: "Tiles", sublabel: "Floor Tiles & Skirting", icon: Grid3X3, accent: "#34d399" },
-              { type: "brick" as EstimateType, label: "Brick", sublabel: "Walls & 12mm Plaster", icon: BrickWall, accent: "#fb923c" },
-            ].map((el) => {
-              const matching = estimates.filter((e) => e.type === el.type);
-              const count = matching.length;
-              const elCost = matching.reduce((sum, e) => sum + (e.totalCost || 0), 0);
-              const Icon = el.icon;
-              return (
-                <div
-                  key={el.type}
-                  className={`bg-[#121a2b] border rounded-xl p-3 flex flex-col justify-between transition group ${
-                    count > 0 ? "border-[#00c2c7]/40 hover:border-[#00c2c7]" : "border-[#2d4a6a] hover:border-[#8ba3c1]"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${el.accent}20`, color: el.accent }}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 font-bold">
-                        ×{activeProject.stories || 1}F
-                      </span>
-                    </div>
+          {/* Toast/Notification feedback */}
+          {ratesUpdatedMsg && (
+            <div className="bg-[#2ecc71]/20 border border-[#2ecc71]/50 text-[#2ecc71] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{ratesUpdatedMsg}</span>
+            </div>
+          )}
 
-                    <div className="text-xs font-bold text-white group-hover:text-[#00c2c7] transition">
-                      {el.label}
-                    </div>
-                    <div className="text-[10px] text-[#8ba3c1] leading-tight mt-0.5 line-clamp-1">
-                      {el.sublabel}
-                    </div>
+          {/* 8 Material Unit Rates Input Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+            {/* 1. Cement */}
+            <div className="bg-[#121c2d] border border-[#f5a623]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f5a623] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#f5a623] tracking-wide">Cement</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / bag</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.cementRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, cementRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f5a623] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                {totalCementBags.toLocaleString()} bags = ৳{Math.round(totalCementBags * rates.cementRate).toLocaleString("en-IN")}
+              </div>
+            </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-[#2d4a6a]/60">
-                      {count > 0 ? (
-                        <div>
-                          <div className="text-[10px] text-[#2ecc71] font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>{count} {count === 1 ? "file" : "files"}</span>
-                          </div>
-                          <div className="text-xs font-bold text-[#f5a623] mt-0.5 font-mono truncate">
-                            ৳ {Math.round(elCost).toLocaleString("en-IN")}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-[#8ba3c1] italic">
-                          Not estimated yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            {/* 2. Sand */}
+            <div className="bg-[#121c2d] border border-[#f1f5f9]/30 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f1f5f9] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#f1f5f9] tracking-wide">Sand</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / cft</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.sandRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, sandRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f1f5f9] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                {Math.round(totalSandCft).toLocaleString()} cft = ৳{Math.round(totalSandCft * rates.sandRate).toLocaleString("en-IN")}
+              </div>
+            </div>
 
-                  <div className="mt-3 pt-2 border-t border-[#2d4a6a]/40 flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onNavigateToCalculator(el.type)}
-                      className="w-full text-center py-1 bg-[#1a2b42] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded-lg text-[10px] font-bold transition cursor-pointer"
-                    >
-                      + Add / Calculate
-                    </button>
-                    {count > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => onNavigateToCalculator(el.type, matching[0])}
-                        className="w-full text-center py-0.5 text-[9px] text-[#8ba3c1] hover:text-white transition cursor-pointer"
-                      >
-                        Open latest
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {/* 3. Aggregate */}
+            <div className="bg-[#121c2d] border border-[#38bdf8]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#38bdf8] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#38bdf8] tracking-wide">Aggregate</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / cft</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.aggRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, aggRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#38bdf8] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                {Math.round(totalAggCft).toLocaleString()} cft = ৳{Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}
+              </div>
+            </div>
+
+            {/* 4. Rebar Steel */}
+            <div className="bg-[#121c2d] border border-[#00c2c7]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#00c2c7] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#00c2c7] tracking-wide">Steel Rebar</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / kg</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.steelRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, steelRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#00c2c7] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                {Math.round(totalSteelKg).toLocaleString()} kg = ৳{Math.round(totalSteelKg * rates.steelRate).toLocaleString("en-IN")}
+              </div>
+            </div>
+
+            {/* 5. Bricks */}
+            <div className="bg-[#121c2d] border border-[#e67e22]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#e67e22] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#e67e22] tracking-wide">Bricks</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / pc</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.brickRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, brickRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#e67e22] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                {totalBricks.toLocaleString()} pcs = ৳{Math.round(totalBricks * rates.brickRate).toLocaleString("en-IN")}
+              </div>
+            </div>
+
+            {/* 6. Tiles */}
+            <div className="bg-[#121c2d] border border-[#1abc9c]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#1abc9c] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#1abc9c] tracking-wide">Tiles</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / pc</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.tileRate}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, tileRate: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#1abc9c] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                Floor & wall tile rate
+              </div>
+            </div>
+
+            {/* 7. Situ Pile Boring */}
+            <div className="bg-[#121c2d] border border-[#06b6d4]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#06b6d4] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#06b6d4] tracking-wide">Situ Boring</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / rft</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.boringRatePerFt}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, boringRatePerFt: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#06b6d4] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                Bored pile drilling
+              </div>
+            </div>
+
+            {/* 8. Sand Pile Boring */}
+            <div className="bg-[#121c2d] border border-[#f59e0b]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f59e0b] transition">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#f59e0b] tracking-wide">Sand Pile</span>
+                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / rft</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={rates.sandPileCostPerFt}
+                  onChange={(e) => {
+                    const val = Math.max(1, Number(e.target.value) || 0);
+                    setRates((prev) => ({ ...prev, sandPileCostPerFt: val }));
+                  }}
+                  onBlur={() => handleApplyMaterialRates()}
+                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f59e0b] outline-none"
+                />
+              </div>
+              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
+                Sand compaction rate
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#2d4a6a]/60 text-xs">
+            <div className="text-[#8ba3c1] flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-[#00c2c7]" />
+              <span>
+                Foundation elements (<strong>Isolated Footing</strong>, <strong>Situ Pile</strong>, <strong>Sand Pile</strong>) are built once for foundation level (1x multiplier).
+              </span>
+            </div>
+            <div className="font-mono text-xs text-[#00c2c7] font-bold">
+              Total Project Valuation: ৳ {estimates.reduce((sum, e) => sum + (e.totalCost || 0), 0).toLocaleString("en-IN")}
+            </div>
           </div>
         </div>
       )}
@@ -826,6 +1104,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <tbody className="divide-y divide-[#2d4a6a]/60 text-white">
                 {filteredEstimates.map((est, idx) => {
                   const mat = extractItemMaterials(est);
+                  const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
                   const calcMeta = calculatorCards.find((c) => c.type === est.type);
                   const Icon = calcMeta?.icon || FileText;
                   return (
@@ -859,9 +1138,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                       </td>
                       <td className="py-2.5 px-2 text-center">
-                        <span className="bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
-                          {mat.multiplier}x
-                        </span>
+                        {isFoundation ? (
+                          <span
+                            className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
+                            title="Foundation Substructure: Used once for building (no storey multiplier)"
+                          >
+                            1× Fnd
+                          </span>
+                        ) : (
+                          <span className="bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                            {mat.multiplier}x
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono">
                         {mat.cementBags > 0 ? (
@@ -1053,6 +1341,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               const calcMeta = calculatorCards.find((c) => c.type === est.type);
               const Icon = calcMeta?.icon || FileText;
               const mat = extractItemMaterials(est);
+              const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
               const isExpanded = Boolean(expandedFiles[est.id]);
 
               return (
@@ -1081,11 +1370,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
                               {est.type} · {new Date(est.date).toLocaleDateString()}
                             </span>
-                            {mat.isMultiplying && (
+                            {isFoundation ? (
+                              <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
+                                1× Foundation (Used Once)
+                              </span>
+                            ) : mat.isMultiplying ? (
                               <span className="bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1 py-0.2 rounded text-[9px] font-mono font-bold">
                                 {mat.multiplier}x Multiplier
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -1102,7 +1395,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <div className="text-[10px] font-bold text-[#00c2c7] flex items-center justify-between">
                         <span>All Item Materials:</span>
                         <span className="text-[9px] text-[#8ba3c1] font-mono">
-                          {mat.isMultiplying ? `${mat.multiplier} Storeys Total` : "1 Storey"}
+                          {isFoundation
+                            ? "Foundation Substructure (Used Once)"
+                            : mat.isMultiplying
+                            ? `${mat.multiplier} Storeys Total`
+                            : "1 Storey"}
                         </span>
                       </div>
 

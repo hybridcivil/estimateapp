@@ -21,6 +21,17 @@ export interface ProjectEstimateItem {
   data: Record<string, any>;
 }
 
+export interface GlobalMaterialRates {
+  cementRate: number;
+  sandRate: number;
+  aggRate: number;
+  steelRate: number;
+  brickRate: number;
+  tileRate: number;
+  boringRatePerFt: number;
+  sandPileCostPerFt: number;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -29,6 +40,7 @@ export interface Project {
   engineer: string;
   notes?: string;
   stories?: number; // Number of storeys/floors (e.g. 1, 3, 5, 10)
+  rates?: GlobalMaterialRates; // Unified project-wide material rates
   createdAt: string;
   updatedAt: string;
   estimates: ProjectEstimateItem[];

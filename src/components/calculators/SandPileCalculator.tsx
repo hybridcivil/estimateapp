@@ -45,10 +45,18 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
   const [pileDiameter, setPileDiameter] = useState<number>(10); // inches
   const [pileSpacing, setPileSpacing] = useState<number>(48); // inches
   const [pileLength, setPileLength] = useState<number>(20); // feet
-  const [costPerFoot, setCostPerFoot] = useState<number>(30); // TK / running foot
-  const [costPerCft, setCostPerCft] = useState<number>(45); // TK / cft of sand
+  // Rates & Costs initialized from activeProject.rates or defaults
+  const [costPerFoot, setCostPerFoot] = useState<number>(() => activeProject?.rates?.sandPileCostPerFt || 30); // TK / running foot
+  const [costPerCft, setCostPerCft] = useState<number>(() => activeProject?.rates?.sandRate || 45); // TK / cft of sand
   const [compactionPct, setCompactionPct] = useState<number>(15); // 15% compaction & bulking allowance
   const [sandType, setSandType] = useState<string>("Sylhet Sand (FM 2.5)");
+
+  useEffect(() => {
+    if (activeProject?.rates) {
+      if (activeProject.rates.sandPileCostPerFt) setCostPerFoot(activeProject.rates.sandPileCostPerFt);
+      if (activeProject.rates.sandRate) setCostPerCft(activeProject.rates.sandRate);
+    }
+  }, [activeProject?.rates]);
 
   const [results, setResults] = useState<SandPileResults | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
@@ -248,6 +256,9 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
                 </span>
                 <span className="text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2 py-0.5 rounded font-semibold border border-[#00c2c7]/40">
                   Sand Compaction Pile (SCP)
+                </span>
+                <span className="text-xs bg-[#38bdf8]/20 text-[#38bdf8] px-2 py-0.5 rounded font-semibold border border-[#38bdf8]/40">
+                  Foundation (Used Once · No Storey Mult)
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-white">

@@ -1056,39 +1056,65 @@ export interface ItemMaterialsReport {
     steelRate: number;
     brickRate: number;
     tileRate: number;
+    boringRatePerFt?: number;
+    sandPileCostPerFt?: number;
   };
   specifications: string[];
 }
 
+export const DEFAULT_MATERIAL_RATES = {
+  cementRate: 550,
+  sandRate: 45,
+  aggRate: 120,
+  steelRate: 95,
+  brickRate: 15,
+  tileRate: 180,
+  boringRatePerFt: 180,
+  sandPileCostPerFt: 120,
+};
+
 /**
  * Extracts complete, normalized materials and specifications for any estimate file item.
+ * Foundation items (footing, situ_pile, sand_pile) are substructure used once (multiplier = 1).
  */
-export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsReport {
+export function extractItemMaterials(
+  est: ProjectEstimateItem,
+  overrideRates?: Partial<typeof DEFAULT_MATERIAL_RATES>
+): ItemMaterialsReport {
   const s = est.summary || {};
   const d = est.data || {};
-  const mult = Math.max(1, s.multiplier || d.multiplier || 1);
-  const isMultiplying = Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
 
-  // Extract saved or default rates
+  // Foundation elements (footing, situ_pile, sand_pile) are substructure and used only once (no storey multiplication)
+  const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
+  const mult = isFoundation ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
+  const isMultiplying = isFoundation ? false : Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
+
+  // Extract saved or default rates with overrideRates taking highest precedence
   const savedRates = d.rates || {};
-  const cementRate = Number(savedRates.cementRate || d.cementRate || s.cementRate || 550);
-  const sandRate = Number(savedRates.sandRate || d.sandRate || s.sandRate || 45);
-  const aggRate = Number(savedRates.aggRate || d.aggRate || s.aggRate || 120);
-  const steelRate = Number(savedRates.steelRate || d.steelRate || s.steelRate || 95);
-  const brickRate = Number(savedRates.brickRate || d.brickRate || s.brickRate || 15);
-  const tileRate = Number(savedRates.tileRate || d.tileRate || s.tileRate || 180);
+  const cementRate = Number(overrideRates?.cementRate ?? savedRates.cementRate ?? d.cementRate ?? s.cementRate ?? DEFAULT_MATERIAL_RATES.cementRate);
+  const sandRate = Number(overrideRates?.sandRate ?? savedRates.sandRate ?? d.sandRate ?? s.sandRate ?? DEFAULT_MATERIAL_RATES.sandRate);
+  const aggRate = Number(overrideRates?.aggRate ?? savedRates.aggRate ?? d.aggRate ?? s.aggRate ?? DEFAULT_MATERIAL_RATES.aggRate);
+  const steelRate = Number(overrideRates?.steelRate ?? savedRates.steelRate ?? d.steelRate ?? s.steelRate ?? DEFAULT_MATERIAL_RATES.steelRate);
+  const brickRate = Number(overrideRates?.brickRate ?? savedRates.brickRate ?? d.brickRate ?? s.brickRate ?? DEFAULT_MATERIAL_RATES.brickRate);
+  const tileRate = Number(overrideRates?.tileRate ?? savedRates.tileRate ?? d.tileRate ?? s.tileRate ?? DEFAULT_MATERIAL_RATES.tileRate);
+  const boringRatePerFt = Number(overrideRates?.boringRatePerFt ?? savedRates.boringRatePerFt ?? d.constructionCostPerFoot ?? s.constructionCostPerFoot ?? DEFAULT_MATERIAL_RATES.boringRatePerFt);
+  const sandPileCostPerFt = Number(overrideRates?.sandPileCostPerFt ?? savedRates.sandPileCostPerFt ?? d.costPerFoot ?? s.costPerFoot ?? DEFAULT_MATERIAL_RATES.sandPileCostPerFt);
 
   // Cement (bags)
   const cementBags = Math.round(
     s.multipliedCementBags || s.cementBags || s.totalCementBags || 0
   );
-  const cementCost = s.cementCost !== undefined ? Math.round(s.cementCost) : Math.round(cementBags * cementRate);
+  const cementCost = overrideRates
+    ? Math.round(cementBags * cementRate)
+    : (s.cementCost !== undefined ? Math.round(s.cementCost) : Math.round(cementBags * cementRate));
 
   // Sand (cft)
   const sandCft = Number(
-    (s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || 0).toFixed(1)
+    (s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || s.totalVolume || 0).toFixed(1)
   );
-  const sandCost = s.sandCost !== undefined ? Math.round(s.sandCost) : (s.totalSandCost !== undefined ? Math.round(s.totalSandCost) : Math.round(sandCft * sandRate));
+  const sandCost = overrideRates
+    ? Math.round(sandCft * sandRate)
+    : (s.sandCost !== undefined ? Math.round(s.sandCost) : (s.totalSandCost !== undefined ? Math.round(s.totalSandCost) : Math.round(sandCft * sandRate)));
 
   // Stone / Khoa Aggregates (cft)
   const aggCft = Number(
@@ -1099,13 +1125,17 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
     (s.brickQty && s.brickQty > 0 && est.type !== "brick" && est.type !== "tiles")
   );
   const aggType: "stone" | "brick_khoa" | "aggregate" = isBrickKhoa ? "brick_khoa" : "stone";
-  const aggCost = s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(aggCft * aggRate);
+  const aggCost = overrideRates
+    ? Math.round(aggCft * aggRate)
+    : (s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(aggCft * aggRate));
 
   // Rebar Steel (kg)
   const steelKg = Math.round(
     s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || s.steelKg || s.totalSteelWeight || 0
   );
-  const steelCost = s.steelCost !== undefined ? Math.round(s.steelCost) : Math.round(steelKg * steelRate);
+  const steelCost = overrideRates
+    ? Math.round(steelKg * steelRate)
+    : (s.steelCost !== undefined ? Math.round(s.steelCost) : Math.round(steelKg * steelRate));
 
   // Steel breakdown map
   const steelBreakdown: Record<string, number> = {};
@@ -1123,7 +1153,9 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
   const bricksPcs = Math.round(
     s.multipliedBricks || s.totalBricks || s.brickQty || 0
   );
-  const brickCost = s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate);
+  const brickCost = overrideRates
+    ? Math.round(bricksPcs * brickRate)
+    : (s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate));
 
   // Tiles (pcs & boxes & area)
   const tilesPcs = Math.round(
@@ -1133,18 +1165,30 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
   const tileAreaSqft = Number(
     (s.multipliedTileArea || s.totalTileArea || s.totalGrossTileArea || 0).toFixed(1)
   );
-  const tilesCost = s.totalTileCost !== undefined ? Math.round(s.totalTileCost) : Math.round(tilesPcs * tileRate);
+  const tilesCost = overrideRates
+    ? Math.round(tilesPcs * tileRate)
+    : (s.totalTileCost !== undefined ? Math.round(s.totalTileCost) : Math.round(tilesPcs * tileRate));
 
   // Concrete volumes
   const wetVolCft = Number((s.wetVolCft || s.totalWetVol || s.totalWetVolume || 0).toFixed(1));
   const dryVolCft = Number((s.dryVolCft || s.totalDryVol || s.totalDryVolume || 0).toFixed(1));
 
-  // Pile details
+  // Pile details (Foundation: only once, no storey multiplier!)
   const pilesCount = Math.round(s.pileNos || s.numPiles || d.pileNos || d.numPiles || 0);
   const pileLengthFt = Number((s.pileLength || d.pileLength || 0).toFixed(1));
   const pileDiameterIn = Number((s.pileDiameter || d.pileDiameter || 0).toFixed(1));
   const boringRft = pilesCount > 0 && pileLengthFt > 0 ? Math.round(pilesCount * pileLengthFt) : 0;
-  const boringCost = Math.round(s.constructionCost || s.totalPileCost || 0);
+  
+  let boringCost = 0;
+  if (est.type === "situ_pile") {
+    boringCost = overrideRates
+      ? Math.round(boringRft * boringRatePerFt)
+      : Math.round(s.constructionCost || boringRft * boringRatePerFt || 0);
+  } else if (est.type === "sand_pile") {
+    boringCost = overrideRates
+      ? Math.round(boringRft * sandPileCostPerFt)
+      : Math.round(s.totalPileCost || boringRft * sandPileCostPerFt || 0);
+  }
 
   // Item counts and specs
   let itemCount = 0;
@@ -1172,19 +1216,19 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
   } else if (est.type === "footing") {
     itemCount = s.totalFtCount || (Array.isArray(d.footings) ? d.footings.reduce((sum: number, f: any) => sum + (f.nos || 1), 0) : 1);
     mixRatio = d.footings?.[0]?.mix || "1:1.5:3";
-    specs.push(`${itemCount} Isolated / Mat Footings`);
+    specs.push(`${itemCount} Isolated Footings (Foundation Substructure 1x)`);
     specs.push(`Mix: ${mixRatio}`);
     if (d.footings?.[0]) {
       const f = d.footings[0];
       specs.push(`Base: ${f.length || 7}ft × ${f.breadth || 7}ft × ${f.thickness || 1.5}ft thick`);
     }
   } else if (est.type === "situ_pile") {
-    specs.push(`${pilesCount} Bored Piles, ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
-    specs.push(`Total Boring: ${boringRft} running feet`);
+    specs.push(`${pilesCount} Bored Piles (Foundation 1x), ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
+    specs.push(`Total Drilling: ${boringRft} running feet`);
     mixRatio = d.mixRatio || "1:1.5:3";
     specs.push(`Mix: ${mixRatio}`);
   } else if (est.type === "sand_pile") {
-    specs.push(`${pilesCount} Sand Compaction Piles (SCP), ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
+    specs.push(`${pilesCount} Sand Compaction Piles (Foundation 1x), ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
     specs.push(`Total Compaction: ${boringRft} rft`);
     specs.push(`Sand Volume: ${sandCft} cft (${Math.ceil(sandCft / 500)} Truckloads)`);
   } else if (est.type === "slab") {
@@ -1213,7 +1257,24 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
     specs.push(`Full Building Plinth Area: ${s.totalBuiltUpArea || 1500} sqft`);
   }
 
-  const totalCost = Math.round(est.totalCost || 0);
+  // Calculate totalCost based on overridden material rates if provided, otherwise preserve saved totalCost
+  let calculatedCost = 0;
+  if (overrideRates) {
+    if (est.type === "situ_pile") {
+      calculatedCost = cementCost + sandCost + aggCost + steelCost + boringCost;
+    } else if (est.type === "sand_pile") {
+      calculatedCost = sandCost + boringCost;
+    } else if (est.type === "brick") {
+      calculatedCost = brickCost + cementCost + sandCost;
+    } else if (est.type === "tiles") {
+      const labourCost = s.totalLabourCost || Math.round(tilesPcs * 45);
+      calculatedCost = tilesCost + cementCost + sandCost + labourCost;
+    } else {
+      calculatedCost = cementCost + sandCost + aggCost + steelCost + (bricksPcs > 0 && aggType === "brick_khoa" ? brickCost : 0);
+    }
+  } else {
+    calculatedCost = Math.round(est.totalCost || 0);
+  }
 
   return {
     cementBags,
@@ -1243,7 +1304,7 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
     itemCount,
     multiplier: mult,
     isMultiplying,
-    totalCost,
+    totalCost: calculatedCost,
     rates: {
       cementRate,
       sandRate,
@@ -1251,7 +1312,49 @@ export function extractItemMaterials(est: ProjectEstimateItem): ItemMaterialsRep
       steelRate,
       brickRate,
       tileRate,
+      boringRatePerFt,
+      sandPileCostPerFt,
     },
     specifications: specs,
+  };
+}
+
+/**
+ * Recalculates an estimate file's totalCost and summary using the global unified project material rates.
+ * Foundation elements (footing, situ_pile, sand_pile) are locked to 1x multiplier.
+ */
+export function recalculateEstimateWithRates(
+  est: ProjectEstimateItem,
+  rates: typeof DEFAULT_MATERIAL_RATES
+): ProjectEstimateItem {
+  const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
+  const mat = extractItemMaterials(est, rates);
+
+  const updatedSummary = {
+    ...est.summary,
+    cementCost: mat.cementCost,
+    sandCost: mat.sandCost,
+    aggCost: mat.aggCost,
+    steelCost: mat.steelCost,
+    brickCost: mat.brickCost,
+    totalTileCost: mat.tilesCost,
+    totalCost: mat.totalCost,
+    ...(isFoundation ? { multiplier: 1, isMultiplying: false } : {}),
+    ...(est.type === "situ_pile" ? { constructionCost: mat.boringCost } : {}),
+    ...(est.type === "sand_pile" ? { totalPileCost: mat.boringCost, totalSandCost: mat.sandCost } : {}),
+  };
+
+  return {
+    ...est,
+    totalCost: mat.totalCost,
+    summary: updatedSummary,
+    data: {
+      ...est.data,
+      rates: {
+        ...(est.data?.rates || {}),
+        ...rates,
+      },
+      ...(isFoundation ? { multiplier: 1, isMultiplying: false } : {}),
+    },
   };
 }

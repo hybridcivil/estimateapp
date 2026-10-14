@@ -49,8 +49,10 @@ function readProjects(): Project[] {
       // Auto-synchronize estimates if multiplier doesn't match project stories
       if (Array.isArray(p.estimates) && p.estimates.length > 0) {
         const mismatchEst = p.estimates.find((e) => {
+          const isFoundation = e.type === "footing" || e.type === "situ_pile" || e.type === "sand_pile";
+          if (isFoundation) return false;
           const m = e.summary?.multiplier || e.data?.multiplier;
-          return m !== undefined && m !== stories && (e.type !== "footing" || m !== 1);
+          return m !== undefined && m !== stories;
         });
         if (mismatchEst) {
           const currentMult = mismatchEst.summary?.multiplier || mismatchEst.data?.multiplier || 1;
@@ -163,7 +165,9 @@ app.put("/api/projects/:id", (req, res) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const { name, client, location, engineer, notes, stories } = req.body;
+    const { name, client, location, engineer, notes, stories, rates, estimates } = req.body;
+    if (rates !== undefined) projects[idx].rates = rates;
+    if (Array.isArray(estimates)) projects[idx].estimates = estimates;
     if (name) projects[idx].name = name.trim();
     if (client !== undefined) projects[idx].client = client.trim();
     if (location !== undefined) projects[idx].location = location.trim();
