@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Civil engineering project and estimation file container",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique project identifier",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Project title or building name",
+          "maxLength": 200
+        },
+        "client": {
+          "type": "string",
+          "description": "Client or developer name",
+          "maxLength": 200
+        },
+        "location": {
+          "type": "string",
+          "description": "Project site location",
+          "maxLength": 200
+        },
+        "engineer": {
+          "type": "string",
+          "description": "Lead engineer or estimator",
+          "maxLength": 200
+        },
+        "notes": {
+          "type": "string",
+          "description": "Project notes or specifications",
+          "maxLength": 2000
+        },
+        "stories": {
+          "type": "number",
+          "description": "Number of storeys or floors in the building"
+        },
+        "rates": {
+          "type": "object",
+          "description": "Unified global material rates set once for the whole project"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        },
+        "estimates": {
+          "type": "array",
+          "description": "List of saved structural and civil estimate items"
+        }
+      },
+      "required": ["id", "name", "client", "location", "engineer", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of civil engineering projects and estimate records"
+    }
+  }
+}
