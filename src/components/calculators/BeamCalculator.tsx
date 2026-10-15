@@ -40,39 +40,68 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
   onSaveEstimate,
   onDeleteEstimate,
 }) => {
-  const [estimateName, setEstimateName] = useState("Beam Estimate");
+  // Beam Estimation Two-Part System: Grade Beam (1 Storey) vs Floor Beam (Storeys Multiplied)
+  const [beamCategory, setBeamCategory] = useState<"grade_beam" | "floor_beam">("grade_beam");
+  const [estimateName, setEstimateName] = useState("Grade Beam Estimate (GB)");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
-  // Multi-Storey Building Multiplier
+  // Multi-Storey Building Multiplier: Grade beams are strictly 1 storey, floor beams multiply by storeys
   const projectStories = activeProject?.stories || 1;
-  const [multiplier, setMultiplier] = useState(projectStories);
-  const [isMultiplying, setIsMultiplying] = useState(projectStories > 1);
+  const [multiplier, setMultiplier] = useState(1);
+  const [isMultiplying, setIsMultiplying] = useState(false);
 
-  // Sync multiplier when project changes
+  // Handle switching between Grade Beam and Floor Beam parts
+  const handleSwitchBeamCategory = (newCat: "grade_beam" | "floor_beam") => {
+    if (newCat === beamCategory) return;
+    setBeamCategory(newCat);
+    setEditingBeamIndex(null);
+
+    if (newCat === "grade_beam") {
+      setMultiplier(1);
+      setIsMultiplying(false);
+      if (!editingEstimateId || estimateName.includes("Floor Beam")) {
+        setEstimateName("Grade Beam Estimate (GB)");
+      }
+      setBeamName(`GB${beams.length + 1}`);
+    } else {
+      setMultiplier(projectStories);
+      setIsMultiplying(projectStories > 1);
+      if (!editingEstimateId || estimateName.includes("Grade Beam")) {
+        setEstimateName("Floor Beam Estimate (FB)");
+      }
+      setBeamName(`FB${beams.length + 1}`);
+    }
+  };
+
+  // Sync multiplier when project storeys changes (only for Floor Beams)
   useEffect(() => {
-    if (activeProject?.stories) {
+    if (beamCategory === "floor_beam" && activeProject?.stories) {
       setMultiplier(activeProject.stories);
       setIsMultiplying(activeProject.stories > 1);
     }
-  }, [activeProject?.id, activeProject?.stories]);
+  }, [activeProject?.id, activeProject?.stories, beamCategory]);
 
   const [beams, setBeams] = useState<BeamItem[]>([
     {
-      nos: 1,
-      name: "B1",
+      nos: 8,
+      name: "GB1",
       width: 12,
       depth: 18,
-      length: 20,
+      length: 22,
       stirrupSpacing: 6,
       mix: "1:1.5:3",
-      mainBars: [{ dia: 16, qty: 2 }],
-      extraTopBars: { nos: 2, dia: 16, length: 6.67 },
-      extraBottomBars: { nos: 2, dia: 16, length: 10 },
+      subtype: "grade_beam",
+      mainBars: [
+        { dia: 16, qty: 3 },
+        { dia: 20, qty: 2 },
+      ],
+      extraTopBars: { nos: 2, dia: 16, length: 7.33 },
+      extraBottomBars: { nos: 2, dia: 16, length: 11 },
     },
   ]);
 
-  // Form Inputs - starts ready for adding next beam (or click Edit on B1)
-  const [beamName, setBeamName] = useState("B2");
+  // Form Inputs - starts ready for adding next beam
+  const [beamName, setBeamName] = useState("GB2");
   const [mixRatio, setMixRatio] = useState("1:1.5:3");
   const [numberOfBeams, setNumberOfBeams] = useState(1);
   const [beamWidth, setBeamWidth] = useState(12);
@@ -385,26 +414,28 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     const steelCost = totalSteelKg * steelRate;
     const singleFloorTotalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
 
-    // Multi-storey multiplier
-    const effMultiplier = isMultiplying ? Math.max(1, multiplier) : 1;
+    // Multi-storey multiplier: Grade Beams strictly 1x (used once at plinth), Floor Beams multiplied by storeys
+    const isGrade = beamCategory === "grade_beam";
+    const effMultiplier = isGrade ? 1 : (isMultiplying ? Math.max(1, multiplier) : 1);
+    const isMult = isGrade ? false : isMultiplying;
     const multipliedCost = singleFloorTotalCost * effMultiplier;
 
     const totalBeamsCount = list.reduce((sum, b) => sum + b.nos, 0);
 
     const calcResult = {
-      cementBags: isMultiplying ? Math.ceil(cementBags * effMultiplier) : cementBags,
-      sandCft: Number(((isMultiplying ? sandCft * effMultiplier : sandCft)).toFixed(1)),
-      aggCft: Number(((isMultiplying ? aggCft * effMultiplier : aggCft)).toFixed(1)),
-      brickQty: isMultiplying ? brickQty * effMultiplier : brickQty,
+      cementBags: isMult ? Math.ceil(cementBags * effMultiplier) : cementBags,
+      sandCft: Number(((isMult ? sandCft * effMultiplier : sandCft)).toFixed(1)),
+      aggCft: Number(((isMult ? aggCft * effMultiplier : aggCft)).toFixed(1)),
+      brickQty: isMult ? brickQty * effMultiplier : brickQty,
       useAggregate,
-      totalSteelKg: Number(((isMultiplying ? totalSteelKg * effMultiplier : totalSteelKg)).toFixed(1)),
-      steelBreakdown: isMultiplying
+      totalSteelKg: Number(((isMult ? totalSteelKg * effMultiplier : totalSteelKg)).toFixed(1)),
+      steelBreakdown: isMult
         ? Object.fromEntries(Object.entries(steel).map(([d, w]) => [d, Number((w * effMultiplier).toFixed(1))]))
         : steel,
-      totalWetVol: Number(((isMultiplying ? totalWetVol * effMultiplier : totalWetVol)).toFixed(2)),
-      totalWastageVol: Number(((isMultiplying ? totalWastageVol * effMultiplier : totalWastageVol)).toFixed(2)),
-      totalDryVol: Number(((isMultiplying ? totalDryVol * effMultiplier : totalDryVol)).toFixed(2)),
-      totalBeamsCount: isMultiplying ? totalBeamsCount * effMultiplier : totalBeamsCount,
+      totalWetVol: Number(((isMult ? totalWetVol * effMultiplier : totalWetVol)).toFixed(2)),
+      totalWastageVol: Number(((isMult ? totalWastageVol * effMultiplier : totalWastageVol)).toFixed(2)),
+      totalDryVol: Number(((isMult ? totalDryVol * effMultiplier : totalDryVol)).toFixed(2)),
+      totalBeamsCount: isMult ? totalBeamsCount * effMultiplier : totalBeamsCount,
       singleFloorBeamsCount: totalBeamsCount,
       // Single floor breakdown
       singleFloorCementBags: cementBags,
@@ -418,7 +449,8 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
       picketCost,
       singleFloorTotalCost,
       multiplier: effMultiplier,
-      isMultiplying,
+      isMultiplying: isMult,
+      beamSubtype: beamCategory,
       totalCost: multipliedCost,
       multipliedCementBags: Math.ceil(cementBags * effMultiplier),
       multipliedSandCft: Number((sandCft * effMultiplier).toFixed(1)),
@@ -433,7 +465,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
   useEffect(() => {
     calculate(beams);
-  }, [multiplier, isMultiplying, cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft, baseType]);
+  }, [beamCategory, multiplier, isMultiplying, cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft, baseType]);
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentBeams = [...beams];
@@ -447,18 +479,28 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     const boq = calculate(currentBeams);
     if (!boq) return;
 
+    const isGrade = beamCategory === "grade_beam";
+    const effMultiplier = isGrade ? 1 : (isMultiplying ? Math.max(1, multiplier) : 1);
+    const isMult = isGrade ? false : isMultiplying;
+
     await onSaveEstimate({
       id: asNewCopy ? undefined : (editingEstimateId || undefined),
       type: "beam",
       name: asNewCopy ? `${estimateName} (Copy)` : estimateName,
       totalCost: boq.totalCost || 0,
-      summary: boq,
+      summary: {
+        ...boq,
+        beamSubtype: beamCategory,
+        multiplier: effMultiplier,
+        isMultiplying: isMult,
+      },
       data: {
         beams: currentBeams,
         rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
-        multiplier,
-        isMultiplying,
+        multiplier: effMultiplier,
+        isMultiplying: isMult,
+        beamSubtype: beamCategory,
       },
     });
   };
@@ -469,7 +511,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
   const handleClearEstimate = () => {
     setEditingEstimateId(null);
-    setEstimateName("New Beam Estimate");
+    setEstimateName(beamCategory === "grade_beam" ? "Grade Beam Estimate (GB)" : "Floor Beam Estimate (FB)");
     setBeams([]);
     handleResetFormFields();
     setResults(null);
@@ -479,10 +521,29 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
   const handleLoadSavedEstimate = (est: ProjectEstimateItem) => {
     setEditingEstimateId(est.id);
     setEstimateName(est.name);
+
+    const isGB =
+      est.data?.beamSubtype === "grade_beam" ||
+      est.summary?.beamSubtype === "grade_beam" ||
+      est.name.toLowerCase().includes("grade") ||
+      est.name.toLowerCase().includes("gb");
+
+    if (isGB) {
+      setBeamCategory("grade_beam");
+      setMultiplier(1);
+      setIsMultiplying(false);
+    } else {
+      setBeamCategory("floor_beam");
+      const loadedMultiplier = est.data?.multiplier || est.summary?.multiplier || projectStories;
+      setMultiplier(loadedMultiplier);
+      setIsMultiplying(est.data?.isMultiplying !== undefined ? Boolean(est.data.isMultiplying) : projectStories > 1);
+    }
+
     if (est.data?.beams && est.data.beams.length > 0) {
       setBeams(est.data.beams);
       setEditingBeamIndex(null);
-      setBeamName(`B${est.data.beams.length + 1}`);
+      const prefix = isGB ? "GB" : "FB";
+      setBeamName(`${prefix}${est.data.beams.length + 1}`);
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
@@ -490,8 +551,6 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
         setSteelRate(est.data.rates.steelRate || 95);
       }
       if (est.data.baseType) setBaseType(est.data.baseType);
-      if (est.data.multiplier) setMultiplier(est.data.multiplier);
-      if (est.data.isMultiplying !== undefined) setIsMultiplying(Boolean(est.data.isMultiplying));
       calculate(est.data.beams);
     }
   };
@@ -507,7 +566,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     <div className="flex flex-col h-full bg-[#0f1c2e] overflow-hidden text-[#f1f5f9]">
       <SaveEstimateBar
         type="beam"
-        typeLabel="Beam"
+        typeLabel={beamCategory === "grade_beam" ? "Grade Beam" : "Floor Beam"}
         activeProject={activeProject}
         currentEstimateName={estimateName}
         setCurrentEstimateName={setEstimateName}
@@ -524,8 +583,9 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             beams,
             baseType,
             rates: { cementRate, sandRate, aggRate, steelRate },
-            multiplier,
-            isMultiplying,
+            multiplier: beamCategory === "grade_beam" ? 1 : (isMultiplying ? Math.max(1, multiplier) : 1),
+            isMultiplying: beamCategory === "grade_beam" ? false : isMultiplying,
+            beamSubtype: beamCategory,
           },
         })}
         onImportPayload={(payload) => {
@@ -550,15 +610,99 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
             </div>
           )}
 
-          {/* Storey Multiplier Bar */}
-          <StoreyMultiplierBar
-            projectStories={projectStories}
-            multiplier={multiplier}
-            setMultiplier={setMultiplier}
-            isMultiplying={isMultiplying}
-            setIsMultiplying={setIsMultiplying}
-            itemTypeLabel="Beams"
-          />
+          {/* Beam Estimate Two-Part Switcher: Grade Beam (GB) vs Floor Beam (FB) */}
+          <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-2.5 shadow-md space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+                  Beam Category (Two-Part):
+                </span>
+                <span className="text-[10px] text-[#8ba3c1] hidden sm:inline">
+                  (Grade Beam = 1 Storey Fixed · Floor Beam = Multiplied by Storeys)
+                </span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-[#0e1624] text-[#00c2c7] border border-[#2d4a6a]">
+                {beamCategory === "grade_beam" ? "1 Storey Fixed" : `${projectStories} Storeys Superstructure`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {/* Part 1: Grade Beam (GB) */}
+              <button
+                type="button"
+                onClick={() => handleSwitchBeamCategory("grade_beam")}
+                className={`p-2.5 rounded-xl border text-left transition relative cursor-pointer ${
+                  beamCategory === "grade_beam"
+                    ? "bg-gradient-to-r from-[#17334f] to-[#12283e] border-[#38bdf8] shadow-md ring-1 ring-[#38bdf8]/40"
+                    : "bg-[#101928] border-[#24374e] hover:border-[#38bdf8]/50 text-[#8ba3c1] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 ${beamCategory === "grade_beam" ? "text-[#38bdf8]" : "text-white"}`}>
+                    <span className={`w-2 h-2 rounded-full ${beamCategory === "grade_beam" ? "bg-[#38bdf8]" : "bg-slate-500"}`} />
+                    1. Grade Beam (GB)
+                  </span>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30">
+                    1× Fixed
+                  </span>
+                </div>
+                <p className="text-[10px] text-[#8ba3c1] mt-1 leading-tight">
+                  Plinth / Ground Substructure (Constructed once for building)
+                </p>
+              </button>
+
+              {/* Part 2: Floor Beam (FB) */}
+              <button
+                type="button"
+                onClick={() => handleSwitchBeamCategory("floor_beam")}
+                className={`p-2.5 rounded-xl border text-left transition relative cursor-pointer ${
+                  beamCategory === "floor_beam"
+                    ? "bg-gradient-to-r from-[#13353e] to-[#0f2a32] border-[#00c2c7] shadow-md ring-1 ring-[#00c2c7]/40"
+                    : "bg-[#101928] border-[#24374e] hover:border-[#00c2c7]/50 text-[#8ba3c1] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold flex items-center gap-1.5 ${beamCategory === "floor_beam" ? "text-[#00c2c7]" : "text-white"}`}>
+                    <span className={`w-2 h-2 rounded-full ${beamCategory === "floor_beam" ? "bg-[#00c2c7]" : "bg-slate-500"}`} />
+                    2. Floor Beam (FB)
+                  </span>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#00c2c7]/15 text-[#00c2c7] border border-[#00c2c7]/30">
+                    ×{projectStories} Storeys
+                  </span>
+                </div>
+                <p className="text-[10px] text-[#8ba3c1] mt-1 leading-tight">
+                  Suspended floor beams multiplied as per building storeys
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* Contextual Multiplier Control: 1 Storey Fixed Notice for Grade Beam, StoreyMultiplierBar for Floor Beam */}
+          {beamCategory === "grade_beam" ? (
+            <div className="bg-[#152033] border border-[#38bdf8]/40 rounded-xl px-3.5 py-2.5 flex items-center justify-between text-xs shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#38bdf8] shrink-0" />
+                <div>
+                  <span className="font-bold text-[#38bdf8]">Grade Beam Substructure Notice:</span>
+                  <span className="text-[#8ba3c1] ml-1.5">
+                    Grade beams are cast once at ground/plinth level for the entire building foundation. Locked to <strong>1× Storey</strong> (no storey multiplier).
+                  </span>
+                </div>
+              </div>
+              <span className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-2 py-0.5 rounded text-[10px] font-mono font-bold shrink-0 ml-2">
+                1 Storey Fixed
+              </span>
+            </div>
+          ) : (
+            <StoreyMultiplierBar
+              projectStories={projectStories}
+              multiplier={multiplier}
+              setMultiplier={setMultiplier}
+              isMultiplying={isMultiplying}
+              setIsMultiplying={setIsMultiplying}
+              itemTypeLabel="Floor Beams"
+            />
+          )}
 
           {/* Active Mode Banner: Editing vs Add New */}
           {editingBeamIndex !== null ? (
@@ -585,7 +729,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
           ) : (
             <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl px-3 py-2 flex items-center justify-between text-xs">
               <span className="text-[#8ba3c1]">
-                Mode: <strong className="text-[#00c2c7]">Creating New Beam</strong> (B{beams.length + 1})
+                Mode: <strong className={beamCategory === "grade_beam" ? "text-[#38bdf8]" : "text-[#00c2c7]"}>Creating New {beamCategory === "grade_beam" ? "Grade Beam" : "Floor Beam"}</strong> ({beamCategory === "grade_beam" ? "GB" : "FB"}{beams.length + 1})
               </span>
               <span className="text-[10px] text-[#8ba3c1]">
                 {beams.length} beam{beams.length !== 1 ? "s" : ""} in list
@@ -596,12 +740,14 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
           {/* Form Grid */}
           <div className="grid grid-cols-2 gap-2 bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg">
             <div className="col-span-2 sm:col-span-1">
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Beam Name</label>
+              <label className="text-[10px] text-[#8ba3c1] block mb-1">
+                {beamCategory === "grade_beam" ? "Grade Beam Name" : "Floor Beam Name"}
+              </label>
               <input
                 type="text"
                 value={beamName}
                 onChange={(e) => setBeamName(e.target.value)}
-                placeholder="e.g. B1"
+                placeholder={beamCategory === "grade_beam" ? "e.g. GB1" : "e.g. FB1"}
                 className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white focus:border-[#00c2c7] outline-none"
               />
             </div>
@@ -1121,9 +1267,11 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               <div className="bg-gradient-to-r from-[#1a3a2a] to-[#0f2a1e] border border-[#2ecc71] rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <div className="text-[10px] text-[#a3e4bd] uppercase font-bold tracking-wider">
-                    {isMultiplying
-                      ? `Full Building Beam Budget (×${multiplier} Storeys)`
-                      : "Typical Floor Beam Budget"}
+                    {beamCategory === "grade_beam"
+                      ? "Grade Beam Plinth Substructure Budget (1 Storey Fixed)"
+                      : isMultiplying
+                      ? `Full Building Floor Beam Budget (×${multiplier} Storeys)`
+                      : "Single Floor Beam Budget"}
                   </div>
                   <div className="text-lg sm:text-xl font-black text-[#2ecc71]">
                     ৳ {Math.round(results.totalCost).toLocaleString("en-IN")}

@@ -30,7 +30,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", shortLabel: "Home", icon: LayoutDashboard },
-  { id: "beam", label: "Beam", shortLabel: "Beam", icon: Columns },
+  { id: "beam", label: "Beams (GB / FB)", shortLabel: "Beam", icon: Columns },
   { id: "column", label: "Column", shortLabel: "Column", icon: Building2 },
   { id: "footing", label: "Footing", shortLabel: "Footing", icon: SquareDashedBottom },
   { id: "situ_pile", label: "Situ Pile", shortLabel: "Bored Pile", icon: CircleDot },

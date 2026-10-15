@@ -451,7 +451,14 @@ export function computeFullProjectBreakdown(
   estimates.forEach((est) => {
     const s = est.summary || {};
     const d = est.data || {};
-    const mult = Math.max(1, s.multiplier || d.multiplier || 1);
+    const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
+    const isGradeBeam =
+      est.type === "beam" &&
+      (d.beamSubtype === "grade_beam" ||
+        s.beamSubtype === "grade_beam" ||
+        est.name?.toLowerCase().includes("grade") ||
+        est.name?.toLowerCase().includes("gb"));
+    const mult = isFoundation || isGradeBeam ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
     const cost = Math.round(est.totalCost || 0);
 
     const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
@@ -1084,10 +1091,17 @@ export function extractItemMaterials(
   const s = est.summary || {};
   const d = est.data || {};
 
-  // Foundation elements (footing, situ_pile, sand_pile) are substructure and used only once (no storey multiplication)
+  // Foundation elements (footing, situ_pile, sand_pile) and Grade Beams are substructure used only once (no storey multiplication)
   const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
-  const mult = isFoundation ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
-  const isMultiplying = isFoundation ? false : Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
+  const isGradeBeam =
+    est.type === "beam" &&
+    (d.beamSubtype === "grade_beam" ||
+      s.beamSubtype === "grade_beam" ||
+      est.name?.toLowerCase().includes("grade") ||
+      est.name?.toLowerCase().includes("gb"));
+  const isSingleUse = isFoundation || isGradeBeam;
+  const mult = isSingleUse ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
+  const isMultiplying = isSingleUse ? false : Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
 
   // Extract saved or default rates with overrideRates taking highest precedence
   const savedRates = d.rates || {};
@@ -1198,7 +1212,11 @@ export function extractItemMaterials(
   if (est.type === "beam") {
     itemCount = s.totalBeamsCount || (Array.isArray(d.beams) ? d.beams.reduce((sum: number, b: any) => sum + (b.nos || 1), 0) * mult : mult);
     mixRatio = d.beams?.[0]?.mix || "1:1.5:3";
-    specs.push(`${itemCount} Beams Total (${mult} storey multiplier)`);
+    if (isGradeBeam) {
+      specs.push(`${itemCount} Grade Beams (Plinth Substructure - 1 Storey Fixed)`);
+    } else {
+      specs.push(`${itemCount} Floor Beams (${mult} storey multiplier)`);
+    }
     specs.push(`Mix: ${mixRatio}`);
     if (d.beams?.[0]) {
       const b = d.beams[0];
@@ -1328,6 +1346,13 @@ export function recalculateEstimateWithRates(
   rates: typeof DEFAULT_MATERIAL_RATES
 ): ProjectEstimateItem {
   const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
+  const isGradeBeam =
+    est.type === "beam" &&
+    (est.data?.beamSubtype === "grade_beam" ||
+      est.summary?.beamSubtype === "grade_beam" ||
+      est.name?.toLowerCase().includes("grade") ||
+      est.name?.toLowerCase().includes("gb"));
+  const isSingleUse = isFoundation || isGradeBeam;
   const mat = extractItemMaterials(est, rates);
 
   const updatedSummary = {
@@ -1339,7 +1364,8 @@ export function recalculateEstimateWithRates(
     brickCost: mat.brickCost,
     totalTileCost: mat.tilesCost,
     totalCost: mat.totalCost,
-    ...(isFoundation ? { multiplier: 1, isMultiplying: false } : {}),
+    ...(isSingleUse ? { multiplier: 1, isMultiplying: false } : {}),
+    ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
     ...(est.type === "situ_pile" ? { constructionCost: mat.boringCost } : {}),
     ...(est.type === "sand_pile" ? { totalPileCost: mat.boringCost, totalSandCost: mat.sandCost } : {}),
   };
@@ -1354,7 +1380,8 @@ export function recalculateEstimateWithRates(
         ...(est.data?.rates || {}),
         ...rates,
       },
-      ...(isFoundation ? { multiplier: 1, isMultiplying: false } : {}),
+      ...(isSingleUse ? { multiplier: 1, isMultiplying: false } : {}),
+      ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
     },
   };
 }

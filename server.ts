@@ -50,7 +50,13 @@ function readProjects(): Project[] {
       if (Array.isArray(p.estimates) && p.estimates.length > 0) {
         const mismatchEst = p.estimates.find((e) => {
           const isFoundation = e.type === "footing" || e.type === "situ_pile" || e.type === "sand_pile";
-          if (isFoundation) return false;
+          const isGradeBeam =
+            e.type === "beam" &&
+            (e.data?.beamSubtype === "grade_beam" ||
+              e.summary?.beamSubtype === "grade_beam" ||
+              e.name?.toLowerCase().includes("grade") ||
+              e.name?.toLowerCase().includes("gb"));
+          if (isFoundation || isGradeBeam) return false;
           const m = e.summary?.multiplier || e.data?.multiplier;
           return m !== undefined && m !== stories;
         });

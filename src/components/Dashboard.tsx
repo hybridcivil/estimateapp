@@ -173,9 +173,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const estimates = Array.isArray(activeProject?.estimates)
     ? activeProject.estimates
     : [];
+
+  // Helper to distinguish Grade Beams (1 Storey) from Floor Beams (Storeys Multiplied)
+  const isEstGradeBeam = (e: ProjectEstimateItem) =>
+    e.type === "beam" &&
+    (e.data?.beamSubtype === "grade_beam" ||
+      e.summary?.beamSubtype === "grade_beam" ||
+      e.name?.toLowerCase().includes("grade") ||
+      e.name?.toLowerCase().includes("gb"));
+
   const filteredEstimates =
     filterType === "all"
       ? estimates
+      : filterType === "grade_beam"
+      ? estimates.filter((e) => isEstGradeBeam(e))
+      : filterType === "floor_beam"
+      ? estimates.filter((e) => e.type === "beam" && !isEstGradeBeam(e))
       : estimates.filter((e) => e.type === filterType);
 
   const activeTotalCost = estimates.reduce((s, e) => s + (e.totalCost || 0), 0);
@@ -259,8 +272,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }[] = [
     {
       type: "beam",
-      name: "Beam Calculator",
-      description: "RC Beams with top, bottom & extra bars, stirrups & mix volume",
+      name: "Beam Calculator (Two-Part)",
+      description: "1. Grade Beam (1 Storey Fixed) & 2. Floor Beam (Superstructure Multiplied by Storeys)",
       icon: Columns,
       accent: "#00c2c7",
     },
@@ -1042,7 +1055,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar max-w-full">
               {[
                 { id: "all", label: "All Files" },
-                { id: "beam", label: "Beams" },
+                { id: "grade_beam", label: "Grade Beams (1×)" },
+                { id: "floor_beam", label: "Floor Beams (Storeys)" },
+                { id: "beam", label: "All Beams" },
                 { id: "column", label: "Columns" },
                 { id: "footing", label: "Footings" },
                 { id: "situ_pile", label: "Situ Piles" },
@@ -1104,6 +1119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <tbody className="divide-y divide-[#2d4a6a]/60 text-white">
                 {filteredEstimates.map((est, idx) => {
                   const mat = extractItemMaterials(est);
+                  const isGradeBeam = isEstGradeBeam(est);
                   const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
                   const calcMeta = calculatorCards.find((c) => c.type === est.type);
                   const Icon = calcMeta?.icon || FileText;
@@ -1131,14 +1147,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {est.name}
                             </div>
                             <div className="text-[10px] text-[#8ba3c1] truncate font-mono">
-                              {est.type.toUpperCase()} · {new Date(est.date).toLocaleDateString()}
+                              {isGradeBeam ? "GRADE BEAM" : est.type === "beam" ? "FLOOR BEAM" : est.type.toUpperCase()} · {new Date(est.date).toLocaleDateString()}
                               {mat.mixRatio ? ` · Mix ${mat.mixRatio}` : ""}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="py-2.5 px-2 text-center">
-                        {isFoundation ? (
+                        {isGradeBeam ? (
+                          <span
+                            className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
+                            title="Grade Beam: Plinth substructure constructed once (1 storey fixed)"
+                          >
+                            1× Grade Beam
+                          </span>
+                        ) : isFoundation ? (
                           <span
                             className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
                             title="Foundation Substructure: Used once for building (no storey multiplier)"
@@ -1147,7 +1170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </span>
                         ) : (
                           <span className="bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
-                            {mat.multiplier}x
+                            {mat.multiplier}x {est.type === "beam" ? "Floor Beam" : ""}
                           </span>
                         )}
                       </td>
@@ -1341,6 +1364,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               const calcMeta = calculatorCards.find((c) => c.type === est.type);
               const Icon = calcMeta?.icon || FileText;
               const mat = extractItemMaterials(est);
+              const isGradeBeam = isEstGradeBeam(est);
               const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
               const isExpanded = Boolean(expandedFiles[est.id]);
 
@@ -1368,15 +1392,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </h4>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
-                              {est.type} · {new Date(est.date).toLocaleDateString()}
+                              {isGradeBeam ? "Grade Beam" : est.type === "beam" ? "Floor Beam" : est.type} · {new Date(est.date).toLocaleDateString()}
                             </span>
-                            {isFoundation ? (
+                            {isGradeBeam ? (
+                              <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
+                                1× Grade Beam (Plinth Level)
+                              </span>
+                            ) : isFoundation ? (
                               <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
                                 1× Foundation (Used Once)
                               </span>
                             ) : mat.isMultiplying ? (
                               <span className="bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1 py-0.2 rounded text-[9px] font-mono font-bold">
-                                {mat.multiplier}x Multiplier
+                                {mat.multiplier}x {est.type === "beam" ? "Floor Beam" : "Multiplier"}
                               </span>
                             ) : null}
                           </div>
@@ -1397,6 +1425,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <span className="text-[9px] text-[#8ba3c1] font-mono">
                           {isFoundation
                             ? "Foundation Substructure (Used Once)"
+                            : isGradeBeam
+                            ? "Grade Beam (1 Storey Fixed)"
                             : mat.isMultiplying
                             ? `${mat.multiplier} Storeys Total`
                             : "1 Storey"}

@@ -159,15 +159,26 @@ function MainAppContent() {
     }
     const stories = activeProject.stories || 1;
     const defaultEstimates = createDefaultBuildingEstimates(stories);
-    const existingTypes = new Set(
-      Array.isArray(activeProject.estimates) ? activeProject.estimates.map((e) => e.type) : []
+    const getEstKey = (e: { type: string; name?: string; data?: any; summary?: any }) => {
+      if (e.type === "beam") {
+        const subtype = e.data?.beamSubtype || e.summary?.beamSubtype;
+        if (subtype) return subtype;
+        if (e.name?.toLowerCase().includes("grade") || e.name?.toLowerCase().includes("gb")) return "grade_beam";
+        return "floor_beam";
+      }
+      return e.type;
+    };
+    const existingKeys = new Set(
+      Array.isArray(activeProject.estimates) ? activeProject.estimates.map(getEstKey) : []
     );
     let addedCount = 0;
     for (const est of defaultEstimates) {
-      if (!existingTypes.has(est.type)) {
+      const key = getEstKey(est);
+      if (!existingKeys.has(key)) {
         try {
           await saveEstimateToProject(activeProject.id, est);
           addedCount++;
+          existingKeys.add(key);
         } catch (e) {
           console.warn("Error saving building element", e);
         }

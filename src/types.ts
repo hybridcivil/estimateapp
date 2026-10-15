@@ -58,6 +58,8 @@ export interface MaterialRates {
   baseType: "none" | "picket";
 }
 
+export type BeamSubtype = "grade_beam" | "floor_beam";
+
 export interface BeamItem {
   nos: number;
   name: string;
@@ -69,6 +71,7 @@ export interface BeamItem {
   mainBars: { dia: number; qty: number }[];
   extraTopBars: { nos: number; dia: number; length: number };
   extraBottomBars: { nos: number; dia: number; length: number };
+  subtype?: BeamSubtype;
 }
 
 export interface ColumnItem {

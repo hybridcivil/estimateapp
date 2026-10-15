@@ -88,39 +88,89 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
   const s = Math.max(1, stories);
   const now = new Date().toISOString();
 
-  // 1. BEAM
-  const beamCostPerFloor = 184500;
-  const beamTotalCost = beamCostPerFloor * s;
-  const beamItem: ProjectEstimateItem = {
-    id: "est_beam_init_" + Date.now(),
+  // 1a. GRADE BEAM (Plinth Substructure - 1 Storey Fixed)
+  const gradeBeamItem: ProjectEstimateItem = {
+    id: "est_grade_beam_init_" + Date.now(),
     type: "beam",
-    name: `Building Beams (${s} ${s === 1 ? "Storey" : "Storeys"} × Multiplied)`,
+    name: "Grade Beams GB1-GB8 (Plinth Level - 1 Storey)",
     date: now,
-    totalCost: beamTotalCost,
+    totalCost: 175000,
     summary: {
-      cementBags: 68 * s,
-      sandCft: 128 * s,
-      aggCft: 255 * s,
-      totalSteelKg: 1140 * s,
-      wetVolCft: Number((165.5 * s).toFixed(1)),
-      dryVolCft: Number((267.4 * s).toFixed(1)),
-      totalCost: beamTotalCost,
-      multiplier: s,
-      isMultiplying: s > 1,
-      totalBeamsCount: 8 * s,
+      beamSubtype: "grade_beam",
+      cementBags: 65,
+      sandCft: 122,
+      aggCft: 245,
+      totalSteelKg: 1080,
+      wetVolCft: 158.0,
+      dryVolCft: 255.0,
+      totalCost: 175000,
+      multiplier: 1,
+      isMultiplying: false,
+      totalBeamsCount: 8,
     },
     data: {
-      multiplier: s,
-      isMultiplying: s > 1,
+      beamSubtype: "grade_beam",
+      multiplier: 1,
+      isMultiplying: false,
       beams: [
         {
           nos: 8,
-          name: "B1",
+          name: "GB1",
           width: 12,
           depth: 18,
           length: 22,
           stirrupSpacing: 6,
           mix: "1:1.5:3",
+          subtype: "grade_beam",
+          mainBars: [
+            { dia: 16, qty: 3 },
+            { dia: 20, qty: 2 },
+          ],
+          extraTopBars: { nos: 2, dia: 16, length: 7.33 },
+          extraBottomBars: { nos: 2, dia: 16, length: 11 },
+        },
+      ],
+      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      baseType: "none",
+    },
+  };
+
+  // 1b. FLOOR BEAM (Superstructure - Multiplied by Storeys)
+  const floorBeamCostPerFloor = 198000;
+  const floorBeamTotalCost = floorBeamCostPerFloor * s;
+  const floorBeamItem: ProjectEstimateItem = {
+    id: "est_floor_beam_init_" + (Date.now() + 1),
+    type: "beam",
+    name: `Floor Beams FB1-FB10 (${s} ${s === 1 ? "Storey" : "Storeys"} × Multiplied)`,
+    date: now,
+    totalCost: floorBeamTotalCost,
+    summary: {
+      beamSubtype: "floor_beam",
+      cementBags: 72 * s,
+      sandCft: 135 * s,
+      aggCft: 270 * s,
+      totalSteelKg: 1220 * s,
+      wetVolCft: Number((175.0 * s).toFixed(1)),
+      dryVolCft: Number((282.5 * s).toFixed(1)),
+      totalCost: floorBeamTotalCost,
+      multiplier: s,
+      isMultiplying: s > 1,
+      totalBeamsCount: 10 * s,
+    },
+    data: {
+      beamSubtype: "floor_beam",
+      multiplier: s,
+      isMultiplying: s > 1,
+      beams: [
+        {
+          nos: 10,
+          name: "FB1",
+          width: 12,
+          depth: 18,
+          length: 22,
+          stirrupSpacing: 6,
+          mix: "1:1.5:3",
+          subtype: "floor_beam",
           mainBars: [
             { dia: 16, qty: 3 },
             { dia: 20, qty: 2 },
@@ -409,13 +459,14 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     },
   };
 
-  return [beamItem, columnItem, footingItem, slabItem, stairItem, tileItem, brickItem];
+  return [gradeBeamItem, floorBeamItem, columnItem, footingItem, slabItem, stairItem, tileItem, brickItem];
 }
 
 /**
  * Rescales all estimates in a project when the project storey count changes.
  * Ensures total bricks, beams, columns, slabs, stairs, tiles, cement, steel, etc.,
  * match the exact new storey count.
+ * Grade beams remain locked to 1 storey, while floor beams scale as per storeys.
  */
 export function rescaleEstimatesForStories(
   estimates: ProjectEstimateItem[],
@@ -428,22 +479,41 @@ export function rescaleEstimatesForStories(
   // Pre-generate standard templates for stories = s
   const defaultTemplates = createDefaultBuildingEstimates(s);
   const templateMap = new Map<string, ProjectEstimateItem>();
-  defaultTemplates.forEach((t) => templateMap.set(t.type, t));
+  defaultTemplates.forEach((t) => {
+    templateMap.set(t.type, t);
+    if (t.data?.beamSubtype) {
+      templateMap.set(t.data.beamSubtype, t);
+    }
+  });
 
   return estimates.map((est) => {
-    // Foundation elements (Footing, Situ Pile, Sand Pile) are substructure used only once: NEVER scale with storeys!
-    if (est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile") {
+    // Foundation elements (Footing, Situ Pile, Sand Pile) and Grade Beams are substructure used only once: NEVER scale with storeys!
+    const isGradeBeam =
+      est.type === "beam" &&
+      (est.data?.beamSubtype === "grade_beam" ||
+        est.summary?.beamSubtype === "grade_beam" ||
+        est.name?.toLowerCase().includes("grade") ||
+        est.name?.toLowerCase().includes("gb"));
+
+    if (
+      est.type === "footing" ||
+      est.type === "situ_pile" ||
+      est.type === "sand_pile" ||
+      isGradeBeam
+    ) {
       return {
         ...est,
         summary: {
           ...est.summary,
           multiplier: 1,
           isMultiplying: false,
+          ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
         },
         data: {
           ...est.data,
           multiplier: 1,
           isMultiplying: false,
+          ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
         },
       };
     }
@@ -453,7 +523,11 @@ export function rescaleEstimatesForStories(
       est.id.startsWith("est_beam_01") ||
       est.id.startsWith("est_col_01");
 
-    const template = templateMap.get(est.type);
+    const templateKey =
+      est.type === "beam"
+        ? (est.data?.beamSubtype || (est.id.includes("floor") ? "floor_beam" : "beam"))
+        : est.type;
+    const template = templateMap.get(templateKey) || templateMap.get(est.type);
 
     // If it's a standard/default building schedule element, regenerate using the exact formula
     if (isStandardInit && template) {
