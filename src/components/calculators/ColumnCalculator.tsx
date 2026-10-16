@@ -52,6 +52,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       category: "combined",
       size: "12x15",
       height: 10,
+      shortOffset: 3.0, // Automatic +3" increase: 12x15 -> 15x18
+      clearCover: 1.5, // 1.5" clear cover for superstructure floor column
+      shortClearCover: 2.5, // 2.5" clear cover for underground short column (pedestal)
       shortHeight: 4.0, // 4 ft Footing to Grade Beam (plinth)
       longHeight: 10.0, // 10 ft floor-to-floor
       footingBend: 1.5, // 1.5 ft (18 in) L-bend into footing mat
@@ -77,6 +80,11 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
   const [colX, setColX] = useState(12);
   const [colY, setColY] = useState(15);
   const [colDia, setColDia] = useState(14);
+
+  // Section Dimension Offset & Clear Covers (BNBC / ACI Standards)
+  const [shortOffset, setShortOffset] = useState(3.0); // 3" automatic increase: 12"x15" -> 15"x18"
+  const [clearCover, setClearCover] = useState(1.5); // Superstructure floor column clear cover (1.5" standard)
+  const [shortClearCover, setShortClearCover] = useState(2.5); // Substructure underground short column clear cover (2.5" standard)
 
   // Short & Long Column Heights & Lapping
   const [shortHeight, setShortHeight] = useState(4.0);
@@ -160,6 +168,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       height: effectiveHeight,
       shortHeight: colCategory === "long" ? 0 : shortHeight,
       longHeight: colCategory === "short" ? 0 : longHeight,
+      shortOffset,
+      clearCover,
+      shortClearCover,
       footingBend: colCategory === "long" ? 0 : footingBend,
       lapLength,
       shortStirrupSpacing,
@@ -179,6 +190,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     setColCategory(c.category || "combined");
     setMixRatio(c.mix || "1:1.5:3");
     setStirrupDia(c.stirrupDia || 10);
+
+    setShortOffset(c.shortOffset !== undefined ? c.shortOffset : 3.0);
+    setClearCover(c.clearCover !== undefined ? c.clearCover : 1.5);
+    setShortClearCover(c.shortClearCover !== undefined ? c.shortClearCover : 2.5);
 
     if (c.shortHeight !== undefined && c.shortHeight > 0) setShortHeight(c.shortHeight);
     else if (c.category === "short") setShortHeight(c.height || 4.0);
@@ -275,6 +290,9 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     setColX(12);
     setColY(15);
     setColDia(14);
+    setShortOffset(3.0);
+    setClearCover(1.5);
+    setShortClearCover(2.5);
     setShortHeight(4.0);
     setLongHeight(10.0);
     setFootingBend(1.5);
@@ -316,7 +334,6 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       return null;
     }
 
-    const COVER_IN = 1.5;
     const isPicket = baseType === "picket";
     const storiesMult = isMultiplying ? Math.max(1, multiplier) : 1;
 
@@ -341,23 +358,50 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       const hasShort = category === "combined" || category === "short";
       const hasLong = category === "combined" || category === "long";
 
-      // Section Area and Stirrup Perimeter
-      let areaSqft = 0;
-      let stirrupPerimeterFt = 0;
+      // Clear Covers & Short Column Dimension Offset (BNBC / ACI Standards)
+      const longCover = c.clearCover !== undefined ? c.clearCover : 1.5;
+      const shortCover = c.shortClearCover !== undefined ? c.shortClearCover : 2.5;
+      const offset = c.shortOffset !== undefined ? c.shortOffset : 3.0; // Automatic 3" increase: e.g. 12x15 -> 15x18
+
+      // 1. Long Column (Superstructure) dimensions
+      let longAreaSqft = 0;
+      let longStirrupPerimeterFt = 0;
+
+      // 2. Short Column (Pedestal Substructure) dimensions: size increased by offset (default +3")
+      let shortAreaSqft = 0;
+      let shortStirrupPerimeterFt = 0;
 
       if (c.type === "rectangular") {
         const parts = c.size.split("x");
         const x = parseFloat(parts[0]) || 12;
         const y = parseFloat(parts[1]) || 15;
-        areaSqft = (x * y) / 144;
-        const coreX = Math.max(0, x - 2 * COVER_IN);
-        const coreY = Math.max(0, y - 2 * COVER_IN);
-        stirrupPerimeterFt = (2 * coreX + 2 * coreY + 6) / 12; // 6" standard hooks
+
+        // Long column: x by y (e.g. 12" x 15") with longCover (default 1.5")
+        longAreaSqft = (x * y) / 144;
+        const longCoreX = Math.max(0, x - 2 * longCover);
+        const longCoreY = Math.max(0, y - 2 * longCover);
+        longStirrupPerimeterFt = (2 * longCoreX + 2 * longCoreY + 6) / 12; // 6" standard hooks
+
+        // Short column: (x + offset) by (y + offset) (e.g. 15" x 18") with shortCover (default 2.5")
+        const shortX = x + offset;
+        const shortY = y + offset;
+        shortAreaSqft = (shortX * shortY) / 144;
+        const shortCoreX = Math.max(0, shortX - 2 * shortCover);
+        const shortCoreY = Math.max(0, shortY - 2 * shortCover);
+        shortStirrupPerimeterFt = (2 * shortCoreX + 2 * shortCoreY + 6) / 12;
       } else {
         const d = parseFloat(c.size.replace("⌀", "")) || 14;
-        areaSqft = (Math.PI * Math.pow(d / 2, 2)) / 144;
-        const coreD = Math.max(0, d - 2 * COVER_IN);
-        stirrupPerimeterFt = (Math.PI * coreD + 6) / 12;
+
+        // Long column: diameter d (e.g. ⌀14")
+        longAreaSqft = (Math.PI * Math.pow(d / 2, 2)) / 144;
+        const longCoreD = Math.max(0, d - 2 * longCover);
+        longStirrupPerimeterFt = (Math.PI * longCoreD + 6) / 12;
+
+        // Short column: diameter (d + offset) (e.g. ⌀17")
+        const shortD = d + offset;
+        shortAreaSqft = (Math.PI * Math.pow(shortD / 2, 2)) / 144;
+        const shortCoreD = Math.max(0, shortD - 2 * shortCover);
+        shortStirrupPerimeterFt = (Math.PI * shortCoreD + 6) / 12;
       }
 
       const stDia = c.stirrupDia || 10;
@@ -369,7 +413,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       // 1. SHORT COLUMN CALCULATION (Footing to Grade Beam, 1x Fixed Substructure)
       if (hasShort) {
         const hShort = c.shortHeight !== undefined && c.shortHeight > 0 ? c.shortHeight : (c.category === "short" ? c.height : 4.0);
-        const colShortWetVol = areaSqft * hShort * c.nos;
+        const colShortWetVol = shortAreaSqft * hShort * c.nos; // uses enlarged section (e.g. 15"x18")
         shortWetVol += colShortWetVol;
 
         // Concrete dry volume contribution (1x)
@@ -392,10 +436,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
           }
         });
 
-        // Ties (Stirrups) in short column (3% wastage)
+        // Ties (Stirrups) in short column (3% wastage) - uses short column perimeter with shortCover
         const nTiesShort = (Math.ceil((hShort * 12) / stSpacingShort) + 1) * c.nos;
         shortTiesCount += nTiesShort;
-        const tieWeightShort = nTiesShort * stirrupPerimeterFt * ((stDia * stDia) / 533) * 1.03;
+        const tieWeightShort = nTiesShort * shortStirrupPerimeterFt * ((stDia * stDia) / 533) * 1.03;
         shortSteelKg += tieWeightShort;
         shortSteelByDia[stDia] = (shortSteelByDia[stDia] || 0) + tieWeightShort;
         totalSteelByDia[stDia] = (totalSteelByDia[stDia] || 0) + tieWeightShort;
@@ -404,7 +448,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       // 2. LONG COLUMN CALCULATION (Floor Superstructure, multiplied by S storeys)
       if (hasLong) {
         const hLong = c.longHeight !== undefined && c.longHeight > 0 ? c.longHeight : (c.category === "long" ? c.height : 10.0);
-        const colLongWetVol = areaSqft * hLong * c.nos;
+        const colLongWetVol = longAreaSqft * hLong * c.nos; // uses standard floor section (e.g. 12"x15")
         longSingleFloorWetVol += colLongWetVol;
 
         // Multiply dry volume across S storeys
@@ -429,10 +473,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
           }
         });
 
-        // Ties (Stirrups) in long column (3% wastage)
+        // Ties (Stirrups) in long column (3% wastage) - uses long column perimeter with longCover
         const nTiesLong = Math.ceil((hLong * 12) / stSpacingLong) * c.nos;
         longSingleFloorTiesCount += nTiesLong;
-        const tieWeightLong = nTiesLong * stirrupPerimeterFt * ((stDia * stDia) / 533) * 1.03;
+        const tieWeightLong = nTiesLong * longStirrupPerimeterFt * ((stDia * stDia) / 533) * 1.03;
         longSingleFloorSteelKg += tieWeightLong;
         longSingleFloorSteelByDia[stDia] = (longSingleFloorSteelByDia[stDia] || 0) + tieWeightLong;
 
@@ -517,6 +561,11 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         steelBreakdown: Object.fromEntries(
           Object.entries(shortSteelByDia).map(([d, w]) => [d, Number(w.toFixed(1))])
         ),
+        offset: list[0]?.shortOffset ?? 3.0,
+        clearCover: list[0]?.shortClearCover ?? 2.5,
+        sampleSize: list[0]?.type === "rectangular"
+          ? `${(parseFloat(list[0]?.size.split("x")[0]) || 12) + (list[0]?.shortOffset ?? 3)}" × ${(parseFloat(list[0]?.size.split("x")[1]) || 15) + (list[0]?.shortOffset ?? 3)}"`
+          : `⌀${(parseFloat(list[0]?.size.replace("⌀", "")) || 14) + (list[0]?.shortOffset ?? 3)}"`,
       },
 
       // Superstructure Long Column Specifics (Multiplied by Storeys)
@@ -528,6 +577,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
         totalSteelKg: Number((longSingleFloorSteelKg * storiesMult).toFixed(1)),
         totalTiesCount: longSingleFloorTiesCount * storiesMult,
         stories: storiesMult,
+        clearCover: list[0]?.clearCover ?? 1.5,
+        sampleSize: list[0]?.type === "rectangular"
+          ? `${parseFloat(list[0]?.size.split("x")[0]) || 12}" × ${parseFloat(list[0]?.size.split("x")[1]) || 15}"`
+          : `⌀${parseFloat(list[0]?.size.replace("⌀", "")) || 14}"`,
         steelBreakdown: Object.fromEntries(
           Object.entries(longSingleFloorSteelByDia).map(([d, w]) => [d, Number((w * storiesMult).toFixed(1))])
         ),
@@ -965,6 +1018,96 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
               </div>
             </div>
 
+            {/* Clear Cover & Section Dimension Offset (Civil Engineering BNBC Standards) */}
+            <div className="bg-[#121c2d] border border-[#2d4a6a] rounded-xl p-2.5 sm:p-3 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold text-[#00c2c7]">
+                <span className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5" />
+                  Clear Cover & Short Column Sizing (+3" Auto-Increase)
+                </span>
+                <span className="text-[10px] text-[#8ba3c1] font-normal">
+                  BNBC & PWD Standards: Substructure pedestal columns cast wider with higher clear cover
+                </span>
+              </div>
+
+              {/* Dynamic Sizing Comparison Banner */}
+              <div className="bg-[#18273b] border border-[#00c2c7]/40 rounded-lg p-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[#8ba3c1] font-semibold uppercase">Superstructure (Long Col):</span>
+                    <span className="font-mono font-bold text-white bg-[#0f1c2e] px-2 py-0.5 rounded border border-[#2d4a6a]">
+                      {colType === "rectangular" ? `${colX}" × ${colY}"` : `⌀${colDia}"`}
+                    </span>
+                    <span className="text-[9px] text-[#8ba3c1] font-mono">(Cover: {clearCover}")</span>
+                  </div>
+
+                  <ArrowRight className="w-3.5 h-3.5 text-[#00c2c7] shrink-0 hidden sm:inline" />
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[#38bdf8] font-semibold uppercase">Pedestal (Short Col):</span>
+                    <span className="font-mono font-bold text-[#38bdf8] bg-[#0f1c2e] px-2 py-0.5 rounded border border-[#38bdf8]/50">
+                      {colType === "rectangular"
+                        ? `${colX + shortOffset}" × ${colY + shortOffset}"`
+                        : `⌀${colDia + shortOffset}"`}
+                    </span>
+                    <span className="text-[9px] text-[#2ecc71] font-mono font-bold">
+                      (+{shortOffset}" Auto-Increase · Cover: {shortClearCover}")
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[9px] bg-[#00c2c7]/15 text-[#00c2c7] px-2 py-1 rounded border border-[#00c2c7]/30 font-mono font-semibold">
+                  {colType === "rectangular"
+                    ? `Area: ${((colX * colY) / 144).toFixed(2)} → ${(((colX + shortOffset) * (colY + shortOffset)) / 144).toFixed(2)} sq.ft (+${Math.round((((colX + shortOffset) * (colY + shortOffset)) / Math.max(1, colX * colY) - 1) * 100)}% concrete)`
+                    : `Area: ${((Math.PI * Math.pow(colDia / 2, 2)) / 144).toFixed(2)} → ${((Math.PI * Math.pow((colDia + shortOffset) / 2, 2)) / 144).toFixed(2)} sq.ft`}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#38bdf8] font-semibold block mb-1" title="Automatic dimension enlargement for pedestal/short column">
+                    Short Col Size Offset / Increase (in)
+                  </label>
+                  <NumericInput
+                    value={shortOffset}
+                    step="0.5"
+                    min="0"
+                    onChange={setShortOffset}
+                    className="w-full h-8 px-2 bg-[#1a2b42] border border-[#38bdf8]/50 rounded-lg text-xs text-[#38bdf8] outline-none font-mono font-bold"
+                  />
+                  <span className="text-[9px] text-[#8ba3c1]/70">Auto increases size: e.g. 12×15 → 15×18 (+3")</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1" title="Clear cover of concrete protecting rebar in floor superstructure columns">
+                    Floor Column Clear Cover (in)
+                  </label>
+                  <NumericInput
+                    value={clearCover}
+                    step="0.25"
+                    min="0.5"
+                    onChange={setClearCover}
+                    className="w-full h-8 px-2 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none font-mono font-bold"
+                  />
+                  <span className="text-[9px] text-[#8ba3c1]/70">Standard 1.5" (38mm) above plinth</span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#38bdf8] block mb-1" title="Clear cover of concrete protecting rebar in underground short column / pedestal">
+                    Short Column Clear Cover (in)
+                  </label>
+                  <NumericInput
+                    value={shortClearCover}
+                    step="0.25"
+                    min="1.0"
+                    onChange={setShortClearCover}
+                    className="w-full h-8 px-2 bg-[#1a2b42] border border-[#38bdf8]/50 rounded-lg text-xs text-[#38bdf8] outline-none font-mono font-bold"
+                  />
+                  <span className="text-[9px] text-[#8ba3c1]/70">Standard 2.5" (65mm underground)</span>
+                </div>
+              </div>
+            </div>
+
             {/* SHORT COLUMN PARAMETERS (Footing to Grade Beam) */}
             {(colCategory === "combined" || colCategory === "short") && (
               <div className="bg-[#121c2d] border border-[#38bdf8]/40 rounded-xl p-2.5 sm:p-3 space-y-2">
@@ -1291,6 +1434,21 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                 {columns.map((c, idx) => {
                   const isBeingEdited = editingColIndex === idx;
                   const cat = c.category || colMode;
+                  const offset = c.shortOffset !== undefined ? c.shortOffset : 3.0;
+                  const longCover = c.clearCover !== undefined ? c.clearCover : 1.5;
+                  const shortCover = c.shortClearCover !== undefined ? c.shortClearCover : 2.5;
+
+                  let shortSizeStr = "";
+                  if (c.type === "rectangular") {
+                    const parts = c.size.split("x");
+                    const x = parseFloat(parts[0]) || 12;
+                    const y = parseFloat(parts[1]) || 15;
+                    shortSizeStr = `${x + offset}" × ${y + offset}"`;
+                  } else {
+                    const d = parseFloat(c.size.replace("⌀", "")) || 14;
+                    shortSizeStr = `⌀${d + offset}"`;
+                  }
+
                   return (
                     <div
                       key={idx}
@@ -1307,9 +1465,14 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                             <span className="text-xs font-bold text-white">
                               {c.nos} × {c.name}
                             </span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded font-bold bg-[#0e1624] text-[#00c2c7] border border-[#2d4a6a]">
-                              {c.size}"
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded font-bold bg-[#0e1624] text-white border border-[#2d4a6a]" title="Superstructure floor column cross-section">
+                              Floor: {c.size}" (Cover: {longCover}")
                             </span>
+                            {(cat === "combined" || cat === "short") && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded font-bold bg-[#0e1624] text-[#38bdf8] border border-[#38bdf8]/40" title="Substructure pedestal short column cross-section (+3in automatic increase)">
+                                Pedestal: {shortSizeStr} (+{offset}", Cover: {shortCover}")
+                              </span>
+                            )}
                             {cat === "combined" ? (
                               <span className="text-[9px] bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40 px-1.5 py-0.2 rounded font-mono font-bold">
                                 Combined: Short 1× + Long ×{multiplier}
@@ -1333,12 +1496,12 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1.5 text-[11px] text-[#8ba3c1]">
                             {(cat === "combined" || cat === "short") && (
                               <div className="text-[#38bdf8] font-mono text-[10px]">
-                                <strong>Short Col:</strong> {c.shortHeight || 4.0}ft ht + {c.footingBend ?? 1.5}ft footing bend + {c.lapLength ?? 2.5}ft lap = {((c.shortHeight || 4.0) + (c.footingBend ?? 1.5) + (c.lapLength ?? 2.5)).toFixed(2)}ft cut length (Ties @{c.shortStirrupSpacing || 4}")
+                                <strong>Short Col ({shortSizeStr}):</strong> {c.shortHeight || 4.0}ft ht + {c.footingBend ?? 1.5}ft bend + {c.lapLength ?? 2.5}ft lap = {((c.shortHeight || 4.0) + (c.footingBend ?? 1.5) + (c.lapLength ?? 2.5)).toFixed(2)}ft cut (Ties @{c.shortStirrupSpacing || 4}")
                               </div>
                             )}
                             {(cat === "combined" || cat === "long") && (
                               <div className="text-[#f5a623] font-mono text-[10px]">
-                                <strong>Long Col:</strong> {c.longHeight || 10.0}ft floor ht + {c.lapLength ?? 2.5}ft lap = {((c.longHeight || 10.0) + (c.lapLength ?? 2.5)).toFixed(2)}ft cut length / floor (Ties @{c.longStirrupSpacing || 6}")
+                                <strong>Long Col ({c.size}"):</strong> {c.longHeight || 10.0}ft floor ht + {c.lapLength ?? 2.5}ft lap = {((c.longHeight || 10.0) + (c.lapLength ?? 2.5)).toFixed(2)}ft cut / flr (Ties @{c.longStirrupSpacing || 6}")
                               </div>
                             )}
                           </div>
@@ -1394,7 +1557,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                     Column Takeoff & Material Engineering Results
                   </h3>
                   <p className="text-[10px] text-[#8ba3c1]">
-                    Accurate separation of Substructure (Short Column 1×) and Superstructure (Long Column ×{multiplier} Storeys)
+                    Accurate separation of Substructure (Short Column +3" Pedestal 1×) and Superstructure (Long Column ×{multiplier} Storeys)
                   </p>
                 </div>
                 <span className="font-mono font-bold text-xs text-[#2ecc71] bg-[#2ecc71]/15 px-2 py-0.5 rounded border border-[#2ecc71]/30">
@@ -1409,10 +1572,19 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                   <div className="flex items-center justify-between text-xs font-bold text-[#38bdf8]">
                     <span className="flex items-center gap-1.5">
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      1. Short Column Substructure
+                      1. Short Column Substructure (Pedestal)
                     </span>
                     <span className="bg-[#38bdf8]/20 text-[#38bdf8] text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border border-[#38bdf8]/40">
                       1× Fixed (Ground Level)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] bg-[#101928] p-1.5 rounded border border-[#38bdf8]/30">
+                    <span className="text-[#8ba3c1]">
+                      Size: <strong className="text-[#38bdf8] font-mono">{results.shortColumn.sampleSize}</strong> (+{results.shortColumn.offset}" Offset)
+                    </span>
+                    <span className="text-[#8ba3c1]">
+                      Clear Cover: <strong className="text-white font-mono">{results.shortColumn.clearCover}"</strong>
                     </span>
                   </div>
 
@@ -1452,6 +1624,15 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                     </span>
                     <span className="bg-[#f5a623]/20 text-[#f5a623] text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border border-[#f5a623]/40">
                       ×{results.longColumn.stories} Storeys Multiplied
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] bg-[#101928] p-1.5 rounded border border-[#f5a623]/30">
+                    <span className="text-[#8ba3c1]">
+                      Size: <strong className="text-[#f5a623] font-mono">{results.longColumn.sampleSize}</strong>
+                    </span>
+                    <span className="text-[#8ba3c1]">
+                      Clear Cover: <strong className="text-white font-mono">{results.longColumn.clearCover}"</strong>
                     </span>
                   </div>
 

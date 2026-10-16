@@ -139,9 +139,16 @@
               "nos": 12,
               "name": "C1",
               "type": "rectangular",
-              "category": "long",
+              "category": "combined",
               "size": "12x15",
+              "shortOffset": 3.0,
+              "clearCover": 1.5,
+              "shortClearCover": 2.5,
               "height": 10,
+              "shortHeight": 4,
+              "longHeight": 10,
+              "footingBend": 1.5,
+              "lapLength": 2.5,
               "rebars": [
                 { "dia": 16, "nos": 4 },
                 { "dia": 20, "nos": 4 }

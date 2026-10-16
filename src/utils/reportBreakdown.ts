@@ -458,7 +458,13 @@ export function computeFullProjectBreakdown(
         s.beamSubtype === "grade_beam" ||
         est.name?.toLowerCase().includes("grade") ||
         est.name?.toLowerCase().includes("gb"));
-    const mult = isFoundation || isGradeBeam ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
+    const isShortCol =
+      est.type === "column" &&
+      (d.colMode === "short" ||
+        s.colMode === "short" ||
+        d.columns?.[0]?.category === "short" ||
+        est.name?.toLowerCase().includes("short"));
+    const mult = isFoundation || isGradeBeam || isShortCol ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
     const cost = Math.round(est.totalCost || 0);
 
     const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
@@ -626,12 +632,20 @@ export function computeFullProjectBreakdown(
         colList.forEach((c, idx) => {
           let b = 1, h = 1.25;
           let sizeStr = "12\" × 15\"";
+          const offset = c.shortOffset !== undefined ? c.shortOffset : 3.0;
+          const isShortOrCombined = isShortCol || d.colMode === "combined" || Boolean(s.shortColumn) || c.category === "combined";
           if (c.size && typeof c.size === "string") {
             const parts = c.size.toLowerCase().split("x").map((p: string) => parseFloat(p));
             if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
               b = parts[0] / 12;
               h = parts[1] / 12;
-              sizeStr = `${parts[0]}" × ${parts[1]}"`;
+              if (isShortCol) {
+                sizeStr = `${parts[0] + offset}" × ${parts[1] + offset}" (Short Col +${offset}")`;
+              } else if (isShortOrCombined) {
+                sizeStr = `${parts[0]}" × ${parts[1]}" (Short: ${parts[0] + offset}" × ${parts[1] + offset}")`;
+              } else {
+                sizeStr = `${parts[0]}" × ${parts[1]}"`;
+              }
             } else {
               sizeStr = c.size;
             }

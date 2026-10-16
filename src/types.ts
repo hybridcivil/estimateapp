@@ -83,6 +83,9 @@ export interface ColumnItem {
   height: number;
   shortHeight?: number; // Height from footing to grade beam (e.g. 4 ft)
   longHeight?: number; // Floor-to-floor height (e.g. 10 ft)
+  shortOffset?: number; // Automatic dimension increase for short column (default 3 in: 12x15 -> 15x18)
+  clearCover?: number; // Clear cover for floor column (default 1.5 in)
+  shortClearCover?: number; // Clear cover for short column in ground (default 2.0 in)
   footingBend?: number; // Embedment / L-bend into footing (e.g. 1.5 ft)
   lapLength?: number; // Lap splice extension (e.g. 2.5 ft)
   shortStirrupSpacing?: number;
