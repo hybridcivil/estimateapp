@@ -56,7 +56,12 @@ function readProjects(): Project[] {
               e.summary?.beamSubtype === "grade_beam" ||
               e.name?.toLowerCase().includes("grade") ||
               e.name?.toLowerCase().includes("gb"));
-          if (isFoundation || isGradeBeam) return false;
+          const isShortCol =
+            e.type === "column" &&
+            (e.data?.colMode === "short" ||
+              e.summary?.colMode === "short" ||
+              e.name?.toLowerCase().includes("short"));
+          if (isFoundation || isGradeBeam || isShortCol) return false;
           const m = e.summary?.multiplier || e.data?.multiplier;
           return m !== undefined && m !== stories;
         });

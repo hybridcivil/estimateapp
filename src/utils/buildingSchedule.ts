@@ -487,19 +487,25 @@ export function rescaleEstimatesForStories(
   });
 
   return estimates.map((est) => {
-    // Foundation elements (Footing, Situ Pile, Sand Pile) and Grade Beams are substructure used only once: NEVER scale with storeys!
+    // Foundation elements (Footing, Situ Pile, Sand Pile), Grade Beams, and Short Columns are substructure used only once: NEVER scale with storeys!
     const isGradeBeam =
       est.type === "beam" &&
       (est.data?.beamSubtype === "grade_beam" ||
         est.summary?.beamSubtype === "grade_beam" ||
         est.name?.toLowerCase().includes("grade") ||
         est.name?.toLowerCase().includes("gb"));
+    const isShortCol =
+      est.type === "column" &&
+      (est.data?.colMode === "short" ||
+        est.summary?.colMode === "short" ||
+        est.name?.toLowerCase().includes("short"));
 
     if (
       est.type === "footing" ||
       est.type === "situ_pile" ||
       est.type === "sand_pile" ||
-      isGradeBeam
+      isGradeBeam ||
+      isShortCol
     ) {
       return {
         ...est,
@@ -508,12 +514,14 @@ export function rescaleEstimatesForStories(
           multiplier: 1,
           isMultiplying: false,
           ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
+          ...(isShortCol ? { colMode: "short" } : {}),
         },
         data: {
           ...est.data,
           multiplier: 1,
           isMultiplying: false,
           ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
+          ...(isShortCol ? { colMode: "short" } : {}),
         },
       };
     }

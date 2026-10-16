@@ -182,6 +182,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       e.name?.toLowerCase().includes("grade") ||
       e.name?.toLowerCase().includes("gb"));
 
+  // Helper to distinguish Short Columns (1 Storey Fixed) from Floor Columns
+  const isEstShortCol = (e: ProjectEstimateItem) =>
+    e.type === "column" &&
+    (e.data?.colMode === "short" ||
+      e.summary?.colMode === "short" ||
+      e.name?.toLowerCase().includes("short"));
+
   const filteredEstimates =
     filterType === "all"
       ? estimates
@@ -189,6 +196,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       ? estimates.filter((e) => isEstGradeBeam(e))
       : filterType === "floor_beam"
       ? estimates.filter((e) => e.type === "beam" && !isEstGradeBeam(e))
+      : filterType === "short_col"
+      ? estimates.filter((e) => isEstShortCol(e))
+      : filterType === "long_col"
+      ? estimates.filter((e) => e.type === "column" && !isEstShortCol(e))
       : estimates.filter((e) => e.type === filterType);
 
   const activeTotalCost = estimates.reduce((s, e) => s + (e.totalCost || 0), 0);
@@ -279,8 +290,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     },
     {
       type: "column",
-      name: "Column Calculator",
-      description: "Short & slender columns with ties, footing overlap & concrete",
+      name: "Column Calculator (Short & Long)",
+      description: "Short Column (1× Plinth Substructure with Footing Bend) & Long Column (Superstructure ×Storeys)",
       icon: Building2,
       accent: "#f5a623",
     },
@@ -1057,8 +1068,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 { id: "all", label: "All Files" },
                 { id: "grade_beam", label: "Grade Beams (1×)" },
                 { id: "floor_beam", label: "Floor Beams (Storeys)" },
+                { id: "short_col", label: "Short Columns (1×)" },
+                { id: "long_col", label: "Floor Columns (Storeys)" },
                 { id: "beam", label: "All Beams" },
-                { id: "column", label: "Columns" },
+                { id: "column", label: "All Columns" },
                 { id: "footing", label: "Footings" },
                 { id: "situ_pile", label: "Situ Piles" },
                 { id: "sand_pile", label: "Sand Piles" },
@@ -1120,6 +1133,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {filteredEstimates.map((est, idx) => {
                   const mat = extractItemMaterials(est);
                   const isGradeBeam = isEstGradeBeam(est);
+                  const isShortCol = isEstShortCol(est);
+                  const isCombinedCol =
+                    est.type === "column" &&
+                    (est.data?.colMode === "combined" ||
+                      est.summary?.colMode === "combined" ||
+                      (!isShortCol && (est.summary?.shortColumn || est.data?.columns?.[0]?.category === "combined")));
                   const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
                   const calcMeta = calculatorCards.find((c) => c.type === est.type);
                   const Icon = calcMeta?.icon || FileText;
@@ -1147,7 +1166,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               {est.name}
                             </div>
                             <div className="text-[10px] text-[#8ba3c1] truncate font-mono">
-                              {isGradeBeam ? "GRADE BEAM" : est.type === "beam" ? "FLOOR BEAM" : est.type.toUpperCase()} · {new Date(est.date).toLocaleDateString()}
+                              {isGradeBeam
+                                ? "GRADE BEAM"
+                                : est.type === "beam"
+                                ? "FLOOR BEAM"
+                                : isShortCol
+                                ? "SHORT COLUMN"
+                                : isCombinedCol
+                                ? "COLUMN (SHORT & LONG)"
+                                : est.type.toUpperCase()} · {new Date(est.date).toLocaleDateString()}
                               {mat.mixRatio ? ` · Mix ${mat.mixRatio}` : ""}
                             </div>
                           </div>
@@ -1161,6 +1188,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             1× Grade Beam
                           </span>
+                        ) : isShortCol ? (
+                          <span
+                            className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
+                            title="Short Column: Plinth substructure constructed once (1 storey fixed)"
+                          >
+                            1× Short Col
+                          </span>
+                        ) : isCombinedCol ? (
+                          <span
+                            className="bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
+                            title={`Combined Column: Short (1×) + Long (×${mat.multiplier} Storeys)`}
+                          >
+                            Short 1× + Long ×{mat.multiplier}
+                          </span>
                         ) : isFoundation ? (
                           <span
                             className="bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold whitespace-nowrap"
@@ -1170,7 +1211,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </span>
                         ) : (
                           <span className="bg-[#1a2b42] text-[#00c2c7] border border-[#00c2c7]/30 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
-                            {mat.multiplier}x {est.type === "beam" ? "Floor Beam" : ""}
+                            {mat.multiplier}x {est.type === "beam" ? "Floor Beam" : est.type === "column" ? "Floor Col" : ""}
                           </span>
                         )}
                       </td>
@@ -1365,6 +1406,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               const Icon = calcMeta?.icon || FileText;
               const mat = extractItemMaterials(est);
               const isGradeBeam = isEstGradeBeam(est);
+              const isShortCol = isEstShortCol(est);
+              const isCombinedCol =
+                est.type === "column" &&
+                (est.data?.colMode === "combined" ||
+                  est.summary?.colMode === "combined" ||
+                  (!isShortCol && (est.summary?.shortColumn || est.data?.columns?.[0]?.category === "combined")));
               const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
               const isExpanded = Boolean(expandedFiles[est.id]);
 
@@ -1392,11 +1439,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           </h4>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[10px] text-[#8ba3c1] uppercase font-mono">
-                              {isGradeBeam ? "Grade Beam" : est.type === "beam" ? "Floor Beam" : est.type} · {new Date(est.date).toLocaleDateString()}
+                              {isGradeBeam
+                                ? "Grade Beam"
+                                : est.type === "beam"
+                                ? "Floor Beam"
+                                : isShortCol
+                                ? "Short Column"
+                                : isCombinedCol
+                                ? "Column (Short & Long)"
+                                : est.type} · {new Date(est.date).toLocaleDateString()}
                             </span>
                             {isGradeBeam ? (
                               <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
                                 1× Grade Beam (Plinth Level)
+                              </span>
+                            ) : isShortCol ? (
+                              <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
+                                1× Short Column (Plinth Level)
+                              </span>
+                            ) : isCombinedCol ? (
+                              <span className="bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
+                                Short 1× + Long ×{mat.multiplier}
                               </span>
                             ) : isFoundation ? (
                               <span className="bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#38bdf8] px-1.5 py-0.2 rounded text-[9px] font-mono font-bold">
@@ -1427,6 +1490,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             ? "Foundation Substructure (Used Once)"
                             : isGradeBeam
                             ? "Grade Beam (1 Storey Fixed)"
+                            : isShortCol
+                            ? "Short Column (1 Storey Fixed)"
+                            : isCombinedCol
+                            ? `Short 1× + Long ×${mat.multiplier} Storeys`
                             : mat.isMultiplying
                             ? `${mat.multiplier} Storeys Total`
                             : "1 Storey"}

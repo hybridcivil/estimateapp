@@ -78,9 +78,15 @@ export interface ColumnItem {
   nos: number;
   name: string;
   type: "rectangular" | "circular";
-  category: "long" | "short";
+  category: "long" | "short" | "combined";
   size: string;
   height: number;
+  shortHeight?: number; // Height from footing to grade beam (e.g. 4 ft)
+  longHeight?: number; // Floor-to-floor height (e.g. 10 ft)
+  footingBend?: number; // Embedment / L-bend into footing (e.g. 1.5 ft)
+  lapLength?: number; // Lap splice extension (e.g. 2.5 ft)
+  shortStirrupSpacing?: number;
+  longStirrupSpacing?: number;
   rebars: { dia: number; nos: number }[];
   mix: string;
   stirrupDia: number;

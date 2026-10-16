@@ -1099,7 +1099,13 @@ export function extractItemMaterials(
       s.beamSubtype === "grade_beam" ||
       est.name?.toLowerCase().includes("grade") ||
       est.name?.toLowerCase().includes("gb"));
-  const isSingleUse = isFoundation || isGradeBeam;
+  const isShortCol =
+    est.type === "column" &&
+    (d.colMode === "short" ||
+      s.colMode === "short" ||
+      d.columns?.[0]?.category === "short" ||
+      est.name?.toLowerCase().includes("short"));
+  const isSingleUse = isFoundation || isGradeBeam || isShortCol;
   const mult = isSingleUse ? 1 : Math.max(1, s.multiplier || d.multiplier || 1);
   const isMultiplying = isSingleUse ? false : Boolean(s.isMultiplying ?? d.isMultiplying ?? mult > 1);
 
@@ -1225,11 +1231,20 @@ export function extractItemMaterials(
   } else if (est.type === "column") {
     itemCount = s.totalColsCount || (Array.isArray(d.columns) ? d.columns.reduce((sum: number, c: any) => sum + (c.nos || 1), 0) * mult : mult);
     mixRatio = d.columns?.[0]?.mix || "1:1.5:3";
-    specs.push(`${itemCount} Columns Total (${mult} storey multiplier)`);
+    if (isShortCol) {
+      specs.push(`${itemCount} Short Columns (Plinth Substructure - 1 Storey Fixed)`);
+    } else if (d.colMode === "combined" || s.shortColumn || d.columns?.[0]?.category === "combined") {
+      specs.push(`${itemCount} Columns (Short Plinth 1× + Long Superstructure ×${mult} Storeys)`);
+    } else {
+      specs.push(`${itemCount} Long Columns (${mult} storey multiplier)`);
+    }
     specs.push(`Mix: ${mixRatio}`);
     if (d.columns?.[0]) {
       const c = d.columns[0];
-      specs.push(`Size: ${c.size || "12x15"}, Height: ${c.height || 10}ft`);
+      const hDesc = isShortCol
+        ? `Short Ht: ${c.shortHeight || 4}ft + ${c.footingBend ?? 1.5}ft footing bend + ${c.lapLength ?? 2.5}ft lap`
+        : `Floor Ht: ${c.longHeight || c.height || 10}ft + ${c.lapLength ?? 2.5}ft lap`;
+      specs.push(`Size: ${c.size || "12x15"}, ${hDesc}`);
     }
   } else if (est.type === "footing") {
     itemCount = s.totalFtCount || (Array.isArray(d.footings) ? d.footings.reduce((sum: number, f: any) => sum + (f.nos || 1), 0) : 1);
@@ -1352,7 +1367,13 @@ export function recalculateEstimateWithRates(
       est.summary?.beamSubtype === "grade_beam" ||
       est.name?.toLowerCase().includes("grade") ||
       est.name?.toLowerCase().includes("gb"));
-  const isSingleUse = isFoundation || isGradeBeam;
+  const isShortCol =
+    est.type === "column" &&
+    (est.data?.colMode === "short" ||
+      est.summary?.colMode === "short" ||
+      est.data?.columns?.[0]?.category === "short" ||
+      est.name?.toLowerCase().includes("short"));
+  const isSingleUse = isFoundation || isGradeBeam || isShortCol;
   const mat = extractItemMaterials(est, rates);
 
   const updatedSummary = {
