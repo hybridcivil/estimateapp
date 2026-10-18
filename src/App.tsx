@@ -29,9 +29,12 @@ import { BrickCalculator } from "./components/calculators/BrickCalculator";
 import { TileCalculator } from "./components/calculators/TileCalculator";
 import { StructuralCalculator } from "./components/calculators/StructuralCalculator";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AdminPanelModal } from "./components/AdminPanelModal";
 import { createDefaultBuildingEstimates } from "./utils/buildingSchedule";
 
 function MainAppContent() {
+  const { currentUser, appUser, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<EstimateType>("dashboard");
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -42,6 +45,9 @@ function MainAppContent() {
 
   // Splash Screen State
   const [showInitialSplash, setShowInitialSplash] = useState(true);
+
+  // Admin Control Panel Modal State
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   // View mode: "auto" (responsive CSS), "web" (force desktop layout), "app" (mobile app-styled layout)
   const [viewMode, setViewMode] = useState<"auto" | "web" | "app">(() => {
@@ -74,11 +80,11 @@ function MainAppContent() {
     }, 3500);
   };
 
-  // Load projects on start
+  // Load projects on start or when user auth state changes
   const loadProjects = useCallback(async (preserveActiveId?: string) => {
     try {
       setLoading(true);
-      const data = await fetchProjects();
+      const data = await fetchProjects(appUser);
       setProjects(data);
 
       if (data.length > 0) {
@@ -98,12 +104,12 @@ function MainAppContent() {
         // Automatically create a default starter project if none exists
         try {
           const starter = await createProject({
-            name: "Ashraf Commercial Tower",
-            client: "Ashraf Properties Ltd.",
+            name: `${appUser?.displayName || "Ashraf"} Commercial Tower`,
+            client: appUser?.displayName ? `${appUser.displayName} Properties` : "Ashraf Properties Ltd.",
             location: "Dhanmondi, Dhaka",
-            engineer: "Engr. Ashraf",
+            engineer: appUser?.displayName || "Engr. Ashraf",
             notes: "Multi-storey RCC structure designed with BNBC / ACI codes.",
-          });
+          }, appUser);
           setProjects([starter]);
           setActiveProject(starter);
         } catch (e) {
@@ -116,11 +122,11 @@ function MainAppContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [appUser]);
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+  }, [loadProjects, appUser?.uid]);
 
   // Project management handlers
   const handleCreateProject = async (data: {
@@ -132,7 +138,7 @@ function MainAppContent() {
     stories?: number;
     includeDefaultList?: boolean;
   }) => {
-    const created = await createProject(data);
+    const created = await createProject(data, appUser);
     const storiesCount = created.stories || data.stories || 1;
     if (data.includeDefaultList && (!created.estimates || created.estimates.length === 0)) {
       const defaultEstimates = createDefaultBuildingEstimates(storiesCount);
@@ -230,13 +236,16 @@ function MainAppContent() {
   };
 
   const handleImportProject = async (projectData: any) => {
-    const created = await createProject({
-      name: projectData.name,
-      client: projectData.client || "",
-      location: projectData.location || "",
-      engineer: projectData.engineer || "Engr. Ashraf",
-      notes: projectData.notes || "",
-    });
+    const created = await createProject(
+      {
+        name: projectData.name,
+        client: projectData.client || "",
+        location: projectData.location || "",
+        engineer: projectData.engineer || appUser?.displayName || "Engr. Ashraf",
+        notes: projectData.notes || "",
+      },
+      appUser
+    );
 
     // If imported file contains saved estimates, save them to the new project
     if (Array.isArray(projectData.estimates)) {

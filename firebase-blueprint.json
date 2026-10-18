@@ -2,7 +2,7 @@
   "entities": {
     "Project": {
       "title": "Project",
-      "description": "Civil engineering project and estimation file container",
+      "description": "Civil engineering project and estimation file container owned by an engineer",
       "type": "object",
       "properties": {
         "id": {
@@ -28,6 +28,21 @@
         "engineer": {
           "type": "string",
           "description": "Lead engineer or estimator",
+          "maxLength": 200
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Authentication UID of the owner",
+          "maxLength": 128
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Email address of the project owner",
+          "maxLength": 200
+        },
+        "ownerName": {
+          "type": "string",
+          "description": "Display name of the project owner",
           "maxLength": 200
         },
         "notes": {
@@ -56,13 +71,84 @@
           "description": "List of saved structural and civil estimate items"
         }
       },
-      "required": ["id", "name", "client", "location", "engineer", "createdAt", "updatedAt"]
+      "required": ["id", "name", "client", "location", "engineer", "ownerId", "createdAt", "updatedAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile with role assignment",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Authentication UID",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User Google email address",
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 200
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar URL",
+          "maxLength": 1000
+        },
+        "role": {
+          "type": "string",
+          "description": "Access control role: admin or engineer",
+          "enum": ["admin", "engineer"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Account registration timestamp"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "Last login timestamp"
+        }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Designated administrator identity record",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase UID of designated administrator",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "Admin email address",
+          "maxLength": 200
+        },
+        "grantedAt": {
+          "type": "string",
+          "description": "ISO timestamp when admin role was granted"
+        }
+      },
+      "required": ["uid", "email"]
     }
   },
   "firestore": {
     "/projects/{projectId}": {
       "schema": "Project",
-      "description": "Collection of civil engineering projects and estimate records"
+      "description": "Collection of civil engineering projects and estimate records owned by users"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile records containing account info and roles"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Admin collection listing trusted user IDs with global management rights"
     }
   }
 }

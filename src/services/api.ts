@@ -1,4 +1,4 @@
-import { Project, ProjectEstimateItem } from "../types";
+import { Project, ProjectEstimateItem, AppUser } from "../types";
 import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 import {
   db,
@@ -12,6 +12,8 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
+  query,
+  where,
 } from "firebase/firestore";
 
 const LOCAL_STORAGE_KEY = "ashraf_civil_studio_projects_v1";
@@ -56,13 +58,21 @@ function sanitizeForFirestore<T>(obj: T): T {
 }
 
 /**
- * Fetch all projects from Firestore, with backend and localStorage fallback & sync
+ * Fetch projects from Firestore scoped to user (or all projects if admin in admin view),
+ * with backend and localStorage fallback & sync
  */
-export async function fetchProjects(): Promise<Project[]> {
+export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean): Promise<Project[]> {
   // 1. Try reading directly from Firestore
   try {
     const colRef = collection(db, "projects");
-    const snapshot = await getDocs(colRef);
+    let q: any = colRef;
+
+    if (user && !isAdminView) {
+      // Regular user: only load projects owned by this user
+      q = query(colRef, where("ownerId", "==", user.uid));
+    }
+
+    const snapshot = await getDocs(q);
     if (!snapshot.empty) {
       const firestoreProjects: Project[] = [];
       snapshot.forEach((docSnap) => {
@@ -78,6 +88,10 @@ export async function fetchProjects(): Promise<Project[]> {
       firestoreProjects.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
       saveLocalProjects(firestoreProjects);
       return firestoreProjects;
+    } else if (user && !isAdminView) {
+      // User signed in but has no projects in Firestore yet -> create their personal starter project
+      const starter = await createStarterProjectForUser(user);
+      return [starter];
     }
   } catch (err) {
     console.warn("Firestore fetch error, falling back to backend/local:", err);
@@ -93,13 +107,13 @@ export async function fetchProjects(): Promise<Project[]> {
         estimates: Array.isArray(p.estimates) ? p.estimates : [],
       }));
 
-      // Seed to Firestore in background if Firestore was empty
-      if (normalized.length > 0) {
-        syncAllToFirestore(normalized).catch(() => {});
+      if (user && !isAdminView) {
+        const userOwned = normalized.filter((p) => p.ownerId === user.uid || !p.ownerId);
+        if (userOwned.length > 0) return userOwned;
+      } else {
+        saveLocalProjects(normalized);
+        return normalized;
       }
-
-      saveLocalProjects(normalized);
-      return normalized;
     }
   } catch (err) {
     console.warn("Backend fetch failed, using local cache", err);
@@ -112,10 +126,87 @@ export async function fetchProjects(): Promise<Project[]> {
     estimates: Array.isArray(p.estimates) ? p.estimates : [],
   }));
 
-  if (normalized.length > 0) {
-    syncAllToFirestore(normalized).catch(() => {});
+  if (user && !isAdminView) {
+    const userOwned = normalized.filter((p) => p.ownerId === user.uid || !p.ownerId);
+    return userOwned.length > 0 ? userOwned : normalized;
   }
+
   return normalized;
+}
+
+/**
+ * Fetch all projects across all users specifically for Admin Control Center
+ */
+export async function fetchAllProjectsForAdmin(): Promise<Project[]> {
+  try {
+    const colRef = collection(db, "projects");
+    const snapshot = await getDocs(colRef);
+    const list: Project[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() as any;
+      list.push({
+        ...data,
+        id: docSnap.id,
+        estimates: Array.isArray(data.estimates) ? data.estimates : [],
+      });
+    });
+    list.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+    return list;
+  } catch (err) {
+    console.error("fetchAllProjectsForAdmin error:", err);
+    return getLocalProjects();
+  }
+}
+
+/**
+ * Fetch all registered users for Admin Control Center
+ */
+export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
+  try {
+    const colRef = collection(db, "users");
+    const snapshot = await getDocs(colRef);
+    const list: AppUser[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data() as AppUser);
+    });
+    return list;
+  } catch (err) {
+    console.error("fetchAllUsersForAdmin error:", err);
+    return [];
+  }
+}
+
+/**
+ * Helper to auto-create a personalized starter project for a new user
+ */
+async function createStarterProjectForUser(user: AppUser): Promise<Project> {
+  const starterEstimates = createDefaultBuildingEstimates(6);
+  const projectId = "proj_" + Date.now();
+  const newProj: Project = {
+    id: projectId,
+    name: `${user.displayName || "Personal"} Tower (G+6 Story)`,
+    client: user.displayName || "Client",
+    location: "Dhaka, Bangladesh",
+    engineer: user.displayName || "Civil Engineer",
+    ownerId: user.uid,
+    ownerEmail: user.email || undefined,
+    ownerName: user.displayName || undefined,
+    notes: "Personal multi-storey structural estimation project",
+    stories: 6,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    estimates: starterEstimates as any,
+  };
+
+  try {
+    const cleanData = sanitizeForFirestore(newProj);
+    await setDoc(doc(db, "projects", newProj.id), cleanData);
+    const local = getLocalProjects();
+    saveLocalProjects([newProj, ...local]);
+  } catch (e) {
+    console.warn("Could not save starter project to Firestore:", e);
+  }
+  return newProj;
 }
 
 /**
@@ -176,15 +267,21 @@ export async function fetchProject(id: string): Promise<Project | null> {
 /**
  * Create a new project, saving to Firestore, backend, and localStorage
  */
-export async function createProject(data: {
-  name: string;
-  client?: string;
-  location?: string;
-  engineer?: string;
-  notes?: string;
-  stories?: number;
-  includeDefaultList?: boolean;
-}): Promise<Project> {
+export async function createProject(
+  data: {
+    name: string;
+    client?: string;
+    location?: string;
+    engineer?: string;
+    notes?: string;
+    stories?: number;
+    includeDefaultList?: boolean;
+    ownerId?: string;
+    ownerEmail?: string;
+    ownerName?: string;
+  },
+  user?: AppUser | null
+): Promise<Project> {
   const parsedStories = data.stories ? Math.max(1, data.stories) : 1;
   const initialEstimates = data.includeDefaultList ? createDefaultBuildingEstimates(parsedStories) : [];
 
@@ -194,7 +291,10 @@ export async function createProject(data: {
     name: data.name.trim(),
     client: data.client?.trim() || "Client",
     location: data.location?.trim() || "Bangladesh",
-    engineer: data.engineer?.trim() || "Engr. Ashraf",
+    engineer: data.engineer?.trim() || user?.displayName || "Engr. Ashraf",
+    ownerId: data.ownerId || user?.uid || "engr_ashraf_default",
+    ownerEmail: data.ownerEmail || user?.email || undefined,
+    ownerName: data.ownerName || user?.displayName || undefined,
     notes: data.notes || "",
     stories: parsedStories,
     createdAt: new Date().toISOString(),

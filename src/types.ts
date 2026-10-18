@@ -32,12 +32,25 @@ export interface GlobalMaterialRates {
   sandPileCostPerFt: number;
 }
 
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  role: "admin" | "engineer";
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   client: string;
   location: string;
   engineer: string;
+  ownerId?: string; // Firebase Auth UID
+  ownerEmail?: string;
+  ownerName?: string;
   notes?: string;
   stories?: number; // Number of storeys/floors (e.g. 1, 3, 5, 10)
   rates?: GlobalMaterialRates; // Unified project-wide material rates
