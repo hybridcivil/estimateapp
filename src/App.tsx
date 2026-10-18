@@ -390,6 +390,7 @@ function MainAppContent() {
           }
         }}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         viewMode={viewMode}
         onSetViewMode={handleSetViewMode}
       />
@@ -439,6 +440,7 @@ function MainAppContent() {
                 onRenameEstimate={handleRenameEstimate}
                 onNavigateToCalculator={handleNavigateToCalculator}
                 onOpenReportModal={() => setIsReportModalOpen(true)}
+                onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
                 onImportProject={handleImportProject}
                 onAddDefaultBuildingList={handleAddDefaultBuildingList}
                 onUpdateProject={handleUpdateProject}
@@ -566,6 +568,17 @@ function MainAppContent() {
         project={activeProject}
       />
 
+      {/* Admin Supervisory Panel */}
+      <AdminPanelModal
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        onSelectProject={(p) => {
+          setActiveProject(p);
+          setIsAdminPanelOpen(false);
+        }}
+        currentUserId={currentUser?.uid}
+      />
+
       {/* Splash Screen on Initial Load */}
       {showInitialSplash && (
         <SplashScreen onFinish={() => setShowInitialSplash(false)} />
@@ -577,7 +590,9 @@ function MainAppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <MainAppContent />
+      <AuthProvider>
+        <MainAppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
