@@ -23,7 +23,8 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  signInWithDirectEmail: (email: string, displayName?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -34,7 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   loading: true,
   error: null,
-  signInWithGoogle: async () => {},
+  signInWithGoogle: async () => ({ success: false }),
+  signInWithDirectEmail: async () => ({ success: false }),
   logout: async () => {},
   clearError: () => {},
 });
@@ -43,8 +45,23 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [appUser, setAppUser] = useState<AppUser | null>(() => {
+    try {
+      const raw = localStorage.getItem("ashraf_auth_session");
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  });
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem("ashraf_auth_session");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed.role === "admin";
+      }
+    } catch {}
+    return false;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,32 +105,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userData: AppUser = {
             uid: user.uid,
             email: user.email,
-            displayName: user.displayName || existingData?.displayName || "Civil Engineer",
+            displayName: user.displayName || existingData?.displayName || (isBootstrapAdmin ? "Engr. Kali (Admin)" : "Civil Engineer"),
             photoURL: user.photoURL || existingData?.photoURL || null,
             role,
             createdAt: existingData?.createdAt || now,
             lastLoginAt: now,
           };
 
-          // Save/update profile in Firestore
+          // Save/update profile in Firestore safely (without sending null photoURL)
           try {
-            if (existingData) {
-              await updateDoc(userDocRef, {
-                displayName: userData.displayName,
-                photoURL: userData.photoURL,
-                lastLoginAt: now,
-              });
-            } else {
-              await setDoc(userDocRef, {
-                uid: userData.uid,
-                email: userData.email,
-                displayName: userData.displayName,
-                photoURL: userData.photoURL,
-                role: userData.role,
-                createdAt: now,
-                lastLoginAt: now,
-              });
+            const docToSave: any = {
+              uid: userData.uid,
+              email: userData.email,
+              displayName: userData.displayName,
+              role: userData.role,
+              lastLoginAt: now,
+            };
+            if (userData.photoURL) {
+              docToSave.photoURL = userData.photoURL;
             }
+            if (!existingData) {
+              docToSave.createdAt = now;
+            }
+
+            await setDoc(userDocRef, docToSave, { merge: true });
           } catch (writeErr) {
             console.warn("Could not persist user profile to Firestore:", writeErr);
           }
@@ -135,14 +150,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
+          try {
+            localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
+          } catch {}
+
           setAppUser(userData);
           setIsAdmin(role === "admin");
         } catch (err: any) {
           console.error("Auth profile sync error:", err);
         }
       } else {
-        setAppUser(null);
-        setIsAdmin(false);
+        // If no Firebase currentUser, check if we had a persistent direct email session
+        const storedRaw = localStorage.getItem("ashraf_auth_session");
+        if (storedRaw) {
+          try {
+            const storedUser = JSON.parse(storedRaw);
+            setAppUser(storedUser);
+            setIsAdmin(storedUser.role === "admin");
+          } catch {
+            setAppUser(null);
+            setIsAdmin(false);
+          }
+        } else {
+          setAppUser(null);
+          setIsAdmin(false);
+        }
       }
       setLoading(false);
     });
@@ -150,24 +182,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(auth, provider);
+      return { success: true };
     } catch (err: any) {
       console.error("Google sign-in error:", err);
-      // Suppress standard popup closed by user warnings
-      if (err.code !== "auth/popup-closed-by-user") {
-        setError(err.message || "Failed to sign in with Google");
+      let msg = err.message || "Failed to sign in with Google";
+      if (err.code === "auth/popup-blocked") {
+        msg = "The sign-in popup was blocked by the browser. Please use Quick Gmail Sign-In below or allow popups.";
+      } else if (err.code === "auth/unauthorized-domain") {
+        msg = "This applet domain is not yet in Firebase Console authorized domains. Use Quick Gmail Sign-In below to access all features immediately!";
+      } else if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+        msg = "Sign-in popup was closed before completing.";
       }
+      setError(msg);
+      return { success: false, error: msg };
     }
+  };
+
+  const signInWithDirectEmail = async (
+    email: string,
+    customName?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      const msg = "Please enter a valid Gmail / email address.";
+      setError(msg);
+      return { success: false, error: msg };
+    }
+
+    const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+    const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
+    const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
+    const now = new Date().toISOString();
+
+    const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const displayName = customName?.trim() || (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
+
+    const userData: AppUser = {
+      uid,
+      email: cleanEmail,
+      displayName,
+      photoURL: null,
+      role,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    try {
+      localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
+    } catch {}
+
+    setAppUser(userData);
+    setIsAdmin(role === "admin");
+
+    // Attempt background sync to Firestore
+    try {
+      await setDoc(doc(db, "users", uid), {
+        uid: userData.uid,
+        email: userData.email,
+        displayName: userData.displayName,
+        role: userData.role,
+        createdAt: now,
+        lastLoginAt: now,
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Could not sync direct email user to Firestore:", e);
+    }
+
+    if (role === "admin") {
+      try {
+        await setDoc(
+          doc(db, "admins", uid),
+          {
+            uid: userData.uid,
+            email: userData.email,
+            grantedAt: now,
+          },
+          { merge: true }
+        );
+      } catch {}
+    }
+
+    return { success: true };
   };
 
   const logout = async () => {
     setError(null);
     try {
+      localStorage.removeItem("ashraf_auth_session");
       await signOut(auth);
       setAppUser(null);
       setIsAdmin(false);
@@ -186,6 +294,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         error,
         signInWithGoogle,
+        signInWithDirectEmail,
         logout,
         clearError: () => setError(null),
       }}

@@ -31,6 +31,7 @@ import { StructuralCalculator } from "./components/calculators/StructuralCalcula
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AdminPanelModal } from "./components/AdminPanelModal";
+import { LoginRegistrationModal } from "./components/LoginRegistrationModal";
 import { createDefaultBuildingEstimates } from "./utils/buildingSchedule";
 
 function MainAppContent() {
@@ -48,6 +49,9 @@ function MainAppContent() {
 
   // Admin Control Panel Modal State
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
+  // Login & Registration Modal State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // View mode: "auto" (responsive CSS), "web" (force desktop layout), "app" (mobile app-styled layout)
   const [viewMode, setViewMode] = useState<"auto" | "web" | "app">(() => {
@@ -391,6 +395,7 @@ function MainAppContent() {
         }}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
         viewMode={viewMode}
         onSetViewMode={handleSetViewMode}
       />
@@ -441,6 +446,7 @@ function MainAppContent() {
                 onNavigateToCalculator={handleNavigateToCalculator}
                 onOpenReportModal={() => setIsReportModalOpen(true)}
                 onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+                onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 onImportProject={handleImportProject}
                 onAddDefaultBuildingList={handleAddDefaultBuildingList}
                 onUpdateProject={handleUpdateProject}
@@ -577,6 +583,12 @@ function MainAppContent() {
           setIsAdminPanelOpen(false);
         }}
         currentUserId={currentUser?.uid}
+      />
+
+      {/* Account Login & Registration Modal */}
+      <LoginRegistrationModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
       {/* Splash Screen on Initial Load */}

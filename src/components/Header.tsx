@@ -28,6 +28,7 @@ interface HeaderProps {
   onOpenEditProjectModal: () => void;
   onOpenReportModal: () => void;
   onOpenAdminPanel?: () => void;
+  onOpenAuthModal?: () => void;
   viewMode: "auto" | "web" | "app";
   onSetViewMode: (mode: "auto" | "web" | "app") => void;
 }
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEditProjectModal,
   onOpenReportModal,
   onOpenAdminPanel,
+  onOpenAuthModal,
   viewMode,
   onSetViewMode,
 }) => {
@@ -374,7 +376,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button
               type="button"
-              onClick={signInWithGoogle}
+              onClick={onOpenAuthModal || signInWithGoogle}
               className="flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-950 px-3 py-1.5 rounded-xl font-bold text-xs shadow-md transition active:scale-95 cursor-pointer shrink-0 border border-slate-300 ring-2 ring-emerald-500/40 hover:ring-emerald-500"
               title="Click to Login or Register with Google (Gmail) - All estimates saved to Firebase Cloud"
             >
