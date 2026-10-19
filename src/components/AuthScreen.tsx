@@ -1,282 +1,466 @@
 import React, { useState } from "react";
 import {
-  Shield,
-  User,
-  AlertCircle,
-  CheckCircle2,
   Lock,
+  Mail,
+  User,
+  Eye,
+  EyeOff,
+  Shield,
   ArrowRight,
-  HardHat,
+  CheckCircle2,
+  AlertCircle,
   Building2,
-  Columns,
-  Layers,
+  Compass,
   Sparkles,
-  Database,
-  Check,
+  KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth, BOOTSTRAP_ADMIN_EMAIL } from "../context/AuthContext";
-import { AppUser } from "../types";
 
 interface AuthScreenProps {
-  onSuccess: (user: AppUser) => void;
+  onSuccess: () => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const {
+    registerWithEmail,
+    loginWithEmail,
     signInWithGoogle,
-    signInWithDirectEmail,
+    signInWithDirectAdmin,
     error,
     clearError,
   } = useAuth();
 
-  const [emailInput, setEmailInput] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
-  const [isLoadingDirect, setIsLoadingDirect] = useState(false);
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleGooglePopup = async () => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLocalError(null);
     clearError();
-    setIsLoadingGoogle(true);
-    try {
-      const res = await signInWithGoogle();
-      if (res.success) {
-        // Auth state will trigger transition
-      } else if (res.error) {
-        setLocalError(res.error);
-      }
-    } catch (e: any) {
-      setLocalError(e.message || "Failed to sign in with Google");
-    } finally {
-      setIsLoadingGoogle(false);
-    }
-  };
 
-  const handleDirectLogin = async (targetEmail: string, customName?: string) => {
-    setLocalError(null);
-    clearError();
-    const clean = targetEmail.trim();
-    if (!clean || !clean.includes("@")) {
-      setLocalError("Please enter a valid Gmail / email address.");
+    if (!displayName.trim()) {
+      setLocalError("Please enter your name or engineer title.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setLocalError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setLocalError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLocalError("Passwords do not match. Please re-enter.");
       return;
     }
 
-    setIsLoadingDirect(true);
+    setLoading(true);
     try {
-      const res = await signInWithDirectEmail(clean, customName || nameInput);
+      const res = await registerWithEmail(email, password, displayName);
       if (res.success) {
-        // Auth state will trigger transition
+        onSuccess();
       } else if (res.error) {
         setLocalError(res.error);
       }
-    } catch (e: any) {
-      setLocalError(e.message || "Failed to sign in");
+    } catch (err: any) {
+      setLocalError(err.message || "Registration failed. Please try again.");
     } finally {
-      setIsLoadingDirect(false);
+      setLoading(false);
     }
   };
 
-  const activeError = localError || error;
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    clearError();
+
+    if (!email.trim() || !email.includes("@")) {
+      setLocalError("Please enter your email address.");
+      return;
+    }
+    if (!password) {
+      setLocalError("Please enter your password.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await loginWithEmail(email, password);
+      if (res.success) {
+        onSuccess();
+      } else if (res.error) {
+        setLocalError(res.error);
+      }
+    } catch (err: any) {
+      setLocalError(err.message || "Login failed. Please check credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLocalError(null);
+    clearError();
+    setLoading(true);
+    try {
+      const res = await signInWithGoogle();
+      if (res.success) {
+        onSuccess();
+      } else if (res.error) {
+        setLocalError(res.error);
+      }
+    } catch (err: any) {
+      setLocalError(err.message || "Failed to sign in with Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminQuickSignIn = async () => {
+    setLocalError(null);
+    clearError();
+    setLoading(true);
+    try {
+      const res = await signInWithDirectAdmin();
+      if (res.success) {
+        onSuccess();
+      } else if (res.error) {
+        setLocalError(res.error);
+      }
+    } catch (err: any) {
+      setLocalError(err.message || "Admin login error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayedError = localError || error;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-between bg-[#0a121e] text-[#f1f5f9] overflow-y-auto select-none">
+    <div className="min-h-screen w-full bg-[#0a121e] text-[#f1f5f9] flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-x-hidden">
       {/* Background Architectural Blueprint Grid Lines */}
       <div
         className="absolute inset-0 opacity-15 pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(#00c2c7 1px, transparent 1px), linear-gradient(90deg, #00c2c7 1px, transparent 1px)`,
-          backgroundSize: "36px 36px",
+          backgroundImage:
+            "linear-gradient(#00c2c7 1px, transparent 1px), linear-gradient(90deg, #00c2c7 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
         }}
       />
 
-      {/* Top Accent Gradient Bar */}
-      <div className="h-[4px] w-full bg-gradient-to-r from-[#f5a623] via-[#e67e22] to-[#00c2c7] shrink-0" />
+      {/* Radial Glow */}
+      <div className="absolute w-[500px] h-[500px] bg-[#00c2c7]/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Container */}
-      <div className="relative z-10 max-w-4xl mx-auto w-full px-4 py-8 sm:py-12 flex flex-col items-center justify-center flex-1">
-        {/* Brand Header */}
-        <div className="text-center space-y-3 mb-8">
-          <div className="inline-flex items-center gap-2 bg-[#152033] border border-[#2d4a6a] px-3.5 py-1.5 rounded-full shadow-lg">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold text-[#00c2c7] tracking-wider uppercase">
-              Ashraf Civil Studio · Pro Cloud Workspace
-            </span>
-            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-mono px-1.5 py-0.2 rounded font-bold border border-amber-500/30">
-              v2.5
-            </span>
+      <div className="relative z-10 w-full max-w-md bg-[#121c2d] border border-[#2d4a6a] rounded-3xl shadow-2xl overflow-hidden flex flex-col backdrop-blur-md">
+        {/* Top Header */}
+        <div className="p-6 sm:p-7 text-center border-b border-[#24374e] bg-gradient-to-b from-[#172b45] to-[#121c2d] relative">
+          {/* Logo Badge */}
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1a2d47] to-[#0f1c2e] border-2 border-[#00c2c7] shadow-lg flex items-center justify-center p-2 mb-3 relative">
+            <svg
+              className="w-full h-full filter drop-shadow-[0_0_6px_rgba(0,194,199,0.5)]"
+              viewBox="0 0 64 64"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect x="16" y="22" width="5" height="28" rx="1.5" fill="#00c2c7" />
+              <rect x="29.5" y="16" width="5" height="34" rx="1.5" fill="#00c2c7" />
+              <rect x="43" y="22" width="5" height="28" rx="1.5" fill="#00c2c7" />
+              <rect x="14" y="24" width="36" height="3.5" rx="1" fill="#38bdf8" />
+              <rect x="14" y="36" width="36" height="3.5" rx="1" fill="#38bdf8" />
+              <rect x="12" y="48" width="40" height="4.5" rx="1.5" fill="#00c2c7" />
+              <path d="M 32 10 L 20 46 M 32 10 L 44 46" stroke="#f5a623" strokeWidth="2.5" strokeLinecap="round" />
+              <circle cx="32" cy="10" r="3.5" fill="#f5a623" stroke="#fff" strokeWidth="1" />
+            </svg>
+            <div className="absolute -bottom-1.5 -right-1.5 bg-[#f5a623] text-[#0f1c2e] p-1 rounded-lg shadow">
+              <Compass className="w-3 h-3 animate-spin" style={{ animationDuration: "10s" }} />
+            </div>
           </div>
 
-          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-            Civil Engineering Estimation & File System
-          </h1>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#00c2c7]/15 border border-[#00c2c7]/30 text-[10px] font-bold text-[#00c2c7] uppercase tracking-wider mb-1">
+            <ShieldCheck className="w-3 h-3" />
+            Civil & Structural Suite
+          </div>
 
-          <p className="text-xs sm:text-sm text-[#8ba3c1] max-w-xl mx-auto leading-relaxed">
-            Please log in or register to access your personal structural projects. Every engineer's project files are strictly isolated and stored privately in Firebase Cloud.
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            ASHRAF CIVIL STUDIO
+          </h1>
+          <p className="text-xs text-[#8ba3c1] mt-1 max-w-xs mx-auto">
+            Sign in to access your personal engineering projects, BOQ schedules, and calculation files.
           </p>
+
+          {/* Privacy Notice Badge */}
+          <div className="mt-3 inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-[11px] text-emerald-300 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Private Workspace: Your projects are never shared or visible to others</span>
+          </div>
         </div>
 
-        {/* Authentication Card */}
-        <div className="w-full max-w-md bg-[#131f31] border border-[#2d4a6a] rounded-3xl shadow-2xl p-5 sm:p-7 space-y-5">
-          {/* Active Error Notice */}
-          {activeError && (
-            <div className="p-3.5 bg-red-500/15 border border-red-500/40 rounded-2xl text-xs text-red-300 flex items-start gap-2.5 animate-in shake duration-200">
+        {/* Tab Selector */}
+        <div className="flex border-b border-[#24374e] bg-[#0e1726]">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("login");
+              setLocalError(null);
+            }}
+            className={`flex-1 py-3 text-xs font-bold transition flex items-center justify-center gap-1.5 border-b-2 ${
+              activeTab === "login"
+                ? "text-[#00c2c7] border-[#00c2c7] bg-[#142337]"
+                : "text-[#8ba3c1] border-transparent hover:text-white hover:bg-[#121c2d]"
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("register");
+              setLocalError(null);
+            }}
+            className={`flex-1 py-3 text-xs font-bold transition flex items-center justify-center gap-1.5 border-b-2 ${
+              activeTab === "register"
+                ? "text-[#00c2c7] border-[#00c2c7] bg-[#142337]"
+                : "text-[#8ba3c1] border-transparent hover:text-white hover:bg-[#121c2d]"
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Register New Workspace</span>
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <div className="p-6 space-y-4">
+          {/* Error Message */}
+          {displayedError && (
+            <div className="p-3 bg-red-500/15 border border-red-500/40 rounded-xl text-xs text-red-200 flex items-start gap-2.5 animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="font-bold text-red-200">Authentication Notice</div>
-                <div className="text-[11px] mt-0.5 leading-relaxed">{activeError}</div>
-                <div className="mt-2 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl">
-                  Tip: Use <strong>Quick Administrator Sign-In</strong> or enter your email below to bypass browser popup restrictions!
-                </div>
-              </div>
+              <div className="text-[11px] leading-relaxed">{displayedError}</div>
             </div>
           )}
 
-          {/* Option 1: One-Click Instant Sign-In for engrkalilinux@gmail.com */}
-          <div className="bg-gradient-to-r from-amber-500/20 via-[#1a2d48] to-[#142337] border-2 border-amber-500/50 rounded-2xl p-4 space-y-2.5 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
-                  Administrator Access
-                </span>
+          {activeTab === "login" ? (
+            /* Login Form */
+            <form onSubmit={handleLogin} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="engineer@example.com"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                </div>
               </div>
-              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold border border-amber-500/40">
-                Super Admin
-              </span>
-            </div>
 
-            <div>
-              <div className="text-sm font-bold text-white">
-                engrkalilinux@gmail.com
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-[#8ba3c1]">
+                    Password
+                  </label>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-10 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-[#5d7a9e] hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-[#9bb3d1] mt-0.5">
-                Instant one-click access with master supervisory control over all civil projects and user directories.
-              </p>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => handleDirectLogin(BOOTSTRAP_ADMIN_EMAIL, "Engr. Kali (Admin)")}
-              disabled={isLoadingDirect}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-4 py-3 rounded-xl text-xs sm:text-sm shadow-xl transition active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              <Shield className="w-4 h-4 stroke-[2.5]" />
-              <span>
-                {isLoadingDirect ? "Signing in..." : "Instant Sign In as engrkalilinux@gmail.com"}
-              </span>
-            </button>
-          </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] font-bold py-2.5 px-4 rounded-xl text-xs transition active:scale-95 shadow-lg shadow-[#00c2c7]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>{loading ? "Authenticating..." : "Sign In to Workspace"}</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </form>
+          ) : (
+            /* Registration Form */
+            <form onSubmit={handleRegister} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                  Engineer Full Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    required
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Engr. Ashraf / Md. Ashraful Islam"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="engineer@example.com"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                  Create Password (minimum 6 characters)
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create secure password"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-10 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-[#5d7a9e] hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 bg-gradient-to-r from-[#00c2c7] to-[#2ecc71] hover:from-[#00a8ad] hover:to-[#27ae60] text-[#0f1c2e] font-bold py-2.5 px-4 rounded-xl text-xs transition active:scale-95 shadow-lg shadow-[#00c2c7]/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>{loading ? "Creating Personal Workspace..." : "Create Account & Workspace"}</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            </form>
+          )}
 
           {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-[1px] bg-[#24374e]" />
-            <span className="text-[11px] text-[#8ba3c1] uppercase font-mono font-semibold">Or</span>
-            <div className="flex-1 h-[1px] bg-[#24374e]" />
-          </div>
-
-          {/* Option 2: Google Authentication Popup */}
-          <div>
-            <button
-              type="button"
-              onClick={handleGooglePopup}
-              disabled={isLoadingGoogle}
-              className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 text-slate-950 font-bold px-4 py-3 rounded-xl text-xs sm:text-sm shadow-md transition active:scale-95 cursor-pointer border border-slate-300 disabled:opacity-50"
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>
-                {isLoadingGoogle ? "Opening Google Popup..." : "Sign in with Google Account"}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#24374e]" />
+            </div>
+            <div className="relative flex justify-center text-[10px] uppercase">
+              <span className="bg-[#121c2d] px-2 text-[#8ba3c1] font-semibold">
+                Or Quick Access
               </span>
-            </button>
-          </div>
-
-          {/* Option 3: Custom Gmail / Work Email Registration */}
-          <div className="bg-[#0f1725] border border-[#24374e] rounded-2xl p-4 space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-              <User className="w-3.5 h-3.5 text-[#00c2c7]" />
-              <span>Sign In / Register with Email Address</span>
-            </div>
-            <p className="text-[11px] text-[#8ba3c1]">
-              Enter your email to create your own isolated workspace. Other users cannot see your projects.
-            </p>
-
-            <div className="space-y-2">
-              <input
-                type="email"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="e.g. engineer.ashraf@gmail.com"
-                className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl px-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
-              />
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Engineer Name (e.g. Engr. Ashraf)"
-                className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl px-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
-              />
-              <button
-                type="button"
-                onClick={() => handleDirectLogin(emailInput)}
-                disabled={isLoadingDirect || !emailInput.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] font-black px-4 py-2.5 rounded-xl text-xs transition active:scale-95 disabled:opacity-50 cursor-pointer shadow-md"
-              >
-                <span>Register / Open My Workspace</span>
-                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-              </button>
             </div>
           </div>
+
+          {/* Master Admin One-Click Button for engrkalilinux@gmail.com */}
+          <button
+            type="button"
+            onClick={handleAdminQuickSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-between bg-gradient-to-r from-amber-500/20 via-[#1e3048] to-amber-500/10 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 text-amber-300 p-2.5 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
+                <Shield className="w-3.5 h-3.5 stroke-[2.5]" />
+              </div>
+              <div className="text-left">
+                <div className="leading-tight">Quick Sign In as Master Admin</div>
+                <div className="text-[10px] text-amber-400/80 font-mono font-normal">
+                  {BOOTSTRAP_ADMIN_EMAIL}
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full font-mono">
+              Admin
+            </span>
+          </button>
+
+          {/* Google Sign-In Button */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 text-slate-900 font-bold py-2.5 px-4 rounded-xl text-xs shadow-md transition active:scale-95 cursor-pointer border border-slate-300 disabled:opacity-50"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
         </div>
 
-        {/* Privacy & Feature Guarantees */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-xl text-xs text-[#8ba3c1]">
-          <div className="bg-[#111c2c] border border-[#24374e] rounded-xl p-3 flex items-center gap-2.5">
-            <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div>
-              <div className="font-bold text-white text-[11px]">Strict Isolation</div>
-              <div className="text-[10px] text-[#8ba3c1]">No other user can view your files</div>
-            </div>
-          </div>
-
-          <div className="bg-[#111c2c] border border-[#24374e] rounded-xl p-3 flex items-center gap-2.5">
-            <Database className="w-4 h-4 text-[#00c2c7] shrink-0" />
-            <div>
-              <div className="font-bold text-white text-[11px]">Firebase Cloud</div>
-              <div className="text-[10px] text-[#8ba3c1]">Firestore cloud persistence</div>
-            </div>
-          </div>
-
-          <div className="bg-[#111c2c] border border-[#24374e] rounded-xl p-3 flex items-center gap-2.5">
-            <Shield className="w-4 h-4 text-amber-400 shrink-0" />
-            <div>
-              <div className="font-bold text-white text-[11px]">Super Admin</div>
-              <div className="text-[10px] text-[#8ba3c1]">Supervisory project control</div>
-            </div>
-          </div>
+        {/* Footer info */}
+        <div className="p-4 bg-[#0a121e]/80 border-t border-[#24374e] text-center text-[10px] text-[#8ba3c1]">
+          Ashraf Civil Studio • Designed for Professional Civil & Structural Engineers
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="py-4 text-center text-[11px] text-[#5d7a9e] border-t border-[#1a2d48] bg-[#070d16] shrink-0">
-        Ashraf Civil Studio · Civil Engineering Estimation System · Protected by Firebase Security Rules
-      </footer>
     </div>
   );
 };

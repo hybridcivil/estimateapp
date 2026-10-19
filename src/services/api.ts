@@ -2,6 +2,7 @@ import { Project, ProjectEstimateItem, AppUser } from "../types";
 import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 import {
   db,
+  auth,
   handleFirestoreError,
   OperationType,
 } from "./firebase";
@@ -209,14 +210,20 @@ async function createStarterProjectForUser(user: AppUser): Promise<Project> {
     estimates: starterEstimates as any,
   };
 
-  try {
-    const cleanData = sanitizeForFirestore(newProj);
-    await setDoc(doc(db, "projects", newProj.id), cleanData);
-    const local = getLocalProjects();
-    saveLocalProjects([newProj, ...local]);
-  } catch (e) {
-    console.warn("Could not save starter project to Firestore:", e);
+  // 1. Save to Firestore if authenticated
+  if (auth.currentUser || user.uid) {
+    try {
+      const cleanData = sanitizeForFirestore(newProj);
+      await setDoc(doc(db, "projects", newProj.id), cleanData);
+    } catch (e) {
+      console.warn("Could not save starter project to Firestore:", e);
+    }
   }
+
+  // 2. Save to user-isolated localStorage
+  const userLocal = getLocalProjects(user.uid);
+  saveLocalProjects([newProj, ...userLocal], user.uid);
+
   return newProj;
 }
 
@@ -296,6 +303,7 @@ export async function createProject(
   const parsedStories = data.stories ? Math.max(1, data.stories) : 1;
   const initialEstimates = data.includeDefaultList ? createDefaultBuildingEstimates(parsedStories) : [];
 
+  const effectiveOwnerId = data.ownerId || user?.uid || (auth.currentUser ? auth.currentUser.uid : "");
   const projectId = "proj_" + Date.now();
   const newProj: Project = {
     id: projectId,
@@ -303,7 +311,7 @@ export async function createProject(
     client: data.client?.trim() || "Client",
     location: data.location?.trim() || "Bangladesh",
     engineer: data.engineer?.trim() || user?.displayName || "Engr. Ashraf",
-    ownerId: data.ownerId || user?.uid || "engr_ashraf_default",
+    ownerId: effectiveOwnerId || "usr_offline",
     ownerEmail: data.ownerEmail || user?.email || undefined,
     ownerName: data.ownerName || user?.displayName || undefined,
     notes: data.notes || "",
@@ -313,16 +321,13 @@ export async function createProject(
     estimates: initialEstimates as any,
   };
 
-  // 1. Save to Firestore
-  try {
-    const cleanData = sanitizeForFirestore(newProj);
-    await setDoc(doc(db, "projects", newProj.id), cleanData);
-  } catch (err) {
-    console.error("Firestore createProject error:", err);
+  // 1. Save to Firestore ONLY if an authenticated user exists with matching ownerId
+  if (auth.currentUser && effectiveOwnerId && (effectiveOwnerId === auth.currentUser.uid || user?.role === "admin")) {
     try {
-      handleFirestoreError(err, OperationType.CREATE, `projects/${newProj.id}`);
-    } catch {
-      // Continue to local/backend fallback
+      const cleanData = sanitizeForFirestore(newProj);
+      await setDoc(doc(db, "projects", newProj.id), cleanData);
+    } catch (err) {
+      console.warn("Firestore createProject sync notice:", err);
     }
   }
 
@@ -337,9 +342,14 @@ export async function createProject(
     console.warn("Backend project sync failed", err);
   }
 
-  // 3. Update localStorage
-  const local = getLocalProjects();
-  saveLocalProjects([newProj, ...local]);
+  // 3. Update user-isolated localStorage
+  if (user?.uid) {
+    const userLocal = getLocalProjects(user.uid);
+    saveLocalProjects([newProj, ...userLocal], user.uid);
+  } else {
+    const local = getLocalProjects();
+    saveLocalProjects([newProj, ...local]);
+  }
 
   return newProj;
 }

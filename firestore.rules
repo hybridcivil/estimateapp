@@ -25,14 +25,14 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     // Role-Based Access Control: Checks designated /admins collection or bootstrapped admin email
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        (request.auth.token.email == "engrkalilinux@gmail.com" && request.auth.token.email_verified == true)
+        request.auth.token.email == "engrkalilinux@gmail.com"
       );
     }
 

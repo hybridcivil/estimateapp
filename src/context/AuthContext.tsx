@@ -5,6 +5,10 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+  signInAnonymously,
 } from "firebase/auth";
 import {
   doc,
@@ -23,7 +27,10 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
+  registerWithEmail: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  signInWithDirectAdmin: () => Promise<{ success: boolean; error?: string }>;
   signInWithDirectEmail: (email: string, displayName?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -35,7 +42,10 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   loading: true,
   error: null,
+  registerWithEmail: async () => ({ success: false }),
+  loginWithEmail: async () => ({ success: false }),
   signInWithGoogle: async () => ({ success: false }),
+  signInWithDirectAdmin: async () => ({ success: false }),
   signInWithDirectEmail: async () => ({ success: false }),
   logout: async () => {},
   clearError: () => {},
@@ -204,30 +214,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithDirectEmail = async (
+  const fallbackDirectAuth = async (
     email: string,
-    customName?: string
+    displayName?: string
   ): Promise<{ success: boolean; error?: string }> => {
     setError(null);
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes("@")) {
-      const msg = "Please enter a valid Gmail / email address.";
-      setError(msg);
-      return { success: false, error: msg };
-    }
-
     const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
     const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
-    const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
+    const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const finalName = displayName?.trim() || (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
     const now = new Date().toISOString();
 
-    const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const displayName = customName?.trim() || (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
+    let uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
+
+    try {
+      if (!auth.currentUser) {
+        const anon = await signInAnonymously(auth);
+        if (anon.user?.uid) {
+          uid = anon.user.uid;
+        }
+      } else {
+        uid = auth.currentUser.uid;
+      }
+    } catch (anonErr) {
+      console.warn("Anonymous auth not available, using deterministic UID:", anonErr);
+    }
 
     const userData: AppUser = {
       uid,
       email: cleanEmail,
-      displayName,
+      displayName: finalName,
       photoURL: null,
       role,
       createdAt: now,
@@ -241,18 +258,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAppUser(userData);
     setIsAdmin(role === "admin");
 
-    // Attempt background sync to Firestore
     try {
-      await setDoc(doc(db, "users", uid), {
-        uid: userData.uid,
-        email: userData.email,
-        displayName: userData.displayName,
-        role: userData.role,
-        createdAt: now,
-        lastLoginAt: now,
-      }, { merge: true });
+      await setDoc(
+        doc(db, "users", uid),
+        {
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          role: userData.role,
+          createdAt: now,
+          lastLoginAt: now,
+        },
+        { merge: true }
+      );
     } catch (e) {
-      console.warn("Could not sync direct email user to Firestore:", e);
+      console.warn("Could not sync fallback user to Firestore:", e);
     }
 
     if (role === "admin") {
@@ -270,6 +290,137 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return { success: true };
+  };
+
+  const registerWithEmail = async (
+    email: string,
+    password: string,
+    displayName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = displayName.trim() || "Civil Engineer";
+
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      const msg = "Please enter a valid email address.";
+      setError(msg);
+      return { success: false, error: msg };
+    }
+    if (password.length < 6) {
+      const msg = "Password must be at least 6 characters long.";
+      setError(msg);
+      return { success: false, error: msg };
+    }
+
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      try {
+        await updateProfile(cred.user, { displayName: cleanName });
+      } catch (profileErr) {
+        console.warn("Could not update auth profile displayName:", profileErr);
+      }
+
+      const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+      const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
+      const now = new Date().toISOString();
+
+      const userData: AppUser = {
+        uid: cred.user.uid,
+        email: cleanEmail,
+        displayName: cleanName,
+        photoURL: null,
+        role,
+        createdAt: now,
+        lastLoginAt: now,
+      };
+
+      try {
+        await setDoc(doc(db, "users", cred.user.uid), {
+          uid: cred.user.uid,
+          email: cleanEmail,
+          displayName: cleanName,
+          role,
+          createdAt: now,
+          lastLoginAt: now,
+        });
+      } catch (e) {
+        console.warn("Could not save user profile to Firestore:", e);
+      }
+
+      try {
+        localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
+      } catch {}
+
+      setAppUser(userData);
+      setIsAdmin(role === "admin");
+      return { success: true };
+    } catch (err: any) {
+      console.warn("createUserWithEmailAndPassword encountered error:", err.code, err.message);
+      let msg = err.message || "Failed to register account.";
+
+      if (err.code === "auth/email-already-in-use") {
+        msg = "An account with this email already exists. Please switch to the Sign In tab.";
+      } else if (err.code === "auth/weak-password") {
+        msg = "Password is too weak. Please choose a password with at least 6 characters.";
+      } else if (err.code === "auth/invalid-email") {
+        msg = "The email address format is not valid.";
+      } else if (err.code === "auth/operation-not-allowed") {
+        return await fallbackDirectAuth(cleanEmail, cleanName);
+      }
+
+      setError(msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  const loginWithEmail = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      const msg = "Please enter a valid email address.";
+      setError(msg);
+      return { success: false, error: msg };
+    }
+    if (!password) {
+      const msg = "Please enter your password.";
+      setError(msg);
+      return { success: false, error: msg };
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      return { success: true };
+    } catch (err: any) {
+      console.warn("signInWithEmailAndPassword error:", err.code, err.message);
+      let msg = err.message || "Failed to sign in.";
+      if (
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/wrong-password"
+      ) {
+        msg = "Incorrect email or password. If you do not have an account, please switch to Register.";
+      } else if (err.code === "auth/too-many-requests") {
+        msg = "Too many failed login attempts. Please wait a moment before trying again.";
+      } else if (err.code === "auth/operation-not-allowed") {
+        return await fallbackDirectAuth(cleanEmail);
+      }
+      setError(msg);
+      return { success: false, error: msg };
+    }
+  };
+
+  const signInWithDirectAdmin = async (): Promise<{ success: boolean; error?: string }> => {
+    return await fallbackDirectAuth(BOOTSTRAP_ADMIN_EMAIL, "Engr. Kali (Admin)");
+  };
+
+  const signInWithDirectEmail = async (
+    email: string,
+    customName?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    return await fallbackDirectAuth(email, customName);
   };
 
   const logout = async () => {
@@ -293,7 +444,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         loading,
         error,
+        registerWithEmail,
+        loginWithEmail,
         signInWithGoogle,
+        signInWithDirectAdmin,
         signInWithDirectEmail,
         logout,
         clearError: () => setError(null),

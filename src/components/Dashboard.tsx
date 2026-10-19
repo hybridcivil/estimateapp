@@ -85,7 +85,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateProject,
 }) => {
   const { isLight, toggleTheme } = useTheme();
-  const { currentUser, isAdmin, signInWithGoogle, logout } = useAuth();
+  const { currentUser, appUser, isAdmin, signInWithGoogle, logout } = useAuth();
   const [filterType, setFilterType] = useState<string>("all");
   const [fileImportError, setFileImportError] = useState("");
   const [fileViewMode, setFileViewMode] = useState<"cards" | "table">("cards");
@@ -485,7 +485,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Account & Firebase Cloud Sync Callout */}
-      {!currentUser ? (
+      {!currentUser && !appUser ? (
         <div className="bg-gradient-to-r from-[#142337] via-[#1a2d48] to-[#121c2d] border-2 border-emerald-500/50 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
@@ -494,7 +494,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold text-white tracking-wide">
-                  Account Login & Registration with Gmail (Firebase Cloud)
+                  Account Login & Registration (Firebase Cloud)
                 </h3>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold border border-emerald-500/40 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -502,7 +502,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#9bb3d1] mt-1 max-w-2xl leading-relaxed">
-                Sign in with your Google account to get your own private cloud-synced projects in Firebase. Every engineer's project files are securely isolated to their own account, and system administrators can oversee and manage all files.
+                Sign in to get your own private cloud-synced projects in Firebase. Every engineer's project files are securely isolated to their own account, and system administrators can oversee and manage all files.
               </p>
             </div>
           </div>
@@ -511,45 +511,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onClick={onOpenAuthModal || signInWithGoogle}
             className="flex items-center gap-2.5 bg-white hover:bg-slate-100 text-slate-950 px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-white/10 transition active:scale-95 cursor-pointer shrink-0 border border-slate-300 ring-2 ring-emerald-500/40 hover:ring-emerald-500"
           >
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span className="font-bold">Login / Register with Gmail</span>
+            <span className="font-bold">Login / Register Workspace</span>
           </button>
         </div>
       ) : (
         <div className="bg-[#142337] border border-[#2d4a6a] rounded-2xl p-3.5 sm:p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-3 min-w-0">
-            {currentUser.photoURL ? (
+            {(currentUser?.photoURL || appUser?.photoURL) ? (
               <img
-                src={currentUser.photoURL}
+                src={currentUser?.photoURL || appUser?.photoURL || ""}
                 alt="Avatar"
                 className="w-10 h-10 rounded-xl object-cover border border-[#00c2c7]"
               />
             ) : (
               <div className="w-10 h-10 rounded-xl bg-[#00c2c7] text-[#0f1c2e] font-bold text-base flex items-center justify-center">
-                {(currentUser.displayName || currentUser.email || "E")[0].toUpperCase()}
+                {((currentUser?.displayName || appUser?.displayName || currentUser?.email || appUser?.email || "E")[0]).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-white text-sm truncate">
-                  {currentUser.displayName || "Civil Engineer"}
+                  {currentUser?.displayName || appUser?.displayName || "Civil Engineer"}
                 </span>
                 {isAdmin ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
@@ -563,7 +545,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 )}
               </div>
               <div className="text-[11px] text-[#8ba3c1] font-mono truncate mt-0.5">
-                {currentUser.email} · Connected to Firebase Cloud Firestore
+                {currentUser?.email || appUser?.email} · Connected to Firebase Cloud Firestore
               </div>
             </div>
           </div>

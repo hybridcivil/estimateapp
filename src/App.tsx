@@ -32,20 +32,22 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { AdminPanelModal } from "./components/AdminPanelModal";
 import { LoginRegistrationModal } from "./components/LoginRegistrationModal";
+import { AuthScreen } from "./components/AuthScreen";
+import { WorkspaceLoadingScreen } from "./components/WorkspaceLoadingScreen";
 import { createDefaultBuildingEstimates } from "./utils/buildingSchedule";
 
 function MainAppContent() {
-  const { currentUser, appUser, isAdmin } = useAuth();
+  const { currentUser, appUser, isAdmin, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<EstimateType>("dashboard");
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Application flow: Splash -> (if not logged in: Auth, else: Load Workspace) -> Main App
+  const [flowState, setFlowState] = useState<"splash" | "auth" | "loading_workspace" | "app">("splash");
+
   // Loaded estimate file state for calculator inspection and in-place editing
   const [loadedEstimate, setLoadedEstimate] = useState<ProjectEstimateItem | null>(null);
-
-  // Splash Screen State
-  const [showInitialSplash, setShowInitialSplash] = useState(true);
 
   // Admin Control Panel Modal State
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
@@ -84,11 +86,48 @@ function MainAppContent() {
     }, 3500);
   };
 
-  // Load projects on start or when user auth state changes
+  const handleSplashFinish = () => {
+    if (currentUser || appUser) {
+      setFlowState("loading_workspace");
+    } else {
+      setFlowState("auth");
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    setFlowState("loading_workspace");
+  };
+
+  // If user signs out while in app, transition immediately to Login/Registration screen
+  useEffect(() => {
+    if (flowState === "app" && !currentUser && !appUser && !authLoading) {
+      setProjects([]);
+      setActiveProject(null);
+      setFlowState("auth");
+    }
+  }, [currentUser, appUser, authLoading, flowState]);
+
+  // Load projects scoped strictly to the authenticated user
   const loadProjects = useCallback(async (preserveActiveId?: string) => {
+    const userToUse = appUser || (currentUser ? {
+      uid: currentUser.uid,
+      email: currentUser.email || "",
+      displayName: currentUser.displayName || "Civil Engineer",
+      role: isAdmin ? "admin" as const : "engineer" as const,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+    } : null);
+
+    if (!userToUse) {
+      setProjects([]);
+      setActiveProject(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const data = await fetchProjects(appUser);
+      const data = await fetchProjects(userToUse);
       setProjects(data);
 
       if (data.length > 0) {
@@ -105,15 +144,15 @@ function MainAppContent() {
           });
         }
       } else {
-        // Automatically create a default starter project if none exists
+        // Automatically create a personalized starter project for this user
         try {
           const starter = await createProject({
-            name: `${appUser?.displayName || "Ashraf"} Commercial Tower`,
-            client: appUser?.displayName ? `${appUser.displayName} Properties` : "Ashraf Properties Ltd.",
+            name: `${userToUse.displayName || "Ashraf"} Commercial Tower`,
+            client: userToUse.displayName ? `${userToUse.displayName} Properties` : "Ashraf Properties Ltd.",
             location: "Dhanmondi, Dhaka",
-            engineer: appUser?.displayName || "Engr. Ashraf",
+            engineer: userToUse.displayName || "Engr. Ashraf",
             notes: "Multi-storey RCC structure designed with BNBC / ACI codes.",
-          }, appUser);
+          }, userToUse);
           setProjects([starter]);
           setActiveProject(starter);
         } catch (e) {
@@ -126,11 +165,14 @@ function MainAppContent() {
     } finally {
       setLoading(false);
     }
-  }, [appUser]);
+  }, [appUser, currentUser, isAdmin]);
 
+  // Trigger project loading when entering loading_workspace or when user ID changes
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects, appUser?.uid]);
+    if (appUser || currentUser) {
+      loadProjects();
+    }
+  }, [loadProjects, appUser?.uid, currentUser?.uid]);
 
   // Project management handlers
   const handleCreateProject = async (data: {
@@ -351,6 +393,23 @@ function MainAppContent() {
   };
 
   const isAppView = viewMode === "app";
+
+  if (flowState === "splash") {
+    return <SplashScreen onFinish={handleSplashFinish} />;
+  }
+
+  if (flowState === "auth") {
+    return <AuthScreen onSuccess={handleAuthSuccess} />;
+  }
+
+  if (flowState === "loading_workspace") {
+    return (
+      <WorkspaceLoadingScreen
+        isReady={!loading && projects.length > 0}
+        onFinish={() => setFlowState("app")}
+      />
+    );
+  }
 
   return (
     <div
@@ -591,10 +650,7 @@ function MainAppContent() {
         onClose={() => setIsAuthModalOpen(false)}
       />
 
-      {/* Splash Screen on Initial Load */}
-      {showInitialSplash && (
-        <SplashScreen onFinish={() => setShowInitialSplash(false)} />
-      )}
+
     </div>
   );
 }

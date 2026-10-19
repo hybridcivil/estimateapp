@@ -271,107 +271,120 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* Firebase Authentication & Google Account Menu */}
+          {/* Firebase Authentication & Account Menu */}
           {authLoading ? (
             <div className="flex items-center gap-1.5 bg-[#1a2b42] text-[#8ba3c1] px-2.5 py-1.5 rounded-xl text-xs font-medium border border-[#2d4a6a]">
               <div className="w-3 h-3 rounded-full border-2 border-[#00c2c7] border-t-transparent animate-spin" />
               <span className="text-[11px] font-mono">Connecting...</span>
             </div>
-          ) : currentUser ? (
-            <div className="relative" ref={dropdownRef}>
-              <button
-                type="button"
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] p-1 pr-2 rounded-xl transition cursor-pointer"
-                title={currentUser.email || "User profile"}
-              >
-                {currentUser.photoURL ? (
-                  <img
-                    src={currentUser.photoURL}
-                    alt={currentUser.displayName || "User"}
-                    className="w-6 h-6 rounded-lg object-cover border border-[#00c2c7]/40"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-lg bg-[#00c2c7] text-[#0f1c2e] font-bold text-xs flex items-center justify-center">
-                    {(currentUser.displayName || currentUser.email || "E")[0].toUpperCase()}
+          ) : (currentUser || appUser) ? (
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] p-1 pr-2 rounded-xl transition cursor-pointer"
+                  title={(currentUser?.email || appUser?.email) || "User profile"}
+                >
+                  {(currentUser?.photoURL || appUser?.photoURL) ? (
+                    <img
+                      src={currentUser?.photoURL || appUser?.photoURL || ""}
+                      alt={currentUser?.displayName || appUser?.displayName || "User"}
+                      className="w-6 h-6 rounded-lg object-cover border border-[#00c2c7]/40"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-lg bg-[#00c2c7] text-[#0f1c2e] font-bold text-xs flex items-center justify-center">
+                      {((currentUser?.displayName || appUser?.displayName || currentUser?.email || appUser?.email || "E")[0]).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="hidden xl:flex flex-col text-left leading-none">
+                    <span className="text-[11px] font-bold text-white truncate max-w-[100px]">
+                      {currentUser?.displayName || appUser?.displayName || "Engineer"}
+                    </span>
+                    <span className="text-[9px] text-[#8ba3c1] font-mono truncate max-w-[100px]">
+                      {isAdmin ? "Admin" : "Engineer"}
+                    </span>
                   </div>
-                )}
-                <div className="hidden xl:flex flex-col text-left leading-none">
-                  <span className="text-[11px] font-bold text-white truncate max-w-[100px]">
-                    {currentUser.displayName || "Engineer"}
-                  </span>
-                  <span className="text-[9px] text-[#8ba3c1] font-mono truncate max-w-[100px]">
-                    {isAdmin ? "Admin" : "Engineer"}
-                  </span>
-                </div>
-                <ChevronDown className="w-3 h-3 text-[#8ba3c1]" />
-              </button>
+                  <ChevronDown className="w-3 h-3 text-[#8ba3c1]" />
+                </button>
 
-              {userDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-[#152033] border border-[#2d4a6a] rounded-xl shadow-2xl p-2.5 z-50 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
-                  {/* User Profile Header */}
-                  <div className="flex items-center gap-2.5 pb-2 border-b border-[#24374e]">
-                    {currentUser.photoURL ? (
-                      <img
-                        src={currentUser.photoURL}
-                        alt="Profile"
-                        className="w-9 h-9 rounded-xl object-cover border border-[#00c2c7]"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-xl bg-[#00c2c7] text-[#0f1c2e] font-bold text-sm flex items-center justify-center">
-                        {(currentUser.displayName || currentUser.email || "E")[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-white truncate text-xs">
-                        {currentUser.displayName || "Civil Engineer"}
-                      </div>
-                      <div className="text-[10px] text-[#8ba3c1] font-mono truncate">
-                        {currentUser.email}
-                      </div>
-                      <div className="mt-1">
-                        {isAdmin ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                            <Shield className="w-2.5 h-2.5" />
-                            System Administrator
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40">
-                            Verified Engineer
-                          </span>
-                        )}
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-[#152033] border border-[#2d4a6a] rounded-xl shadow-2xl p-2.5 z-50 text-xs space-y-2.5 animate-in fade-in zoom-in-95 duration-100">
+                    {/* User Profile Header */}
+                    <div className="flex items-center gap-2.5 pb-2 border-b border-[#24374e]">
+                      {(currentUser?.photoURL || appUser?.photoURL) ? (
+                        <img
+                          src={currentUser?.photoURL || appUser?.photoURL || ""}
+                          alt="Profile"
+                          className="w-9 h-9 rounded-xl object-cover border border-[#00c2c7]"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-xl bg-[#00c2c7] text-[#0f1c2e] font-bold text-sm flex items-center justify-center">
+                          {((currentUser?.displayName || appUser?.displayName || currentUser?.email || appUser?.email || "E")[0]).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-white truncate text-xs">
+                          {currentUser?.displayName || appUser?.displayName || "Civil Engineer"}
+                        </div>
+                        <div className="text-[10px] text-[#8ba3c1] font-mono truncate">
+                          {currentUser?.email || appUser?.email}
+                        </div>
+                        <div className="mt-1">
+                          {isAdmin ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                              <Shield className="w-2.5 h-2.5" />
+                              System Administrator
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40">
+                              Verified Engineer
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Actions inside dropdown */}
-                  <div className="space-y-1">
-                    {isAdmin && onOpenAdminPanel && (
+                    {/* Actions inside dropdown */}
+                    <div className="space-y-1">
+                      {isAdmin && onOpenAdminPanel && (
+                        <button
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onOpenAdminPanel();
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-amber-400 hover:bg-amber-500/15 font-semibold text-[11px] transition text-left cursor-pointer"
+                        >
+                          <Shield className="w-3.5 h-3.5" />
+                          <span>Admin Control Center</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => {
                           setUserDropdownOpen(false);
-                          onOpenAdminPanel();
+                          logout();
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-amber-400 hover:bg-amber-500/15 font-semibold text-[11px] transition text-left cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-red-400 hover:bg-red-500/15 font-semibold text-[11px] transition text-left cursor-pointer"
                       >
-                        <Shield className="w-3.5 h-3.5" />
-                        <span>Admin Control Center</span>
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sign Out / Logout</span>
                       </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        logout();
-                      }}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-red-400 hover:bg-red-500/15 font-semibold text-[11px] transition text-left cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out from Firebase</span>
-                    </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Explicit Quick Logout Button */}
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="flex items-center gap-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 px-2.5 py-1.5 rounded-xl font-bold text-xs transition active:scale-95 cursor-pointer shadow-xs"
+                title="Sign Out / Logout of your workspace"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           ) : (
             <button
