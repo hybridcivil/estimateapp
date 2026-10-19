@@ -99,10 +99,14 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// List all projects
-app.get("/api/projects", (_req, res) => {
+// List all projects (support filtering by ownerId)
+app.get("/api/projects", (req, res) => {
   try {
-    const projects = readProjects();
+    const ownerId = req.query.ownerId as string | undefined;
+    let projects = readProjects();
+    if (ownerId) {
+      projects = projects.filter((p) => p.ownerId === ownerId);
+    }
     const enriched = projects.map((p) => {
       const estimates = Array.isArray(p.estimates) ? p.estimates : [];
       const totalCost = estimates.reduce((sum, est) => sum + (Number(est.totalCost) || 0), 0);
@@ -123,7 +127,7 @@ app.get("/api/projects", (_req, res) => {
 // Create new project
 app.post("/api/projects", (req, res) => {
   try {
-    const { name, client, location, engineer, notes, stories, includeDefaultList } = req.body;
+    const { name, client, location, engineer, notes, stories, includeDefaultList, ownerId, ownerEmail, ownerName } = req.body;
     if (!name || !name.trim()) {
       res.status(400).json({ error: "Project name is required" });
       return;
@@ -135,9 +139,12 @@ app.post("/api/projects", (req, res) => {
     const newProject: Project = {
       id: "proj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
       name: name.trim(),
-      client: (client || "Ashraf AI Studio Client").trim(),
+      client: (client || "Client").trim(),
       location: (location || "Bangladesh").trim(),
       engineer: (engineer || "Engr. Ashraf").trim(),
+      ownerId: ownerId || undefined,
+      ownerEmail: ownerEmail || undefined,
+      ownerName: ownerName || undefined,
       notes: notes || "",
       stories: parsedStories,
       createdAt: new Date().toISOString(),

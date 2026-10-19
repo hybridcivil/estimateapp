@@ -18,9 +18,10 @@ import {
 
 const LOCAL_STORAGE_KEY = "ashraf_civil_studio_projects_v1";
 
-function getLocalProjects(): Project[] {
+export function getLocalProjects(userId?: string): Project[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const key = userId ? `ashraf_projects_${userId}` : LOCAL_STORAGE_KEY;
+    const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
   } catch (e) {
     console.error("Local storage read error", e);
@@ -28,9 +29,10 @@ function getLocalProjects(): Project[] {
   return [];
 }
 
-function saveLocalProjects(projects: Project[]) {
+export function saveLocalProjects(projects: Project[], userId?: string) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
+    const key = userId ? `ashraf_projects_${userId}` : LOCAL_STORAGE_KEY;
+    localStorage.setItem(key, JSON.stringify(projects));
   } catch (e) {
     console.error("Local storage write error", e);
   }
@@ -59,16 +61,21 @@ function sanitizeForFirestore<T>(obj: T): T {
 
 /**
  * Fetch projects from Firestore scoped to user (or all projects if admin in admin view),
- * with backend and localStorage fallback & sync
+ * with backend and localStorage fallback & sync.
+ * Strict Isolation: Every user only sees their own projects.
  */
 export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean): Promise<Project[]> {
+  if (!user && !isAdminView) {
+    return [];
+  }
+
   // 1. Try reading directly from Firestore
   try {
     const colRef = collection(db, "projects");
     let q: any = colRef;
 
     if (user && !isAdminView) {
-      // Regular user: only load projects owned by this user
+      // Regular user: strictly query only projects belonging to this user's UID
       q = query(colRef, where("ownerId", "==", user.uid));
     }
 
@@ -86,10 +93,14 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
 
       // Sort by updatedAt descending
       firestoreProjects.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
-      saveLocalProjects(firestoreProjects);
+      saveLocalProjects(firestoreProjects, user?.uid);
       return firestoreProjects;
     } else if (user && !isAdminView) {
-      // User signed in but has no projects in Firestore yet -> create their personal starter project
+      // User signed in but has no projects in Firestore yet -> check local user store or create their personal starter project
+      const userLocal = getLocalProjects(user.uid);
+      if (userLocal.length > 0) {
+        return userLocal;
+      }
       const starter = await createStarterProjectForUser(user);
       return [starter];
     }
@@ -97,7 +108,7 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     console.warn("Firestore fetch error, falling back to backend/local:", err);
   }
 
-  // 2. Fallback to Express backend
+  // 2. Fallback to Express backend (strictly filter by user.uid)
   try {
     const res = await fetch("/api/projects");
     if (res.ok) {
@@ -108,10 +119,12 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
       }));
 
       if (user && !isAdminView) {
-        const userOwned = normalized.filter((p) => p.ownerId === user.uid || !p.ownerId);
-        if (userOwned.length > 0) return userOwned;
-      } else {
-        saveLocalProjects(normalized);
+        const userOwned = normalized.filter((p) => p.ownerId === user.uid);
+        if (userOwned.length > 0) {
+          saveLocalProjects(userOwned, user.uid);
+          return userOwned;
+        }
+      } else if (isAdminView) {
         return normalized;
       }
     }
@@ -119,19 +132,17 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     console.warn("Backend fetch failed, using local cache", err);
   }
 
-  // 3. Fallback to localStorage
-  const local = getLocalProjects();
-  const normalized = (Array.isArray(local) ? local : []).map((p: any) => ({
-    ...p,
-    estimates: Array.isArray(p.estimates) ? p.estimates : [],
-  }));
-
+  // 3. Fallback to user-isolated localStorage
   if (user && !isAdminView) {
-    const userOwned = normalized.filter((p) => p.ownerId === user.uid || !p.ownerId);
-    return userOwned.length > 0 ? userOwned : normalized;
+    const userLocal = getLocalProjects(user.uid);
+    if (userLocal.length > 0) {
+      return userLocal;
+    }
+    const starter = await createStarterProjectForUser(user);
+    return [starter];
   }
 
-  return normalized;
+  return [];
 }
 
 /**
