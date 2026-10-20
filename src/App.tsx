@@ -190,7 +190,7 @@ function MainAppContent() {
       const defaultEstimates = createDefaultBuildingEstimates(storiesCount);
       for (const est of defaultEstimates) {
         try {
-          await saveEstimateToProject(created.id, est);
+          await saveEstimateToProject(created.id, est, created, appUser);
         } catch (e) {
           console.warn("Error saving default building estimate", e);
         }
@@ -199,8 +199,8 @@ function MainAppContent() {
     await loadProjects(created.id);
     showToast(
       data.includeDefaultList
-        ? `Project "${created.name}" created with all 7 building elements (${storiesCount} ${storiesCount === 1 ? 'floor' : 'floors'} multiplied)!`
-        : `Project "${created.name}" created successfully!`
+        ? `Project "${created.name}" created with 7 building element templates (${storiesCount} ${storiesCount === 1 ? 'floor' : 'floors'})!`
+        : `Clean project "${created.name}" created successfully!`
     );
   };
 
@@ -228,7 +228,7 @@ function MainAppContent() {
       const key = getEstKey(est);
       if (!existingKeys.has(key)) {
         try {
-          await saveEstimateToProject(activeProject.id, est);
+          await saveEstimateToProject(activeProject.id, est, activeProject, appUser);
           addedCount++;
           existingKeys.add(key);
         } catch (e) {
@@ -243,7 +243,7 @@ function MainAppContent() {
           await saveEstimateToProject(activeProject.id, {
             ...est,
             name: `${est.name} (Copy)`,
-          });
+          }, activeProject, appUser);
           addedCount++;
         } catch (e) {}
       }
@@ -324,19 +324,50 @@ function MainAppContent() {
     }
 
     try {
-      const res = await saveEstimateToProject(activeProject.id, estimateData);
-      if (res.success) {
-        // Refresh project list to reflect updated estimates
-        await loadProjects(activeProject.id);
-        // Also update loadedEstimate state with the saved item so edit mode stays current
-        if (res.estimate) {
-          setLoadedEstimate(res.estimate);
+      const activeUser = appUser || (currentUser ? {
+        uid: currentUser.uid,
+        email: currentUser.email || "",
+        displayName: currentUser.displayName || "Civil Engineer",
+        role: isAdmin ? ("admin" as const) : ("engineer" as const),
+      } : null);
+
+      const res = await saveEstimateToProject(
+        activeProject.id,
+        estimateData,
+        activeProject,
+        activeUser
+      );
+
+      if (res.success && res.estimate) {
+        // Immediately update React states so there is zero delay and zero empty state
+        const updatedEstimates = [...(activeProject.estimates || [])];
+        const existingIdx = updatedEstimates.findIndex((e) => e.id === res.estimate.id);
+        if (existingIdx !== -1) {
+          updatedEstimates[existingIdx] = res.estimate;
+        } else {
+          updatedEstimates.unshift(res.estimate);
         }
+
+        const updatedProj: Project = {
+          ...activeProject,
+          estimates: updatedEstimates,
+          updatedAt: new Date().toISOString(),
+        };
+
+        setActiveProject(updatedProj);
+        setProjects((prev) =>
+          prev.map((p) => (p.id === updatedProj.id ? updatedProj : p))
+        );
+        setLoadedEstimate(res.estimate);
+
         showToast(
           estimateData.id
             ? `Updated "${estimateData.name}" in project "${activeProject.name}"!`
             : `Saved "${estimateData.name}" to project "${activeProject.name}"!`
         );
+
+        // Background sync to ensure remote/local alignment
+        loadProjects(activeProject.id);
       }
     } catch (err: any) {
       showToast(err.message || "Failed to save estimate.", "error");
@@ -346,12 +377,27 @@ function MainAppContent() {
   const handleDeleteEstimate = async (estimateId: string) => {
     if (!activeProject) return;
     try {
-      await deleteEstimateFromProject(activeProject.id, estimateId);
+      await deleteEstimateFromProject(
+        activeProject.id,
+        estimateId,
+        activeProject,
+        appUser?.uid || currentUser?.uid
+      );
       if (loadedEstimate && loadedEstimate.id === estimateId) {
         setLoadedEstimate(null);
       }
-      await loadProjects(activeProject.id);
+      const updatedEstimates = (activeProject.estimates || []).filter((e) => e.id !== estimateId);
+      const updatedProj: Project = {
+        ...activeProject,
+        estimates: updatedEstimates,
+        updatedAt: new Date().toISOString(),
+      };
+      setActiveProject(updatedProj);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === updatedProj.id ? updatedProj : p))
+      );
       showToast("Estimate file removed from project.", "info");
+      loadProjects(activeProject.id);
     } catch (err: any) {
       showToast("Failed to remove estimate.", "error");
     }
@@ -360,13 +406,31 @@ function MainAppContent() {
   const handleRenameEstimate = async (estimateId: string, newName: string) => {
     if (!activeProject) return;
     try {
-      const success = await renameEstimate(activeProject.id, estimateId, newName);
+      const success = await renameEstimate(
+        activeProject.id,
+        estimateId,
+        newName,
+        activeProject,
+        appUser?.uid || currentUser?.uid
+      );
       if (success) {
+        const updatedEstimates = (activeProject.estimates || []).map((e) =>
+          e.id === estimateId ? { ...e, name: newName } : e
+        );
+        const updatedProj: Project = {
+          ...activeProject,
+          estimates: updatedEstimates,
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveProject(updatedProj);
+        setProjects((prev) =>
+          prev.map((p) => (p.id === updatedProj.id ? updatedProj : p))
+        );
         if (loadedEstimate && loadedEstimate.id === estimateId) {
           setLoadedEstimate({ ...loadedEstimate, name: newName });
         }
-        await loadProjects(activeProject.id);
         showToast(`Estimate renamed to "${newName}".`);
+        loadProjects(activeProject.id);
       } else {
         showToast("Could not rename estimate.", "error");
       }

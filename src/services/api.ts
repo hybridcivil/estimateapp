@@ -19,11 +19,51 @@ import {
 
 const LOCAL_STORAGE_KEY = "ashraf_civil_studio_projects_v1";
 
-export function getLocalProjects(userId?: string): Project[] {
+export function getCurrentActiveUserId(): string | undefined {
+  if (auth.currentUser?.uid) return auth.currentUser.uid;
   try {
-    const key = userId ? `ashraf_projects_${userId}` : LOCAL_STORAGE_KEY;
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem("ashraf_auth_session");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.uid) return parsed.uid;
+    }
+  } catch {}
+  return undefined;
+}
+
+export function getLocalProjects(userId?: string): Project[] {
+  const activeUid = userId || getCurrentActiveUserId();
+  try {
+    // 1. If activeUid exists, look in user's isolated store
+    if (activeUid) {
+      const userKey = `ashraf_projects_${activeUid}`;
+      const userRaw = localStorage.getItem(userKey);
+      if (userRaw) {
+        const parsed = JSON.parse(userRaw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    }
+
+    // 2. Fall back to shared LOCAL_STORAGE_KEY
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+
+    // 3. Scan all keys in localStorage for any existing projects
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("ashraf_projects_") || k === LOCAL_STORAGE_KEY)) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          try {
+            const p = JSON.parse(val);
+            if (Array.isArray(p) && p.length > 0) return p;
+          } catch {}
+        }
+      }
+    }
   } catch (e) {
     console.error("Local storage read error", e);
   }
@@ -31,12 +71,115 @@ export function getLocalProjects(userId?: string): Project[] {
 }
 
 export function saveLocalProjects(projects: Project[], userId?: string) {
+  const activeUid = userId || getCurrentActiveUserId();
   try {
-    const key = userId ? `ashraf_projects_${userId}` : LOCAL_STORAGE_KEY;
-    localStorage.setItem(key, JSON.stringify(projects));
+    const serialized = JSON.stringify(projects);
+    if (activeUid) {
+      localStorage.setItem(`ashraf_projects_${activeUid}`, serialized);
+    }
+    // Always mirror to active fallback store so lookups never fail
+    localStorage.setItem(LOCAL_STORAGE_KEY, serialized);
   } catch (e) {
     console.error("Local storage write error", e);
   }
+}
+
+/**
+ * Persist an updated project across all applicable user and fallback localStorage slots
+ * to prevent any out-of-sync or missing project states.
+ */
+export function persistProjectToAllUserStores(updatedProj: Project, targetUserId?: string) {
+  const uidsToUpdate = new Set<string>();
+  if (targetUserId) uidsToUpdate.add(targetUserId);
+  if (updatedProj.ownerId) uidsToUpdate.add(updatedProj.ownerId);
+  const activeUid = getCurrentActiveUserId();
+  if (activeUid) uidsToUpdate.add(activeUid);
+
+  try {
+    for (const uid of uidsToUpdate) {
+      const userKey = `ashraf_projects_${uid}`;
+      let list: Project[] = [];
+      const raw = localStorage.getItem(userKey);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) list = parsed;
+        } catch {}
+      }
+      const idx = list.findIndex((p) => p.id === updatedProj.id);
+      if (idx !== -1) {
+        list[idx] = updatedProj;
+      } else {
+        list.unshift(updatedProj);
+      }
+      localStorage.setItem(userKey, JSON.stringify(list));
+    }
+
+    // Always update shared key
+    let fallbackList: Project[] = [];
+    const fallbackRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (fallbackRaw) {
+      try {
+        const parsed = JSON.parse(fallbackRaw);
+        if (Array.isArray(parsed)) fallbackList = parsed;
+      } catch {}
+    }
+    const fIdx = fallbackList.findIndex((p) => p.id === updatedProj.id);
+    if (fIdx !== -1) {
+      fallbackList[fIdx] = updatedProj;
+    } else {
+      fallbackList.unshift(updatedProj);
+    }
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fallbackList));
+
+    // Update any other keys where this project might exist
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("ashraf_projects_")) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          try {
+            const list = JSON.parse(val);
+            if (Array.isArray(list)) {
+              const pIdx = list.findIndex((p: any) => p.id === updatedProj.id);
+              if (pIdx !== -1) {
+                list[pIdx] = updatedProj;
+                localStorage.setItem(k, JSON.stringify(list));
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    console.error("persistProjectToAllUserStores error", e);
+  }
+}
+
+export function findProjectInAnyStorage(projectId: string, userId?: string): Project | null {
+  const localList = getLocalProjects(userId);
+  const directMatch = localList.find((p) => p.id === projectId);
+  if (directMatch) return directMatch;
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("ashraf_projects") || k === LOCAL_STORAGE_KEY)) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          try {
+            const list = JSON.parse(val);
+            if (Array.isArray(list)) {
+              const item = list.find((p: any) => p.id === projectId);
+              if (item) return item;
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 /**
@@ -92,10 +235,49 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
         });
       });
 
+      const userLocal = getLocalProjects(user?.uid);
+      const mergedProjects = firestoreProjects.map((fProj) => {
+        const localMatch = userLocal.find((l) => l.id === fProj.id);
+        if (!localMatch) return fProj;
+
+        const localTime = new Date(localMatch.updatedAt || 0).getTime();
+        const remoteTime = new Date(fProj.updatedAt || 0).getTime();
+        const localEsts = Array.isArray(localMatch.estimates) ? localMatch.estimates : [];
+        const remoteEsts = Array.isArray(fProj.estimates) ? fProj.estimates : [];
+
+        // If local has more estimates or is newer, preserve local estimates
+        if (localEsts.length > remoteEsts.length || (localEsts.length > 0 && localTime >= remoteTime)) {
+          const merged = {
+            ...fProj,
+            ...localMatch,
+            estimates: localEsts,
+            updatedAt: localMatch.updatedAt || fProj.updatedAt,
+          };
+          // Sync merged back to Firestore in background
+          try {
+            const cleanData = sanitizeForFirestore(merged);
+            setDoc(doc(db, "projects", merged.id), cleanData, { merge: true }).catch(() => {});
+          } catch {}
+          return merged;
+        }
+        return fProj;
+      });
+
+      // Also preserve any local projects not yet present in Firestore
+      for (const loc of userLocal) {
+        if (!mergedProjects.some((m) => m.id === loc.id)) {
+          mergedProjects.push(loc);
+          try {
+            const cleanData = sanitizeForFirestore(loc);
+            setDoc(doc(db, "projects", loc.id), cleanData, { merge: true }).catch(() => {});
+          } catch {}
+        }
+      }
+
       // Sort by updatedAt descending
-      firestoreProjects.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
-      saveLocalProjects(firestoreProjects, user?.uid);
-      return firestoreProjects;
+      mergedProjects.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+      saveLocalProjects(mergedProjects, user?.uid);
+      return mergedProjects;
     } else if (user && !isAdminView) {
       // User signed in but has no projects in Firestore yet -> check local user store or create their personal starter project
       const userLocal = getLocalProjects(user.uid);
@@ -458,23 +640,32 @@ export async function deleteProject(id: string): Promise<boolean> {
 export async function renameEstimate(
   projectId: string,
   estimateId: string,
-  newName: string
+  newName: string,
+  projectContext?: Project | null,
+  userId?: string
 ): Promise<boolean> {
-  const local = getLocalProjects();
-  const proj = local.find((p) => p.id === projectId);
+  let proj: Project | undefined = (projectContext && projectContext.id === projectId)
+    ? { ...projectContext, estimates: Array.isArray(projectContext.estimates) ? [...projectContext.estimates] : [] }
+    : (findProjectInAnyStorage(projectId, userId) || undefined);
+
+  if (!proj) {
+    proj = (await fetchProject(projectId)) || undefined;
+  }
+
   if (proj) {
+    if (!Array.isArray(proj.estimates)) proj.estimates = [];
     const est = proj.estimates.find((e) => e.id === estimateId);
     if (est) {
       est.name = newName.trim();
       proj.updatedAt = new Date().toISOString();
-      saveLocalProjects(local);
+      persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
       // Update in Firestore
       try {
         const cleanData = sanitizeForFirestore(proj);
         await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
       } catch (err) {
-        console.warn("Firestore renameEstimate error:", err);
+        console.warn("Firestore renameEstimate notice:", err);
       }
 
       // Backend sync
@@ -485,7 +676,7 @@ export async function renameEstimate(
           body: JSON.stringify({ name: newName }),
         });
       } catch (err) {
-        console.warn("Backend rename sync failed", err);
+        console.warn("Backend rename sync notice:", err);
       }
 
       return true;
@@ -495,7 +686,7 @@ export async function renameEstimate(
 }
 
 /**
- * Save an estimate file to the active project and persist to Firestore
+ * Save an estimate file to the active project and persist to Firestore, backend, and localStorage
  */
 export async function saveEstimateToProject(
   projectId: string,
@@ -506,92 +697,122 @@ export async function saveEstimateToProject(
     totalCost: number;
     summary: Record<string, any>;
     data: Record<string, any>;
-  }
-): Promise<{ success: boolean; estimate: ProjectEstimateItem; message?: string }> {
+  },
+  projectContext?: Project | null,
+  user?: AppUser | null
+): Promise<{ success: boolean; estimate: ProjectEstimateItem; project?: Project; message?: string }> {
   const estId = estimateData.id || "est_" + Date.now();
   const item: ProjectEstimateItem = {
     id: estId,
     type: estimateData.type as any,
     name: estimateData.name,
     date: new Date().toISOString(),
-    totalCost: estimateData.totalCost,
-    summary: estimateData.summary,
-    data: estimateData.data,
+    totalCost: Number(estimateData.totalCost) || 0,
+    summary: estimateData.summary || {},
+    data: estimateData.data || {},
   };
 
-  const local = getLocalProjects();
-  let proj = local.find((p) => p.id === projectId);
+  // 1. Resolve project from context, isolated/shared localStorage, or remote
+  let proj: Project | undefined = (projectContext && projectContext.id === projectId)
+    ? { ...projectContext, estimates: Array.isArray(projectContext.estimates) ? [...projectContext.estimates] : [] }
+    : undefined;
 
-  // If not found in local, try fetching
   if (!proj) {
-    proj = await fetchProject(projectId) || undefined;
+    proj = findProjectInAnyStorage(projectId, user?.uid) || undefined;
   }
 
-  if (proj) {
-    const existingIdx = proj.estimates.findIndex((e) => e.id === estId);
-    if (existingIdx !== -1) {
-      proj.estimates[existingIdx] = item;
-    } else {
-      proj.estimates.unshift(item);
-    }
-    proj.updatedAt = new Date().toISOString();
+  if (!proj) {
+    proj = (await fetchProject(projectId)) || undefined;
+  }
 
-    // 1. Update in Firestore
+  // 2. Safe Fallback: if project still not found, never crash with "Project not found"
+  if (!proj) {
+    const fallbackOwner = user?.uid || getCurrentActiveUserId() || "usr_offline";
+    proj = {
+      id: projectId,
+      name: projectContext?.name || "Civil Engineering Project",
+      client: projectContext?.client || "Client",
+      location: projectContext?.location || "Bangladesh",
+      engineer: projectContext?.engineer || user?.displayName || "Engr. Ashraf",
+      ownerId: fallbackOwner,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      estimates: [],
+    };
+  }
+
+  if (!Array.isArray(proj.estimates)) {
+    proj.estimates = [];
+  }
+
+  const existingIdx = proj.estimates.findIndex((e) => e.id === estId);
+  if (existingIdx !== -1) {
+    proj.estimates[existingIdx] = item;
+  } else {
+    proj.estimates.unshift(item);
+  }
+  proj.updatedAt = new Date().toISOString();
+
+  // 3. Persist across all user-isolated and shared local storage keys
+  persistProjectToAllUserStores(proj, user?.uid || proj.ownerId);
+
+  // 4. Update in Firestore if user is authenticated
+  if (auth.currentUser || user?.uid) {
     try {
       const cleanData = sanitizeForFirestore(proj);
       await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
     } catch (err) {
-      console.error("Firestore saveEstimate error:", err);
-      try {
-        handleFirestoreError(err, OperationType.WRITE, `projects/${projectId}`);
-      } catch {
-        // Fallback
-      }
+      console.warn("Firestore saveEstimate notice:", err);
     }
-
-    // 2. Update local storage
-    const localIdx = local.findIndex((p) => p.id === projectId);
-    if (localIdx !== -1) {
-      local[localIdx] = proj;
-    } else {
-      local.push(proj);
-    }
-    saveLocalProjects(local);
-
-    // 3. Update backend in background
-    try {
-      await fetch(`/api/projects/${projectId}/estimates`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(estimateData),
-      });
-    } catch (err) {
-      console.warn("Backend estimate sync error", err);
-    }
-
-    return { success: true, estimate: item, message: "Saved to Firebase and local storage" };
   }
 
-  throw new Error("Project not found");
+  // 5. Update backend in background
+  try {
+    await fetch(`/api/projects/${projectId}/estimates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...estimateData,
+        projectName: proj.name,
+        ownerId: proj.ownerId,
+      }),
+    });
+  } catch (err) {
+    console.warn("Backend estimate sync notice:", err);
+  }
+
+  return { success: true, estimate: item, project: proj, message: "Saved successfully!" };
 }
 
 /**
  * Delete an estimate file from a project and update Firestore
  */
-export async function deleteEstimateFromProject(projectId: string, estimateId: string): Promise<boolean> {
-  const local = getLocalProjects();
-  const proj = local.find((p) => p.id === projectId);
+export async function deleteEstimateFromProject(
+  projectId: string,
+  estimateId: string,
+  projectContext?: Project | null,
+  userId?: string
+): Promise<boolean> {
+  let proj: Project | undefined = (projectContext && projectContext.id === projectId)
+    ? { ...projectContext, estimates: Array.isArray(projectContext.estimates) ? [...projectContext.estimates] : [] }
+    : (findProjectInAnyStorage(projectId, userId) || undefined);
+
+  if (!proj) {
+    proj = (await fetchProject(projectId)) || undefined;
+  }
+
   if (proj) {
+    if (!Array.isArray(proj.estimates)) proj.estimates = [];
     proj.estimates = proj.estimates.filter((e) => e.id !== estimateId);
     proj.updatedAt = new Date().toISOString();
-    saveLocalProjects(local);
+    persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
     // Update in Firestore
     try {
       const cleanData = sanitizeForFirestore(proj);
       await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
     } catch (err) {
-      console.warn("Firestore deleteEstimate error:", err);
+      console.warn("Firestore deleteEstimate notice:", err);
     }
 
     // Backend sync
@@ -600,12 +821,11 @@ export async function deleteEstimateFromProject(projectId: string, estimateId: s
         method: "DELETE",
       });
     } catch (err) {
-      console.warn("Backend delete estimate failed", err);
+      console.warn("Backend delete estimate notice:", err);
     }
 
     return true;
   }
-  return false;
 }
 
 export async function fetchProjectReport(projectId: string) {

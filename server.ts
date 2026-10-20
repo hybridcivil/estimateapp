@@ -127,7 +127,7 @@ app.get("/api/projects", (req, res) => {
 // Create new project
 app.post("/api/projects", (req, res) => {
   try {
-    const { name, client, location, engineer, notes, stories, includeDefaultList, ownerId, ownerEmail, ownerName } = req.body;
+    const { id, name, client, location, engineer, notes, stories, includeDefaultList, ownerId, ownerEmail, ownerName } = req.body;
     if (!name || !name.trim()) {
       res.status(400).json({ error: "Project name is required" });
       return;
@@ -136,8 +136,11 @@ app.post("/api/projects", (req, res) => {
     const parsedStories = Math.max(1, parseInt(stories, 10) || 1);
     const initialEstimates = includeDefaultList ? createDefaultBuildingEstimates(parsedStories) : [];
 
-    const newProject: Project = {
-      id: "proj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+    const targetId = id || ("proj_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7));
+    const existingIdx = projects.findIndex((p) => p.id === targetId);
+
+    const projectData: Project = {
+      id: targetId,
       name: name.trim(),
       client: (client || "Client").trim(),
       location: (location || "Bangladesh").trim(),
@@ -147,13 +150,21 @@ app.post("/api/projects", (req, res) => {
       ownerName: ownerName || undefined,
       notes: notes || "",
       stories: parsedStories,
-      createdAt: new Date().toISOString(),
+      createdAt: existingIdx !== -1 ? projects[existingIdx].createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      estimates: initialEstimates as any,
+      estimates: (existingIdx !== -1 && projects[existingIdx].estimates?.length > 0)
+        ? projects[existingIdx].estimates
+        : (initialEstimates as any),
     };
-    projects.unshift(newProject);
+
+    if (existingIdx !== -1) {
+      projects[existingIdx] = projectData;
+    } else {
+      projects.unshift(projectData);
+    }
+
     writeProjects(projects);
-    res.status(201).json(newProject);
+    res.status(201).json(projectData);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -234,16 +245,29 @@ app.delete("/api/projects/:id", (req, res) => {
 app.post("/api/projects/:id/estimates", (req, res) => {
   try {
     const projects = readProjects();
-    const projIdx = projects.findIndex((p) => p.id === req.params.id);
-    if (projIdx === -1) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    let projIdx = projects.findIndex((p) => p.id === req.params.id);
 
-    const { id, type, name, totalCost, summary, data } = req.body;
+    const { id, type, name, totalCost, summary, data, projectName, ownerId } = req.body;
     if (!type) {
       res.status(400).json({ error: "Estimate type is required" });
       return;
+    }
+
+    if (projIdx === -1) {
+      // Upsert project if not yet present on backend
+      const autoProject: Project = {
+        id: req.params.id,
+        name: projectName || "Civil Engineering Project",
+        client: "Client",
+        location: "Bangladesh",
+        engineer: "Engr. Ashraf",
+        ownerId: ownerId || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        estimates: [],
+      };
+      projects.unshift(autoProject);
+      projIdx = 0;
     }
 
     const project = projects[projIdx];

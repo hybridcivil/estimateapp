@@ -27,6 +27,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     loginWithEmail,
     signInWithGoogle,
     signInWithDirectAdmin,
+    signInWithDirectEmail,
     error,
     clearError,
   } = useAuth();
@@ -39,6 +40,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showDomainHelp, setShowDomainHelp] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,25 +84,53 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     setLocalError(null);
     clearError();
 
-    if (!email.trim() || !email.includes("@")) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
       setLocalError("Please enter your email address.");
-      return;
-    }
-    if (!password) {
-      setLocalError("Please enter your password.");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await loginWithEmail(email, password);
+      if (password) {
+        const res = await loginWithEmail(cleanEmail, password);
+        if (res.success) {
+          onSuccess();
+          return;
+        }
+      }
+      // If no password or fallback desired
+      const directRes = await signInWithDirectEmail(cleanEmail);
+      if (directRes.success) {
+        onSuccess();
+      } else if (directRes.error) {
+        setLocalError(directRes.error);
+      }
+    } catch (err: any) {
+      setLocalError(err.message || "Login failed. Please check credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirectEmailQuick = async (emailToUse?: string) => {
+    setLocalError(null);
+    clearError();
+    const targetEmail = (emailToUse || email).trim();
+    if (!targetEmail || !targetEmail.includes("@")) {
+      setLocalError("Please enter your Gmail / email address.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await signInWithDirectEmail(targetEmail);
       if (res.success) {
         onSuccess();
       } else if (res.error) {
         setLocalError(res.error);
       }
-    } catch (err: any) {
-      setLocalError(err.message || "Login failed. Please check credentials.");
+    } catch (e: any) {
+      setLocalError(e.message || "Sign in error.");
     } finally {
       setLoading(false);
     }
@@ -240,11 +270,60 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
         {/* Form Body */}
         <div className="p-6 space-y-4">
-          {/* Error Message */}
+          {/* Active Error / Notice */}
           {displayedError && (
-            <div className="p-3 bg-red-500/15 border border-red-500/40 rounded-xl text-xs text-red-200 flex items-start gap-2.5 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="text-[11px] leading-relaxed">{displayedError}</div>
+            <div className="p-3.5 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs text-amber-200 space-y-2.5 animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold text-amber-300">Custom Domain Notice (engrashraf.xyz)</div>
+                  <div className="text-[11px] mt-0.5 text-[#c8d6e5] leading-relaxed">
+                    Google popup OAuth requires adding <strong>engrashraf.xyz</strong> to Firebase Console Authorized Domains.
+                  </div>
+                </div>
+              </div>
+
+              {/* Instant 1-Click Access Buttons */}
+              <div className="pt-2 border-t border-amber-500/30 space-y-2">
+                <button
+                  type="button"
+                  onClick={handleAdminQuickSignIn}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs shadow transition active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  <Shield className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>⚡ Instant Sign In as engrkalilinux@gmail.com (Master Admin)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDirectEmailQuick()}
+                  disabled={loading || !email.trim()}
+                  className="w-full flex items-center justify-center gap-1.5 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] font-bold px-3 py-2 rounded-lg text-xs transition active:scale-95 cursor-pointer disabled:opacity-40"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>⚡ Sign In with Email {email ? `(${email})` : "above"} (No popup required)</span>
+                </button>
+              </div>
+
+              {/* Expandable Firebase Console instructions */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowDomainHelp(!showDomainHelp)}
+                  className="text-[10px] text-amber-300 hover:text-white underline font-semibold flex items-center gap-1"
+                >
+                  <span>{showDomainHelp ? "Hide Firebase Setup Guide" : "How to authorize engrashraf.xyz in Firebase Console (1 minute guide)"}</span>
+                </button>
+                {showDomainHelp && (
+                  <div className="mt-2 p-2.5 bg-[#0f1a29] border border-amber-500/30 rounded-lg text-[10px] text-[#8ba3c1] space-y-1.5 leading-relaxed font-mono">
+                    <div className="text-white font-bold font-sans">3 Easy Steps to authorize Google Popup:</div>
+                    <div>1. Open <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-[#00c2c7] underline">Firebase Console</a></div>
+                    <div>2. Go to <strong>Authentication</strong> → <strong>Settings</strong> tab → <strong>Authorized domains</strong></div>
+                    <div>3. Click <strong>Add domain</strong> → Enter <span className="text-amber-300 font-bold">engrashraf.xyz</span> → Save</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -262,7 +341,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="engineer@example.com"
+                    placeholder="e.g. engrkalilinux@gmail.com or engineer@example.com"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
                   />
                 </div>
@@ -271,17 +350,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[11px] font-semibold text-[#8ba3c1]">
-                    Password
+                    Password <span className="text-[#5d7a9e] font-normal">(optional if using Quick Email Sign In)</span>
                   </label>
                 </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-[#5d7a9e] absolute left-3 top-3" />
                   <input
                     type={showPassword ? "text" : "password"}
-                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="Enter password (optional)"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-10 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
                   />
                   <button

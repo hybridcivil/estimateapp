@@ -80,7 +80,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
       if (user) {
         try {
-          const isBootstrapAdmin = user.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+          let effectiveEmail = user.email;
+          if (!effectiveEmail) {
+            try {
+              const raw = localStorage.getItem("ashraf_auth_session");
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.email) effectiveEmail = parsed.email;
+              }
+            } catch {}
+          }
+          if (!effectiveEmail) {
+            effectiveEmail = "engineer@ashrafstudio.com";
+          }
+
+          const isBootstrapAdmin = effectiveEmail.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
           const userDocRef = doc(db, "users", user.uid);
           
           let role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
@@ -114,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const now = new Date().toISOString();
           const userData: AppUser = {
             uid: user.uid,
-            email: user.email,
+            email: effectiveEmail,
             displayName: user.displayName || existingData?.displayName || (isBootstrapAdmin ? "Engr. Kali (Admin)" : "Civil Engineer"),
             photoURL: user.photoURL || existingData?.photoURL || null,
             role,
@@ -150,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 doc(db, "admins", user.uid),
                 {
                   uid: user.uid,
-                  email: user.email,
+                  email: effectiveEmail,
                   grantedAt: now,
                 },
                 { merge: true }

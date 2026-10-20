@@ -268,27 +268,61 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             />
           </div>
 
-          {/* Option to automatically populate building list */}
+          {/* Option to choose between Empty Project vs Pre-loaded Building Elements */}
           {!isEditing && (
-            <div className="bg-[#0e1624] border border-[#00c2c7]/40 rounded-xl p-3 flex items-start gap-2.5">
-              <input
-                type="checkbox"
-                id="autoIncludeList"
-                checked={includeDefaultList}
-                onChange={(e) => setIncludeDefaultList(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded text-[#00c2c7] accent-[#00c2c7] cursor-pointer"
-              />
-              <label htmlFor="autoIncludeList" className="text-xs text-[#f1f5f9] cursor-pointer leading-snug">
-                <span className="font-bold text-white block flex items-center gap-1.5">
-                  <span>🏢 Add Building Elements to List</span>
-                  <span className="text-[10px] bg-[#00c2c7]/20 text-[#00c2c7] px-1.5 py-0.2 rounded font-mono font-bold">
-                    ×{Math.max(1, Number(stories) || 1)} Storeys
-                  </span>
-                </span>
-                <span className="text-[11px] text-[#8ba3c1] block mt-0.5">
-                  Automatically initializes Beam, Column, Footing, Slab, Stair, Tiles, and Brick multiplied by {Math.max(1, Number(stories) || 1)} storeys.
-                </span>
-              </label>
+            <div className="bg-[#0e1624] border border-[#2d4a6a] rounded-xl p-3 space-y-2.5">
+              <label className="text-xs font-semibold text-white block">Project Estimate Files Initial Setup</label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIncludeDefaultList(false)}
+                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
+                    !includeDefaultList
+                      ? "border-[#00c2c7] bg-[#00c2c7]/10 text-white"
+                      : "border-[#2d4a6a] bg-[#152033] text-[#8ba3c1] hover:text-white"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                    !includeDefaultList ? "border-[#00c2c7] bg-[#00c2c7]" : "border-[#8ba3c1]"
+                  }`}>
+                    {!includeDefaultList && <div className="w-1.5 h-1.5 rounded-full bg-[#0f1c2e]" />}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white">Clean Empty Project</div>
+                    <div className="text-[10px] text-[#8ba3c1] mt-0.5 leading-tight">
+                      Start fresh with 0 files. Add your own custom calculations anytime.
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIncludeDefaultList(true)}
+                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2.5 ${
+                    includeDefaultList
+                      ? "border-[#00c2c7] bg-[#00c2c7]/10 text-white"
+                      : "border-[#2d4a6a] bg-[#152033] text-[#8ba3c1] hover:text-white"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 ${
+                    includeDefaultList ? "border-[#00c2c7] bg-[#00c2c7]" : "border-[#8ba3c1]"
+                  }`}>
+                    {includeDefaultList && <div className="w-1.5 h-1.5 rounded-full bg-[#0f1c2e]" />}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1">
+                      <span>Pre-load 7 Elements</span>
+                      <span className="text-[9px] bg-[#00c2c7]/20 text-[#00c2c7] px-1 rounded font-mono font-bold">
+                        ×{Math.max(1, Number(stories) || 1)}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-[#8ba3c1] mt-0.5 leading-tight">
+                      Adds Beams, Columns, Footings, Slabs, Stairs, Bricks & Tiles templates.
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
           )}
 
