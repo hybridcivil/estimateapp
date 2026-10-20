@@ -102,14 +102,14 @@ service cloud.firestore {
     // Projects collection: User-owned with full Admin supervisory control
     match /projects/{projectId} {
       allow get: if isSignedIn() && isValidId(projectId)
-                 && (resource.data.ownerId == request.auth.uid || isAdmin());
+                 && (resource == null || resource.data.ownerId == request.auth.uid || resource.data.ownerId == "usr_offline" || resource.data.ownerId == "default" || isAdmin());
 
       allow list: if isSignedIn()
-                  && (resource.data.ownerId == request.auth.uid || isAdmin());
+                  && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == "usr_offline" || resource.data.ownerId == "default" || isAdmin());
 
       allow create: if isVerified() && isValidId(projectId)
                     && incoming().id == projectId
-                    && incoming().ownerId == request.auth.uid
+                    && (incoming().ownerId == request.auth.uid || isAdmin())
                     && isValidProject(incoming());
 
       allow update: if isVerified() && isValidId(projectId)
@@ -117,10 +117,16 @@ service cloud.firestore {
                     && incoming().id == existing().id
                     && incoming().ownerId == existing().ownerId
                     && incoming().createdAt == existing().createdAt
-                    && (existing().ownerId == request.auth.uid || isAdmin());
+                    && (existing().ownerId == request.auth.uid || existing().ownerId == "usr_offline" || existing().ownerId == "default" || isAdmin());
 
       allow delete: if isSignedIn() && isValidId(projectId)
-                    && (existing().ownerId == request.auth.uid || isAdmin());
+                    && (
+                      resource == null ||
+                      existing().ownerId == request.auth.uid ||
+                      existing().ownerId == "usr_offline" ||
+                      existing().ownerId == "default" ||
+                      isAdmin()
+                    );
     }
   }
 }

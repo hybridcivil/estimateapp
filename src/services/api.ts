@@ -156,6 +156,31 @@ export function persistProjectToAllUserStores(updatedProj: Project, targetUserId
   }
 }
 
+/**
+ * Remove a project completely across all user-isolated and fallback localStorage slots
+ */
+export function deleteProjectFromAllUserStores(projectId: string) {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("ashraf_projects") || k === LOCAL_STORAGE_KEY)) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          try {
+            const list = JSON.parse(val);
+            if (Array.isArray(list)) {
+              const filtered = list.filter((p: any) => p.id !== projectId);
+              localStorage.setItem(k, JSON.stringify(filtered));
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    console.error("deleteProjectFromAllUserStores error", e);
+  }
+}
+
 export function findProjectInAnyStorage(projectId: string, userId?: string): Project | null {
   const localList = getLocalProjects(userId);
   const directMatch = localList.find((p) => p.id === projectId);
@@ -213,15 +238,16 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     return [];
   }
 
-  // 1. Try reading directly from Firestore
-  try {
-    const colRef = collection(db, "projects");
-    let q: any = colRef;
+  // 1. Try reading directly from Firestore if user is authenticated in Firebase
+  if (auth.currentUser) {
+    try {
+      const colRef = collection(db, "projects");
+      let q: any = colRef;
 
-    if (user && !isAdminView) {
-      // Regular user: strictly query only projects belonging to this user's UID
-      q = query(colRef, where("ownerId", "==", user.uid));
-    }
+      if (user && !isAdminView) {
+        // Regular user: strictly query only projects belonging to this user's UID
+        q = query(colRef, where("ownerId", "==", user.uid));
+      }
 
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
@@ -290,6 +316,7 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
   } catch (err) {
     console.warn("Firestore fetch error, falling back to backend/local:", err);
   }
+}
 
   // 2. Fallback to Express backend (strictly filter by user.uid)
   try {
@@ -392,8 +419,8 @@ async function createStarterProjectForUser(user: AppUser): Promise<Project> {
     estimates: starterEstimates as any,
   };
 
-  // 1. Save to Firestore if authenticated
-  if (auth.currentUser || user.uid) {
+  // 1. Save to Firestore if authenticated in Firebase
+  if (auth.currentUser) {
     try {
       const cleanData = sanitizeForFirestore(newProj);
       await setDoc(doc(db, "projects", newProj.id), cleanData);
@@ -413,6 +440,7 @@ async function createStarterProjectForUser(user: AppUser): Promise<Project> {
  * Helper to sync a batch of projects into Firestore
  */
 async function syncAllToFirestore(projects: Project[]) {
+  if (!auth.currentUser) return;
   for (const p of projects) {
     try {
       const cleanData = sanitizeForFirestore(p);
@@ -427,19 +455,21 @@ async function syncAllToFirestore(projects: Project[]) {
  * Fetch a single project by ID from Firestore or local cache
  */
 export async function fetchProject(id: string): Promise<Project | null> {
-  try {
-    const docRef = doc(db, "projects", id);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const data = snap.data() as any;
-      return {
-        ...data,
-        id: snap.id,
-        estimates: Array.isArray(data.estimates) ? data.estimates : [],
-      };
+  if (auth.currentUser) {
+    try {
+      const docRef = doc(db, "projects", id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        return {
+          ...data,
+          id: snap.id,
+          estimates: Array.isArray(data.estimates) ? data.estimates : [],
+        };
+      }
+    } catch (err) {
+      console.warn("Firestore fetch single project error, trying backend:", err);
     }
-  } catch (err) {
-    console.warn("Firestore fetch single project error, trying backend:", err);
   }
 
   try {
@@ -568,16 +598,13 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
     updatedAt: new Date().toISOString(),
   };
 
-  // 1. Update in Firestore
-  try {
-    const cleanData = sanitizeForFirestore(mergedProj);
-    await setDoc(doc(db, "projects", id), cleanData, { merge: true });
-  } catch (err) {
-    console.error("Firestore updateProject error:", err);
+  // 1. Update in Firestore if authenticated in Firebase
+  if (auth.currentUser) {
     try {
-      handleFirestoreError(err, OperationType.UPDATE, `projects/${id}`);
-    } catch {
-      // Continue to local/backend fallback
+      const cleanData = sanitizeForFirestore(mergedProj);
+      await setDoc(doc(db, "projects", id), cleanData, { merge: true });
+    } catch (err) {
+      console.warn("Firestore updateProject notice:", err);
     }
   }
 
@@ -592,14 +619,8 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
     console.warn("Backend update failed", err);
   }
 
-  // 3. Update local cache
-  const idx = local.findIndex((p) => p.id === id);
-  if (idx !== -1) {
-    local[idx] = mergedProj;
-  } else {
-    local.push(mergedProj);
-  }
-  saveLocalProjects(local);
+  // 3. Update local cache and all user stores
+  persistProjectToAllUserStores(mergedProj);
 
   return mergedProj;
 }
@@ -608,15 +629,12 @@ export async function updateProject(id: string, data: Partial<Project>): Promise
  * Delete project from Firestore, backend, and localStorage
  */
 export async function deleteProject(id: string): Promise<boolean> {
-  // 1. Delete from Firestore
-  try {
-    await deleteDoc(doc(db, "projects", id));
-  } catch (err) {
-    console.error("Firestore deleteProject error:", err);
+  // 1. Delete from Firestore only if authenticated in Firebase
+  if (auth.currentUser) {
     try {
-      handleFirestoreError(err, OperationType.DELETE, `projects/${id}`);
-    } catch {
-      // Continue
+      await deleteDoc(doc(db, "projects", id));
+    } catch (err) {
+      console.warn("Firestore deleteProject notice:", err);
     }
   }
 
@@ -627,9 +645,8 @@ export async function deleteProject(id: string): Promise<boolean> {
     console.warn("Backend delete failed", err);
   }
 
-  // 3. Delete from localStorage
-  const local = getLocalProjects().filter((p) => p.id !== id);
-  saveLocalProjects(local);
+  // 3. Delete from localStorage across all user stores and fallback
+  deleteProjectFromAllUserStores(id);
 
   return true;
 }
@@ -660,12 +677,14 @@ export async function renameEstimate(
       proj.updatedAt = new Date().toISOString();
       persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
-      // Update in Firestore
-      try {
-        const cleanData = sanitizeForFirestore(proj);
-        await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
-      } catch (err) {
-        console.warn("Firestore renameEstimate notice:", err);
+      // Update in Firestore if authenticated in Firebase
+      if (auth.currentUser) {
+        try {
+          const cleanData = sanitizeForFirestore(proj);
+          await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
+        } catch (err) {
+          console.warn("Firestore renameEstimate notice:", err);
+        }
       }
 
       // Backend sync
@@ -756,8 +775,8 @@ export async function saveEstimateToProject(
   // 3. Persist across all user-isolated and shared local storage keys
   persistProjectToAllUserStores(proj, user?.uid || proj.ownerId);
 
-  // 4. Update in Firestore if user is authenticated
-  if (auth.currentUser || user?.uid) {
+  // 4. Update in Firestore if user is authenticated in Firebase
+  if (auth.currentUser) {
     try {
       const cleanData = sanitizeForFirestore(proj);
       await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
@@ -807,12 +826,14 @@ export async function deleteEstimateFromProject(
     proj.updatedAt = new Date().toISOString();
     persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
-    // Update in Firestore
-    try {
-      const cleanData = sanitizeForFirestore(proj);
-      await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
-    } catch (err) {
-      console.warn("Firestore deleteEstimate notice:", err);
+    // Update in Firestore if authenticated in Firebase
+    if (auth.currentUser) {
+      try {
+        const cleanData = sanitizeForFirestore(proj);
+        await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
+      } catch (err) {
+        console.warn("Firestore deleteEstimate notice:", err);
+      }
     }
 
     // Backend sync

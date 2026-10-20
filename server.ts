@@ -224,16 +224,11 @@ app.put("/api/projects/:id", (req, res) => {
   }
 });
 
-// Delete project
+// Delete project (idempotent)
 app.delete("/api/projects/:id", (req, res) => {
   try {
     let projects = readProjects();
-    const initialLen = projects.length;
     projects = projects.filter((p) => p.id !== req.params.id);
-    if (projects.length === initialLen) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
     writeProjects(projects);
     res.json({ success: true, message: "Project deleted successfully" });
   } catch (err: any) {
