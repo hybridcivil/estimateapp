@@ -192,6 +192,9 @@ export interface FullProjectBreakdown {
     steelTons: number;
     bricksPcs: number;
     tilesPcs: number;
+    rawMaterialsCost: number;
+    boringCost: number;
+    ancillaryCost: number;
     materialsCost: number;
     grandTotalCost: number;
   };
@@ -271,17 +274,26 @@ export function extractEstimateMaterials(est: ProjectEstimateItem): EstimateMate
   };
 }
 
+export const DEFAULT_MATERIAL_RATES = {
+  cementRate: 550,
+  sandRate: 45,
+  aggRate: 120,
+  steelRate: 95,
+  brickRate: 15,
+  tileRate: 180,
+  boringRatePerFt: 180,
+  sandPileCostPerFt: 120,
+};
+
 export function computeFullProjectBreakdown(
   estimates: ProjectEstimateItem[],
-  defaultRates = {
-    cementRate: 550,
-    sandRate: 45,
-    aggRate: 120,
-    steelRate: 95,
-    brickRate: 12,
-    tileRate: 180,
-  }
+  customRates?: Partial<typeof DEFAULT_MATERIAL_RATES>
 ): FullProjectBreakdown {
+  const defaultRates = {
+    ...DEFAULT_MATERIAL_RATES,
+    ...(customRates || {}),
+  };
+  let totalBoringCost = 0;
   const footings: FootingRow[] = [];
   const situPiles: SituPileRow[] = [];
   const sandPiles: SandPileRow[] = [];
@@ -565,7 +577,8 @@ export function computeFullProjectBreakdown(
       const spDia = d.spiralDia || 8;
       const spSpacing = d.spiralSpacing || 5;
       const mix = d.mixRatio || "1:1.5:3";
-      const boringCost = s.constructionCost || Math.round(pLen * (d.constructionCostPerFoot || 200) * pNos);
+      const boringCost = s.constructionCost || Math.round(pLen * (d.constructionCostPerFoot || defaultRates.boringRatePerFt || 200) * pNos);
+      totalBoringCost += boringCost;
 
       alloc.count += pNos;
 
@@ -594,8 +607,9 @@ export function computeFullProjectBreakdown(
       const pDia = s.pileDiameter || d.pileDiameter || 10;
       const pSpacing = s.pileSpacing || d.pileSpacing || 48;
       const lArea = d.landArea || Math.round(pNos * Math.pow(pSpacing / 12, 2));
-      const sCost = s.totalSandCost || Math.round((s.sandCft || 0) * (d.costPerCft || 45));
+      const sCost = s.totalSandCost || Math.round((s.sandCft || 0) * (d.costPerCft || defaultRates.sandRate || 45));
       const boringCost = s.totalPileCost || Math.round(pNos * pLen * (d.costPerFoot || 30));
+      totalBoringCost += boringCost;
 
       alloc.count += pNos;
 
@@ -1006,13 +1020,17 @@ export function computeFullProjectBreakdown(
     });
   }
 
-  const materialsCost =
+  const rawMaterialsCost =
     totalCement * defaultRates.cementRate +
     totalSand * defaultRates.sandRate +
     totalAgg * defaultRates.aggRate +
     totalSteel * defaultRates.steelRate +
     totalBricks * defaultRates.brickRate +
     totalTiles * defaultRates.tileRate;
+
+  // Ancillary / auxiliary works: Footing BFS soling, sand cushion, tile skirting & adhesive mortar,
+  // nosing, plaster work, and element assembly adjustments included in estimate item totalCosts
+  const ancillaryCost = Math.max(0, Math.round(totalCost - rawMaterialsCost - totalBoringCost));
 
   return {
     allocations: activeAllocations,
@@ -1035,7 +1053,10 @@ export function computeFullProjectBreakdown(
       steelTons: Number((totalSteel / 1000).toFixed(3)),
       bricksPcs: totalBricks,
       tilesPcs: totalTiles,
-      materialsCost: Math.round(materialsCost),
+      rawMaterialsCost: Math.round(rawMaterialsCost),
+      boringCost: Math.round(totalBoringCost),
+      ancillaryCost: Math.round(ancillaryCost),
+      materialsCost: Math.round(totalCost),
       grandTotalCost: Math.round(totalCost),
     },
   };
@@ -1082,17 +1103,6 @@ export interface ItemMaterialsReport {
   };
   specifications: string[];
 }
-
-export const DEFAULT_MATERIAL_RATES = {
-  cementRate: 550,
-  sandRate: 45,
-  aggRate: 120,
-  steelRate: 95,
-  brickRate: 15,
-  tileRate: 180,
-  boringRatePerFt: 180,
-  sandPileCostPerFt: 120,
-};
 
 /**
  * Extracts complete, normalized materials and specifications for any estimate file item.

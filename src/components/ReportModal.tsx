@@ -227,26 +227,36 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       ? allEstimates
       : allEstimates.filter((e) => e.id === selectedSheetFilter);
 
-  // Compute the comprehensive project breakdown
-  const breakdown: FullProjectBreakdown = computeFullProjectBreakdown(estimates);
-
-  // Default rates fallback
-  let defaultCementRate = 550;
-  let defaultSandRate = 45;
-  let defaultAggRate = 120;
-  let defaultSteelRate = 95;
-  let defaultBrickRate = 12;
-  let defaultTileRate = 180;
+  // 1. Resolve rates from project settings, estimate data, or fallback defaults
+  const pRates = project.rates || {};
+  let defaultCementRate = pRates.cementRate || 550;
+  let defaultSandRate = pRates.sandRate || 45;
+  let defaultAggRate = pRates.aggRate || pRates.stoneRate || 120;
+  let defaultSteelRate = pRates.steelRate || 95;
+  let defaultBrickRate = pRates.brickRate || 15;
+  let defaultTileRate = pRates.tileRate || 180;
 
   estimates.forEach((e) => {
     const r = e.data?.rates || {};
     if (r.cementRate) defaultCementRate = r.cementRate;
     if (r.sandRate) defaultSandRate = r.sandRate;
-    if (r.aggRate) defaultAggRate = r.aggRate;
+    if (r.aggRate || r.stoneRate) defaultAggRate = r.aggRate || r.stoneRate;
     if (r.steelRate) defaultSteelRate = r.steelRate;
     if (r.brickRate) defaultBrickRate = r.brickRate;
-    if (e.data?.tilePrice) defaultTileRate = e.data.tilePrice;
+    if (e.data?.tilePrice || r.tileRate) defaultTileRate = e.data?.tilePrice || r.tileRate;
   });
+
+  const effectiveRates = {
+    cementRate: defaultCementRate,
+    sandRate: defaultSandRate,
+    aggRate: defaultAggRate,
+    steelRate: defaultSteelRate,
+    brickRate: defaultBrickRate,
+    tileRate: defaultTileRate,
+  };
+
+  // Compute the comprehensive project breakdown with effective project rates
+  const breakdown: FullProjectBreakdown = computeFullProjectBreakdown(estimates, effectiveRates);
 
   const { allocations, footings, situPiles, sandPiles, columns, beams, slabs, stairs, bricks, tiles, steelBreakdown, totals } = breakdown;
 
@@ -688,11 +698,46 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         </tr>`
             : ""
         }
+        ${
+          totals.boringCost > 0
+            ? `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? 7 : 6}</td>
+          <td class="font-bold">
+            Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Rotary / wash boring, bentonite slurry circulation & rig mobilization</div>
+          </td>
+          <td class="text-center">Job</td>
+          <td class="text-right font-mono">—</td>
+          <td class="text-right font-bold font-mono">1 Job</td>
+          <td class="text-right font-bold font-mono">৳ ${totals.boringCost.toLocaleString("en-IN")}</td>
+        </tr>`
+            : ""
+        }
+        ${
+          totals.ancillaryCost > 0
+            ? `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}</td>
+          <td class="font-bold">
+            Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Footing flat brick soling, sand cushion, tile adhesive mortar, pointing & edge finishing</div>
+          </td>
+          <td class="text-center">Itemized</td>
+          <td class="text-right font-mono">—</td>
+          <td class="text-right font-bold font-mono">Lump Sum</td>
+          <td class="text-right font-bold font-mono">৳ ${totals.ancillaryCost.toLocaleString("en-IN")}</td>
+        </tr>`
+            : ""
+        }
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="5" class="text-right font-bold">Consolidated Materials Subtotal Cost:</td>
-          <td class="text-right grand-total-val font-mono">৳ ${totals.materialsCost.toLocaleString("en-IN")}</td>
+          <td colspan="5" class="text-right font-bold">
+            Consolidated Materials & Works Subtotal Cost:
+            <div style="font-size: 8px; font-weight: normal; color: #475569;">
+              [Direct Raw Materials: ৳ ${totals.rawMaterialsCost.toLocaleString("en-IN")}${totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}${totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
+            </div>
+          </td>
+          <td class="text-right grand-total-val font-mono">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
         </tr>
       </tfoot>
     </table>
@@ -1492,7 +1537,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     if (totals.tilesPcs > 0) {
       csv += `6,"Ceramic & Vitrified Tiles","Finished tile surface",Pcs,${defaultTileRate},${totals.tilesPcs},${Math.round(totals.tilesPcs * defaultTileRate)}\n`;
     }
-    csv += `Consolidated Materials Subtotal Cost,,,,,,${totals.materialsCost}\n\n`;
+    if (totals.boringCost > 0) {
+      csv += `${totals.tilesPcs > 0 ? 7 : 6},"Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling","Rotary/wash boring & rig mobilization",Job,-,1 Job,${totals.boringCost}\n`;
+    }
+    if (totals.ancillaryCost > 0) {
+      csv += `${totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)},"Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar","Footing flat brick soling, sand cushion, tile mortar & finishing",Itemized,-,Lump Sum,${totals.ancillaryCost}\n`;
+    }
+    csv += `Consolidated Materials & Works Subtotal Cost,,,,,,${totals.grandTotalCost}\n\n`;
 
     // 2. Material Allocation Matrix
     csv += `2. MATERIAL ALLOCATION MATRIX BY STRUCTURAL ELEMENT\n`;
@@ -2183,14 +2234,51 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.tilesPcs * defaultTileRate).toLocaleString("en-IN")}</td>
                       </tr>
                     )}
+
+                    {/* Pile Boring Drilling Work */}
+                    {totals.boringCost > 0 && (
+                      <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? 7 : 6}</td>
+                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                          Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
+                          <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                            Rotary / wash boring, bentonite slurry circulation & rig operations
+                          </div>
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Job</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">—</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">1 Job</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {totals.boringCost.toLocaleString("en-IN")}</td>
+                      </tr>
+                    )}
+
+                    {/* Substructure Soling, Tile Mortar, Skirting & Finishing */}
+                    {totals.ancillaryCost > 0 && (
+                      <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                          Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
+                          <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                            Footing flat brick soling, sand cushion, tile adhesive mortar, pointing & edge finishing
+                          </div>
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Itemized</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">—</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">Lump Sum</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {totals.ancillaryCost.toLocaleString("en-IN")}</td>
+                      </tr>
+                    )}
                   </tbody>
                   <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#00c2c7] print:border-slate-800">
                     <tr>
                       <td colSpan={5} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
-                        Consolidated Materials Subtotal Cost:
+                        Consolidated Materials & Works Subtotal Cost:
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          [Direct Raw Materials: ৳ {totals.rawMaterialsCost.toLocaleString("en-IN")}{totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}{totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
+                        </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right text-sm text-[#2ecc71] print:text-slate-950 font-black font-mono">
-                        ৳ {totals.materialsCost.toLocaleString("en-IN")}
+                        ৳ {totals.grandTotalCost.toLocaleString("en-IN")}
                       </td>
                     </tr>
                   </tfoot>
