@@ -102,10 +102,10 @@ service cloud.firestore {
     // Projects collection: User-owned with full Admin supervisory control
     match /projects/{projectId} {
       allow get: if isSignedIn() && isValidId(projectId)
-                 && (resource == null || resource.data.ownerId == request.auth.uid || resource.data.ownerId == "usr_offline" || resource.data.ownerId == "default" || isAdmin());
+                 && (resource == null || resource.data.ownerId == request.auth.uid || isAdmin());
 
       allow list: if isSignedIn()
-                  && (resource.data.ownerId == request.auth.uid || resource.data.ownerId == "usr_offline" || resource.data.ownerId == "default" || isAdmin());
+                  && (resource.data.ownerId == request.auth.uid || isAdmin());
 
       allow create: if isVerified() && isValidId(projectId)
                     && incoming().id == projectId
@@ -117,7 +117,7 @@ service cloud.firestore {
                     && incoming().id == existing().id
                     && incoming().ownerId == existing().ownerId
                     && incoming().createdAt == existing().createdAt
-                    && (existing().ownerId == request.auth.uid || existing().ownerId == "usr_offline" || existing().ownerId == "default" || isAdmin());
+                    && (existing().ownerId == request.auth.uid || isAdmin());
 
       allow delete: if isSignedIn() && isValidId(projectId)
                     && (

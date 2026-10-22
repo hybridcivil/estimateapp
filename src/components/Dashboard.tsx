@@ -572,6 +572,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )}
 
+      {/* Empty State when User has no projects yet */}
+      {projects.length === 0 && (
+        <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-6 sm:p-8 shadow-lg text-center space-y-4 animate-in fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1a2d47] to-[#0f1c2e] border-2 border-[#00c2c7] shadow-xl flex items-center justify-center text-[#00c2c7] mx-auto">
+            <Building2 className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00c2c7]/15 border border-[#00c2c7]/30 text-xs font-bold text-[#00c2c7] uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Isolated Private Cloud Workspace</span>
+            </div>
+            <h3 className="text-xl font-bold text-white">
+              Welcome, {appUser?.displayName || currentUser?.displayName || "Engineer"}
+            </h3>
+            <p className="text-xs text-[#8ba3c1] max-w-md mx-auto leading-relaxed">
+              Your personal workspace is ready. You do not have any projects yet. Create your first engineering project to start calculating BOQ schedules, material breakdowns, and structural estimates.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={onOpenNewProjectModal}
+              className="inline-flex items-center gap-2 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] font-bold px-5 py-2.5 rounded-xl text-xs transition active:scale-95 shadow-lg shadow-[#00c2c7]/20 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Create Your First Project</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Active Project Card & BOQ Summary */}
       {activeProject ? (
         <div className="bg-[#152033] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
@@ -1196,11 +1227,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {filteredEstimates.length === 0 ? (
           <div className="p-8 text-center bg-[#121a2b] border border-[#2d4a6a]/60 rounded-xl space-y-2">
             <Layers className="w-8 h-8 text-[#8ba3c1] mx-auto opacity-50" />
-            <div className="text-xs text-[#8ba3c1]">
-              No estimate files saved for this filter.
+            <div className="text-xs text-[#8ba3c1] font-semibold">
+              {!activeProject ? "No project selected yet." : "No estimate files saved yet in this project."}
             </div>
             <p className="text-[11px] text-[#8ba3c1]/70">
-              Select one of the calculators below to calculate quantities and click "Save File".
+              {!activeProject
+                ? "Click 'Add New Project' above to create your first personal project."
+                : "Select any calculator module below to calculate quantities and click 'Save File'."}
             </p>
           </div>
         ) : fileViewMode === "table" ? (

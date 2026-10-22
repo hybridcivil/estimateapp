@@ -15,7 +15,7 @@ import {
   FileSpreadsheet,
   Layers,
 } from "lucide-react";
-import { useAuth, BOOTSTRAP_ADMIN_EMAIL } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { AppUser } from "../types";
 
 interface LoginRegistrationScreenProps {
@@ -198,47 +198,10 @@ export const LoginRegistrationScreen: React.FC<LoginRegistrationScreenProps> = (
               </div>
             )}
 
-            {/* Administrator One-Click VIP Card (Always accessible for engrkalilinux@gmail.com) */}
-            <div className="bg-gradient-to-r from-amber-500/20 via-[#1e304b] to-[#16253c] border-2 border-amber-500/50 rounded-2xl p-4 shadow-lg space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                    Master Administrator
-                  </span>
-                </div>
-                <span className="text-[9px] bg-amber-500/25 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold border border-amber-500/40">
-                  Full Control
-                </span>
-              </div>
-
-              <div>
-                <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <Shield className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>engrkalilinux@gmail.com</span>
-                </div>
-                <p className="text-[11px] text-[#9bb3d1] mt-0.5">
-                  Designated system admin: manages all users, controls projects, and audits BOQ estimates.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleDirectAuth(BOOTSTRAP_ADMIN_EMAIL, "Engr. Kali (Admin)")}
-                disabled={isLoadingDirect}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold px-4 py-2.5 rounded-xl text-xs shadow-md transition active:scale-95 cursor-pointer disabled:opacity-50"
-              >
-                <Shield className="w-4 h-4 stroke-[2.5]" />
-                <span>
-                  {isLoadingDirect ? "Authorizing Admin Workspace..." : "1-Click Super Admin Sign In"}
-                </span>
-              </button>
-            </div>
-
-            {/* Option 2: Standard Google Popup Auth */}
+            {/* Google Popup Auth */}
             <div className="space-y-2 pt-1">
               <div className="text-[10px] font-bold text-[#8ba3c1] uppercase tracking-wider text-center">
-                — Or Sign In With Google Popup —
+                — Sign In With Google Popup —
               </div>
 
               <button

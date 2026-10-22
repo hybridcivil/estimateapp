@@ -240,19 +240,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const finalName = displayName?.trim() || (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
     const now = new Date().toISOString();
 
-    let uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
+    const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
 
-    try {
-      if (!auth.currentUser) {
-        const anon = await signInAnonymously(auth);
-        if (anon.user?.uid) {
-          uid = anon.user.uid;
-        }
-      } else {
-        uid = auth.currentUser.uid;
-      }
-    } catch (anonErr) {
-      console.warn("Anonymous auth not available, using deterministic UID:", anonErr);
+    if (auth.currentUser && auth.currentUser.email && auth.currentUser.email.toLowerCase() !== cleanEmail) {
+      try {
+        await signOut(auth);
+      } catch {}
     }
 
     const userData: AppUser = {
@@ -442,11 +435,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       localStorage.removeItem("ashraf_auth_session");
       await signOut(auth);
-      setAppUser(null);
-      setIsAdmin(false);
     } catch (err: any) {
       console.error("Sign out error:", err);
       setError(err.message || "Failed to sign out");
+    } finally {
+      setAppUser(null);
+      setCurrentUser(null);
+      setIsAdmin(false);
     }
   };
 

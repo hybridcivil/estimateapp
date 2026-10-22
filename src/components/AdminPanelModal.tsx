@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Project, AppUser } from "../types";
 import { fetchAllProjectsForAdmin, fetchAllUsersForAdmin, deleteProject } from "../services/api";
-import { BOOTSTRAP_ADMIN_EMAIL } from "../context/AuthContext";
+import { BOOTSTRAP_ADMIN_EMAIL, useAuth } from "../context/AuthContext";
 
 interface AdminPanelModalProps {
   isOpen: boolean;
@@ -29,6 +29,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onClose,
   onSelectProject,
 }) => {
+  const { currentUser, appUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"projects" | "users">("projects");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
@@ -107,7 +108,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#8ba3c1]">
-                Manage all registered engineers, cloud projects, and system access · {BOOTSTRAP_ADMIN_EMAIL}
+                Manage all registered engineers, cloud projects, and system access
               </p>
             </div>
           </div>
@@ -164,8 +165,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <span>Root Administrator</span>
               <Shield className="w-3.5 h-3.5 text-amber-400" />
             </div>
-            <div className="text-xs font-mono font-bold text-amber-400 truncate" title={BOOTSTRAP_ADMIN_EMAIL}>
-              {BOOTSTRAP_ADMIN_EMAIL}
+            <div className="text-xs font-mono font-bold text-amber-400 truncate" title={currentUser?.email || appUser?.email || BOOTSTRAP_ADMIN_EMAIL}>
+              {currentUser?.email || appUser?.email || BOOTSTRAP_ADMIN_EMAIL}
             </div>
           </div>
         </div>

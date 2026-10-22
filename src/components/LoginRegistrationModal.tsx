@@ -11,7 +11,7 @@ import {
   Layers,
   Sparkles,
 } from "lucide-react";
-import { useAuth, BOOTSTRAP_ADMIN_EMAIL } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { AppUser } from "../types";
 
 interface LoginRegistrationModalProps {
@@ -181,46 +181,10 @@ export const LoginRegistrationModal: React.FC<LoginRegistrationModalProps> = ({
             </div>
           ) : (
             <>
-              {/* Option 1: One-Click Instant Sign-In for engrkalilinux@gmail.com */}
-              <div className="bg-gradient-to-r from-amber-500/15 via-[#1a2d48] to-[#142337] border-2 border-amber-500/40 rounded-xl p-3.5 sm:p-4 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                      Master Administrator Access
-                    </span>
-                  </div>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold">
-                    Super Admin
-                  </span>
-                </div>
-
-                <div>
-                  <div className="text-sm font-bold text-white">
-                    engrkalilinux@gmail.com
-                  </div>
-                  <p className="text-[11px] text-[#9bb3d1] mt-0.5">
-                    Click below to immediately log in with full administrative supervisory rights over all engineers' projects.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleDirectEmail(BOOTSTRAP_ADMIN_EMAIL, "Engr. Kali (Admin)")}
-                  disabled={isLoadingDirect}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs shadow-md transition active:scale-95 cursor-pointer disabled:opacity-50"
-                >
-                  <Shield className="w-4 h-4 stroke-[2.5]" />
-                  <span>
-                    {isLoadingDirect ? "Signing in..." : "Instant Sign In as engrkalilinux@gmail.com (Admin)"}
-                  </span>
-                </button>
-              </div>
-
-              {/* Option 2: Standard Google Popup Auth */}
+              {/* Google Popup Auth */}
               <div className="space-y-2">
                 <div className="text-[11px] font-semibold text-[#8ba3c1] uppercase tracking-wider">
-                  Or Sign in with Google Account:
+                  Sign in with Google Account:
                 </div>
 
                 <button

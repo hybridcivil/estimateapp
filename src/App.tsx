@@ -144,20 +144,8 @@ function MainAppContent() {
           });
         }
       } else {
-        // Automatically create a personalized starter project for this user
-        try {
-          const starter = await createProject({
-            name: `${userToUse.displayName || "Ashraf"} Commercial Tower`,
-            client: userToUse.displayName ? `${userToUse.displayName} Properties` : "Ashraf Properties Ltd.",
-            location: "Dhanmondi, Dhaka",
-            engineer: userToUse.displayName || "Engr. Ashraf",
-            notes: "Multi-storey RCC structure designed with BNBC / ACI codes.",
-          }, userToUse);
-          setProjects([starter]);
-          setActiveProject(starter);
-        } catch (e) {
-          console.error("Starter project creation error", e);
-        }
+        // User has no projects yet; start clean with 0 projects until they create one
+        setActiveProject(null);
       }
     } catch (err) {
       console.error("Failed to load projects", err);
@@ -169,6 +157,8 @@ function MainAppContent() {
 
   // Trigger project loading when entering loading_workspace or when user ID changes
   useEffect(() => {
+    setProjects([]);
+    setActiveProject(null);
     if (appUser || currentUser) {
       loadProjects();
     }
@@ -262,7 +252,7 @@ function MainAppContent() {
     rates?: any;
     estimates?: ProjectEstimateItem[];
   }>) => {
-    const updated = await updateProject(id, data);
+    const updated = await updateProject(id, data, appUser);
     if (updated) {
       await loadProjects(id);
       const storiesMsg =
@@ -469,7 +459,7 @@ function MainAppContent() {
   if (flowState === "loading_workspace") {
     return (
       <WorkspaceLoadingScreen
-        isReady={!loading && projects.length > 0}
+        isReady={!loading}
         onFinish={() => setFlowState("app")}
       />
     );

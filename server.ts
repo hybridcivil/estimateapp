@@ -20,21 +20,7 @@ function ensureDataFile() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   if (!fs.existsSync(DATA_FILE)) {
-    const defaultProjects: Project[] = [
-      {
-        id: "proj_default_1",
-        name: "Ashraf Tower (G+6 Story Residential)",
-        client: "Engr. Ashraf & Associates",
-        location: "Dhanmondi, Dhaka",
-        engineer: "Engr. Ashraf",
-        notes: "Complete structural & civil estimation with 1:1.5:3 concrete mix and 500W rebar.",
-        stories: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        estimates: createDefaultBuildingEstimates(1) as any,
-      },
-    ];
-    fs.writeFileSync(DATA_FILE, JSON.stringify(defaultProjects, null, 2), "utf-8");
+    fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf-8");
   }
 }
 
@@ -103,9 +89,12 @@ app.get("/api/health", (_req, res) => {
 app.get("/api/projects", (req, res) => {
   try {
     const ownerId = req.query.ownerId as string | undefined;
+    const includeAll = req.query.all === "true";
     let projects = readProjects();
     if (ownerId) {
       projects = projects.filter((p) => p.ownerId === ownerId);
+    } else if (!includeAll) {
+      projects = [];
     }
     const enriched = projects.map((p) => {
       const estimates = Array.isArray(p.estimates) ? p.estimates : [];
