@@ -361,6 +361,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
     },
   ];
 
+  const getAccentForTheme = (accent: string) => {
+    if (!isLight) return accent;
+    switch (accent.toLowerCase()) {
+      case "#00c2c7": return "#0f766e"; // deep teal
+      case "#f5a623": return "#b45309"; // rich amber
+      case "#2ecc71": return "#15803d"; // emerald
+      case "#06b6d4": return "#0e7490"; // cyan
+      case "#f59e0b": return "#b45309"; // amber
+      case "#9b59b6": return "#6d28d9"; // purple
+      case "#e74c3c": return "#b91c1c"; // red
+      case "#e67e22": return "#c2410c"; // orange
+      case "#1abc9c": return "#0f766e"; // dark mint
+      case "#3498db": return "#1d4ed8"; // blue
+      default: return accent;
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto bg-[#0f1c2e] text-[#f1f5f9] p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       {/* Hero Welcome Banner */}
@@ -1284,8 +1301,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <div
                             className="w-6 h-6 rounded flex items-center justify-center shrink-0"
                             style={{
-                              backgroundColor: `${calcMeta?.accent || "#00c2c7"}20`,
-                              color: calcMeta?.accent || "#00c2c7",
+                              backgroundColor: `${getAccentForTheme(calcMeta?.accent || "#00c2c7")}${isLight ? "18" : "20"}`,
+                              color: getAccentForTheme(calcMeta?.accent || "#00c2c7"),
+                              border: isLight ? `1px solid ${getAccentForTheme(calcMeta?.accent || "#00c2c7")}35` : undefined,
                             }}
                           >
                             <Icon className="w-3.5 h-3.5" />
@@ -1556,8 +1574,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                           style={{
-                            backgroundColor: `${calcMeta?.accent || "#00c2c7"}20`,
-                            color: calcMeta?.accent || "#00c2c7",
+                            backgroundColor: `${getAccentForTheme(calcMeta?.accent || "#00c2c7")}${isLight ? "18" : "20"}`,
+                            color: getAccentForTheme(calcMeta?.accent || "#00c2c7"),
+                            border: isLight ? `1px solid ${getAccentForTheme(calcMeta?.accent || "#00c2c7")}35` : undefined,
                           }}
                         >
                           <Icon className="w-4 h-4" />
@@ -1862,8 +1881,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition"
                       style={{
-                        backgroundColor: `${card.accent}20`,
-                        color: card.accent,
+                        backgroundColor: `${getAccentForTheme(card.accent)}${isLight ? "18" : "20"}`,
+                        color: getAccentForTheme(card.accent),
+                        border: isLight ? `1px solid ${getAccentForTheme(card.accent)}35` : undefined,
                       }}
                     >
                       <Icon className="w-4 h-4" />
