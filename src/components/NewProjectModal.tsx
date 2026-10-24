@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, FolderPlus, Edit3, Check } from "lucide-react";
+import { X, FolderPlus, Edit3, Check, Plus, Minus } from "lucide-react";
 import { Project } from "../types";
 
 interface NewProjectModalProps {
@@ -187,7 +187,20 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                     (Multi-Storey Multiplier)
                   </span>
                 </label>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 storey-stepper-container">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Math.max(1, Number(stories) || 1);
+                      if (cur > 1) setStories(cur - 1);
+                    }}
+                    disabled={Math.max(1, Number(stories) || 1) <= 1}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] text-white disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
+                    title="Decrease storey count"
+                    aria-label="Decrease storey count"
+                  >
+                    <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -210,10 +223,22 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         setStories(Math.min(100, parsed));
                       }
                     }}
-                    className="w-14 h-7 text-center font-bold text-xs bg-[#1a2b42] border border-[#00c2c7] rounded-lg text-[#00c2c7] outline-none"
+                    className="w-14 h-7 text-center font-bold text-xs bg-[#1a2b42] border border-[#00c2c7] rounded-lg text-[#00c2c7] outline-none storey-stepper-input"
                     placeholder="1"
                   />
-                  <span className="text-[11px] text-[#8ba3c1]">Floors</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Math.max(1, Number(stories) || 1);
+                      setStories(Math.min(100, cur + 1));
+                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] text-white transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
+                    title="Increase storey count"
+                    aria-label="Increase storey count"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                  <span className="text-[11px] text-[#8ba3c1] ml-1">Floors</span>
                 </div>
               </div>
 

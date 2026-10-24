@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Building2, Layers, Check, RefreshCw } from "lucide-react";
+import { Building2, Layers, Check, RefreshCw, Plus, Minus } from "lucide-react";
 
 interface StoreyMultiplierBarProps {
   projectStories?: number;
@@ -80,15 +80,16 @@ export const StoreyMultiplierBar: React.FC<StoreyMultiplierBarProps> = ({
 
         {/* Multiplier Stepper & Input */}
         {isMultiplying && (
-          <div className="flex items-center bg-[#0e1624] border border-[#2d4a6a] rounded-lg p-0.5">
+          <div className="flex items-center bg-[#0e1624] border border-[#2d4a6a] rounded-lg p-1 storey-stepper-container gap-1 shadow-inner">
             <button
               type="button"
               disabled={multiplier <= 1}
               onClick={() => setMultiplier(Math.max(1, multiplier - 1))}
-              className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#8ba3c1] hover:text-white hover:bg-[#243b55] disabled:opacity-30 disabled:pointer-events-none transition"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-[#1e2f47] text-white border border-[#2d4a6a] hover:bg-[#00c2c7] hover:text-[#0f1c2e] disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
               title="Decrease floor count"
+              aria-label="Decrease floor count"
             >
-              -
+              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
             <input
               type="text"
@@ -121,17 +122,18 @@ export const StoreyMultiplierBar: React.FC<StoreyMultiplierBarProps> = ({
                   setMultiplier(clamped);
                 }
               }}
-              className="w-10 text-center bg-transparent font-bold text-xs text-[#f5a623] outline-none"
+              className="w-10 text-center bg-transparent font-bold text-xs text-[#f5a623] outline-none font-mono storey-stepper-input px-1"
               title="Enter number of storeys"
               placeholder="1"
             />
             <button
               type="button"
               onClick={() => setMultiplier(multiplier + 1)}
-              className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-[#8ba3c1] hover:text-white hover:bg-[#243b55] transition"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-[#1e2f47] text-white border border-[#2d4a6a] hover:bg-[#00c2c7] hover:text-[#0f1c2e] transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
               title="Increase floor count"
+              aria-label="Increase floor count"
             >
-              +
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
         )}

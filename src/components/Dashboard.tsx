@@ -3,6 +3,7 @@ import { Project, ProjectEstimateItem, EstimateType, GlobalMaterialRates } from 
 import {
   FolderKanban,
   Plus,
+  Minus,
   Trash2,
   Download,
   Upload,
@@ -660,11 +661,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Engineer: <strong className="text-white">{activeProject.engineer}</strong>
                   </span>
                 )}
-                <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2 py-0.5 rounded-lg border border-[#00c2c7]/40">
-                  <Building2 className="w-3.5 h-3.5 text-[#00c2c7]" />
+                <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2.5 py-1 rounded-lg border border-[#00c2c7]/40">
+                  <Building2 className="w-4 h-4 text-[#00c2c7] shrink-0" />
                   <span className="text-xs font-bold text-white">Storeys:</span>
                   {onUpdateProject ? (
-                    <div className="flex items-center gap-1 bg-[#121c2d] px-1 py-0.5 rounded border border-[#2d4a6a]">
+                    <div className="flex items-center gap-1.5 bg-[#121c2d] px-2 py-0.5 rounded-lg border border-[#2d4a6a] storey-stepper-container">
                       <button
                         type="button"
                         onClick={() => {
@@ -674,12 +675,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           }
                         }}
                         disabled={(activeProject.stories || 1) <= 1}
-                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] disabled:opacity-30 disabled:hover:bg-[#1e2f47] text-white text-xs font-bold transition cursor-pointer"
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-[#243b55] hover:bg-[#00c2c7] border border-[#2d4a6a] disabled:opacity-30 disabled:cursor-not-allowed text-white hover:text-[#0f1c2e] text-xs font-bold transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
                         title="Decrease building storeys"
+                        aria-label="Decrease building storeys"
                       >
-                        -
+                        <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
-                      <span className="font-mono font-bold text-xs text-[#00c2c7] px-1 min-w-[18px] text-center">
+                      <span className="font-mono font-bold text-sm text-[#00c2c7] px-2 min-w-[24px] text-center storey-stepper-val">
                         {activeProject.stories || 1}
                       </span>
                       <button
@@ -688,17 +690,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           const cur = activeProject.stories || 1;
                           onUpdateProject(activeProject.id, { stories: cur + 1 });
                         }}
-                        className="w-4 h-4 flex items-center justify-center rounded bg-[#1e2f47] hover:bg-[#2a4163] text-white text-xs font-bold transition cursor-pointer"
+                        className="w-6 h-6 flex items-center justify-center rounded-md bg-[#243b55] hover:bg-[#00c2c7] border border-[#2d4a6a] text-white hover:text-[#0f1c2e] text-xs font-bold transition cursor-pointer storey-stepper-btn active:scale-95 shadow-sm"
                         title="Increase building storeys"
+                        aria-label="Increase building storeys"
                       >
-                        +
+                        <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
                     </div>
                   ) : (
-                    <strong className="text-[#00c2c7] text-xs">{activeProject.stories || 1}</strong>
+                    <strong className="text-[#00c2c7] text-xs font-mono">{activeProject.stories || 1}</strong>
                   )}
                   {(activeProject.stories || 1) > 1 ? (
-                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">
+                    <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-2 py-0.5 rounded font-mono font-bold border border-[#00c2c7]/30">
                       ×{activeProject.stories} Multiplied (Superstructure)
                     </span>
                   ) : (

@@ -264,6 +264,7 @@ html.light [class*="bg-[#24374e]"],
 html.light [class*="bg-[#1a2d47]"],
 html.light [class*="bg-[#1a2d48]"],
 html.light [class*="bg-[#122238]"],
+html.light [class*="bg-[#1e2f47]"],
 body.light-theme [class*="bg-[#101928]"],
 body.light-theme [class*="bg-[#0b1320]"],
 body.light-theme [class*="bg-[#111c2c]"],
@@ -278,7 +279,8 @@ body.light-theme [class*="bg-[#131f33]"],
 body.light-theme [class*="bg-[#24374e]"],
 body.light-theme [class*="bg-[#1a2d47]"],
 body.light-theme [class*="bg-[#1a2d48]"],
-body.light-theme [class*="bg-[#122238]"] {
+body.light-theme [class*="bg-[#122238]"],
+body.light-theme [class*="bg-[#1e2f47]"] {
   background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
@@ -815,5 +817,109 @@ html.light ::-webkit-scrollbar-thumb:hover,
 body.light-theme ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* ----------------------------------------------------
+   Storey Stepper Buttons (+ and -) & Multiplier Controls
+   ---------------------------------------------------- */
+.storey-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.storey-stepper-btn svg {
+  display: block;
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+.storey-stepper-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35 !important;
+}
+
+/* Light Theme: High-Contrast, Crisp Storey Buttons */
+html.light .storey-stepper-btn,
+body.light-theme .storey-stepper-btn {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #94a3b8 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .storey-stepper-btn svg,
+body.light-theme .storey-stepper-btn svg {
+  stroke: #0f172a !important;
+  stroke-width: 2.75px !important;
+}
+
+html.light .storey-stepper-btn:hover:not(:disabled),
+body.light-theme .storey-stepper-btn:hover:not(:disabled) {
+  background-color: #0284c7 !important;
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 4px 0 rgba(2, 132, 199, 0.25) !important;
+}
+
+html.light .storey-stepper-btn:hover:not(:disabled) svg,
+body.light-theme .storey-stepper-btn:hover:not(:disabled) svg {
+  stroke: #ffffff !important;
+}
+
+html.light .storey-stepper-btn:active:not(:disabled),
+body.light-theme .storey-stepper-btn:active:not(:disabled) {
+  background-color: #0369a1 !important;
+  border-color: #0369a1 !important;
+  transform: scale(0.95);
+}
+
+html.light .storey-stepper-btn:disabled,
+body.light-theme .storey-stepper-btn:disabled {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}
+
+html.light .storey-stepper-btn:disabled svg,
+body.light-theme .storey-stepper-btn:disabled svg {
+  stroke: #94a3b8 !important;
+}
+
+/* Light Theme: Storey Container */
+html.light .storey-stepper-container,
+body.light-theme .storey-stepper-container {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Light Theme: Active Storey Number */
+html.light .storey-stepper-val,
+body.light-theme .storey-stepper-val {
+  color: #0369a1 !important;
+  font-weight: 800 !important;
+}
+
+/* Light Theme: Storey Multiplier Input */
+html.light input.storey-stepper-input,
+body.light-theme input.storey-stepper-input {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+  color: #b45309 !important;
+  font-weight: 800 !important;
+}
+
+html.light input.storey-stepper-input:focus,
+body.light-theme input.storey-stepper-input:focus {
+  border-color: #0284c7 !important;
+  outline: none !important;
+}
+
 
 
