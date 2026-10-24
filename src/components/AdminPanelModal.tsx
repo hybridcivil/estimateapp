@@ -14,7 +14,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Project, AppUser } from "../types";
-import { fetchAllProjectsForAdmin, fetchAllUsersForAdmin, deleteProject } from "../services/api";
+import {
+  fetchAllProjectsForAdmin,
+  fetchAllUsersForAdmin,
+  deleteProject,
+  calculateProjectTotalCost,
+} from "../services/api";
 import { BOOTSTRAP_ADMIN_EMAIL, useAuth } from "../context/AuthContext";
 
 interface AdminPanelModalProps {
@@ -63,7 +68,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
   if (!isOpen) return null;
 
-  const totalCostAll = allProjects.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+  const totalCostAll = allProjects.reduce((sum, p) => sum + calculateProjectTotalCost(p), 0);
 
   const filteredProjects = allProjects.filter((p) => {
     const matchesSearch =
@@ -270,7 +275,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           </div>
 
                           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#101928] text-[#2ecc71] border border-[#2ecc71]/30 shrink-0">
-                            ৳ {(p.totalCost || 0).toLocaleString("en-IN")}
+                            ৳ {calculateProjectTotalCost(p).toLocaleString("en-IN")}
                           </span>
                         </div>
 

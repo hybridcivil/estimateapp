@@ -49,6 +49,7 @@ service cloud.firestore {
         && (!('ownerName' in data) || (data.ownerName is string && data.ownerName.size() <= 200))
         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000))
         && (!('stories' in data) || (data.stories is number && data.stories >= 1 && data.stories <= 200))
+        && (!('totalCost' in data) || (data.totalCost is number && data.totalCost >= 0))
         && (!('estimates' in data) || data.estimates is list)
         && (!('rates' in data) || data.rates is map);
     }

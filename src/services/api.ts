@@ -284,27 +284,120 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
 }
 
 /**
+ * Calculate the comprehensive total valuation of a project from its estimates or stored totalCost
+ */
+export function calculateProjectTotalCost(p: Partial<Project> | null | undefined): number {
+  if (!p) return 0;
+  if (Array.isArray(p.estimates) && p.estimates.length > 0) {
+    const sum = p.estimates.reduce((acc, est) => {
+      const c =
+        Number(est.totalCost) ||
+        Number(est.summary?.totalCost) ||
+        Number(est.summary?.grandTotal) ||
+        Number(est.summary?.multipliedCost) ||
+        0;
+      return acc + c;
+    }, 0);
+    if (sum > 0) return Math.round(sum);
+  }
+  return Number(p.totalCost) || 0;
+}
+
+/**
  * Fetch all projects across all users specifically for Admin Control Center
+ * Merges Firestore projects, all local engineer workspaces, and backend projects
+ * guaranteeing accurate estimates and non-zero project valuation.
  */
 export async function fetchAllProjectsForAdmin(): Promise<Project[]> {
+  const allProjectsMap = new Map<string, Project>();
+
+  // 1. Gather all projects across all user-isolated localStorage slots & fallback key
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith("ashraf_projects") || k === LOCAL_STORAGE_KEY)) {
+        const val = localStorage.getItem(k);
+        if (val) {
+          try {
+            const list = JSON.parse(val);
+            if (Array.isArray(list)) {
+              for (const p of list) {
+                if (p && p.id) {
+                  const ests = Array.isArray(p.estimates) ? p.estimates : [];
+                  const cost = calculateProjectTotalCost({ ...p, estimates: ests });
+                  allProjectsMap.set(p.id, {
+                    ...p,
+                    estimates: ests,
+                    totalCost: cost,
+                  });
+                }
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Local storage scan for admin notice:", e);
+  }
+
+  // 2. Query Firestore projects collection
   try {
     const colRef = collection(db, "projects");
     const snapshot = await getDocs(colRef);
-    const list: Project[] = [];
     snapshot.forEach((docSnap) => {
       const data = docSnap.data() as any;
-      list.push({
+      const remoteEsts = Array.isArray(data.estimates) ? data.estimates : [];
+      const existing = allProjectsMap.get(docSnap.id);
+
+      // Preserve existing local estimates if local has more or remote is empty
+      let finalEsts = remoteEsts;
+      if (existing && Array.isArray(existing.estimates) && existing.estimates.length > remoteEsts.length) {
+        finalEsts = existing.estimates;
+      }
+
+      const mergedProj: Project = {
+        ...existing,
         ...data,
         id: docSnap.id,
-        estimates: Array.isArray(data.estimates) ? data.estimates : [],
-      });
+        estimates: finalEsts,
+      };
+
+      mergedProj.totalCost = calculateProjectTotalCost(mergedProj);
+      allProjectsMap.set(docSnap.id, mergedProj);
     });
-    list.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
-    return list;
   } catch (err) {
-    console.error("fetchAllProjectsForAdmin error:", err);
-    return getLocalProjects();
+    console.warn("fetchAllProjectsForAdmin Firestore notice:", err);
   }
+
+  // 3. Fallback to /api/projects backend if available
+  try {
+    const res = await fetch("/api/projects");
+    if (res.ok) {
+      const backendProjects = await res.json();
+      if (Array.isArray(backendProjects)) {
+        for (const bp of backendProjects) {
+          if (bp && bp.id) {
+            const existing = allProjectsMap.get(bp.id);
+            const ests = (existing && Array.isArray(existing.estimates) && existing.estimates.length > (bp.estimates?.length || 0))
+              ? existing.estimates
+              : (Array.isArray(bp.estimates) ? bp.estimates : []);
+            const proj: Project = {
+              ...existing,
+              ...bp,
+              estimates: ests,
+            };
+            proj.totalCost = calculateProjectTotalCost(proj);
+            allProjectsMap.set(bp.id, proj);
+          }
+        }
+      }
+    }
+  } catch {}
+
+  const result = Array.from(allProjectsMap.values());
+  result.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+  return result;
 }
 
 /**
@@ -420,7 +513,9 @@ export async function createProject(
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     estimates: initialEstimates as any,
+    totalCost: 0,
   };
+  newProj.totalCost = calculateProjectTotalCost(newProj);
 
   // 1. Save to Firestore ONLY if an authenticated user exists with matching ownerId
   if (auth.currentUser && effectiveOwnerId && (effectiveOwnerId === auth.currentUser.uid || user?.role === "admin")) {
@@ -487,6 +582,7 @@ export async function updateProject(id: string, data: Partial<Project>, user?: A
     estimates: rescaledEstimates,
     updatedAt: new Date().toISOString(),
   };
+  mergedProj.totalCost = calculateProjectTotalCost(mergedProj);
 
   // 1. Update in Firestore if authenticated in Firebase
   if (auth.currentUser) {
@@ -661,6 +757,7 @@ export async function saveEstimateToProject(
     proj.estimates.unshift(item);
   }
   proj.updatedAt = new Date().toISOString();
+  proj.totalCost = calculateProjectTotalCost(proj);
 
   // 3. Persist across all user-isolated and shared local storage keys
   persistProjectToAllUserStores(proj, user?.uid || proj.ownerId);
@@ -714,6 +811,7 @@ export async function deleteEstimateFromProject(
     if (!Array.isArray(proj.estimates)) proj.estimates = [];
     proj.estimates = proj.estimates.filter((e) => e.id !== estimateId);
     proj.updatedAt = new Date().toISOString();
+    proj.totalCost = calculateProjectTotalCost(proj);
     persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
     // Update in Firestore if authenticated in Firebase
