@@ -121,7 +121,7 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
       summary: payload.summary,
       data: payload.data,
     };
-    downloadEstimateJson(mockEstimate, activeProject ? activeProject.name : "Ashraf_Civil_Studio");
+    downloadEstimateJson(mockEstimate, activeProject ? activeProject.name : "Dolphin_Box");
   };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -382,7 +382,7 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => downloadEstimateJson(est, activeProject?.name || "Ashraf")}
+                          onClick={() => downloadEstimateJson(est, activeProject?.name || "Dolphin_Box")}
                           className="bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white p-1.5 rounded-lg text-xs transition"
                           title="Download JSON"
                         >

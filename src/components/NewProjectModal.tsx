@@ -36,7 +36,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
   const [name, setName] = useState("");
   const [client, setClient] = useState("");
   const [location, setLocation] = useState("");
-  const [engineer, setEngineer] = useState("Engr. Ashraf");
+  const [engineer, setEngineer] = useState("Anonymous");
   const [notes, setNotes] = useState("");
   const [stories, setStories] = useState<number | string>(1);
   const [includeDefaultList, setIncludeDefaultList] = useState(true);
@@ -48,7 +48,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setName(initialProject.name || "");
       setClient(initialProject.client || "");
       setLocation(initialProject.location || "");
-      setEngineer(initialProject.engineer || "Engr. Ashraf");
+      setEngineer(initialProject.engineer || "Anonymous");
       setNotes(initialProject.notes || "");
       setStories(initialProject.stories || 1);
       setIncludeDefaultList(false);
@@ -56,7 +56,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setName("");
       setClient("");
       setLocation("");
-      setEngineer("Engr. Ashraf");
+      setEngineer("Anonymous");
       setNotes("");
       setStories(1);
       setIncludeDefaultList(true);
@@ -146,7 +146,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
               <input
                 type="text"
                 required
-                placeholder="e.g. Ashraf Commercial Tower"
+                placeholder="e.g. Commercial Plaza Project"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full h-9 px-3 bg-[#0e1624] border border-[#2d4a6a] rounded-xl text-xs text-white placeholder-[#8ba3c1] focus:border-[#00c2c7] focus:outline-none transition"
@@ -279,7 +279,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 <label className="text-xs text-[#8ba3c1] block mb-1">Assigned Civil Engineer</label>
                 <input
                   type="text"
-                  placeholder="Engr. Ashraf"
+                  placeholder="Anonymous"
                   value={engineer}
                   onChange={(e) => setEngineer(e.target.value)}
                   className="w-full h-8.5 px-3 bg-[#0e1624] border border-[#2d4a6a] rounded-xl text-xs text-white placeholder-[#8ba3c1] focus:border-[#00c2c7] focus:outline-none transition"

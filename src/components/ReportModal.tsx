@@ -581,7 +581,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         month: "long",
         day: "numeric",
       })}</strong></div>
-      <div>Lead Engineer: <strong>${project.engineer || "Engr. Ashraf"}</strong></div>
+      <div>Lead Engineer: <strong>${project.engineer || "Anonymous"}</strong></div>
       <div>Standard: <strong>BNBC / ACI 318 Standard</strong></div>
       <div>Page: <strong>${pageSize.toUpperCase()} ${orientation.toUpperCase()} (T:${marginTop} B:${marginBottom} L:${marginLeft} R:${marginRight}mm)</strong></div>
     </div>
@@ -1458,7 +1458,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   <div class="signatures-block avoid-break">
     <div>
-      <div class="sign-line">${project.engineer || "Engr. Ashraf"}</div>
+      <div class="sign-line">${project.engineer || "Anonymous"}</div>
       <div class="sign-title">Lead Structural & Civil Engineer</div>
       <div class="sign-sub">Signature, Professional Seal & Date</div>
     </div>
@@ -1470,8 +1470,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   </div>
 
   <div class="footer-note avoid-break">
-    <div>Generated via <strong>Ashraf Civil Studio</strong> • Professional Civil Engineering Suite</div>
-    <div>Designed by <strong>MD. ASHRAFUL ISLAM</strong> • Standard: BNBC / ACI 318</div>
+    <div>Generated via <strong>Dolphin Box</strong> • Professional Civil Engineering Suite</div>
+    <div>Developer: <strong>Anonymous</strong> • Standard: BNBC / ACI 318</div>
   </div>
 </body>
 </html>`;
@@ -1518,11 +1518,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   // Comprehensive CSV Export with all breakdowns
   const handleExportCSV = () => {
-    let csv = `ASHRAF CIVIL STUDIO - COMPREHENSIVE BILL OF QUANTITIES REPORT\n`;
+    let csv = `DOLPHIN BOX - COMPREHENSIVE BILL OF QUANTITIES REPORT\n`;
     csv += `Project:,"${project.name}"\n`;
     csv += `Client:,"${project.client || "N/A"}"\n`;
     csv += `Location:,"${project.location || "N/A"}"\n`;
-    csv += `Engineer:,"${project.engineer || "Engr. Ashraf"}"\n`;
+    csv += `Engineer:,"${project.engineer || "Anonymous"}"\n`;
     csv += `Date:,"${new Date().toLocaleDateString()}"\n`;
     csv += `Storeys:,"${project.stories || 1} Floor(s)",Multiplier:,"×${project.stories || 1}"\n\n`;
 
@@ -2063,7 +2063,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <div>
                   Lead Engineer:{" "}
                   <strong className="text-white print:text-slate-900">
-                    {project.engineer || "Engr. Ashraf"}
+                    {project.engineer || "Anonymous"}
                   </strong>
                 </div>
                 <div className="text-[10px] text-[#00c2c7] print:text-blue-700 font-mono font-semibold">
@@ -3137,7 +3137,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <div className="flex flex-col items-center">
                   <div className="w-full max-w-[220px] border-b-2 border-dashed border-[#2d4a6a] print:border-slate-400 pb-1 mb-2">
                     <div className="font-bold text-white print:text-slate-900 text-sm">
-                      {project.engineer || "Engr. Ashraf"}
+                      {project.engineer || "Anonymous"}
                     </div>
                   </div>
                   <div className="text-[11px] font-semibold text-[#f1f5f9] print:text-slate-800">
@@ -3166,10 +3166,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               {/* Bottom Copyright & Verification Footer */}
               <div className="mt-6 pt-3 border-t border-[#2d4a6a]/40 print:border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[10px] text-[#8ba3c1] print:text-slate-500">
                 <div>
-                  Generated via <strong>Ashraf Civil Studio</strong> • Professional Civil Engineering Suite
+                  Generated via <strong>Dolphin Box</strong> • Professional Civil Engineering Suite
                 </div>
                 <div>
-                  Designed by <strong className="text-white print:text-slate-800">MD. ASHRAFUL ISLAM</strong> • Standard: BNBC / ACI 318
+                  Developer: <strong className="text-white print:text-slate-800">Anonymous</strong> • Standard: BNBC / ACI 318
                 </div>
               </div>
             </div>

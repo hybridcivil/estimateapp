@@ -158,10 +158,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             Civil & Structural Suite
           </div>
           <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-            ASHRAF CIVIL STUDIO
+            DOLPHIN BOX
           </h1>
           <p className="text-xs sm:text-sm text-[#8ba3c1] max-w-sm mx-auto">
-            Professional Engineering Estimation, BOQ & Project Cost Management Platform
+            Professional Engineering Estimation, BOQ & Project Cost Management Platform • Developer: Anonymous
           </p>
         </div>
 
@@ -223,8 +223,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
         {/* Copyright notice required by user */}
         <div className="mt-3 text-[10px] text-[#8ba3c1]/70">
-          Ashraf Civil Studio • Designed by{" "}
-          <span className="text-[#00c2c7] font-semibold">MD. ASHRAFUL ISLAM</span>
+          Dolphin Box • Developer:{" "}
+          <span className="text-[#00c2c7] font-semibold">Anonymous</span>
         </div>
       </div>
     </div>

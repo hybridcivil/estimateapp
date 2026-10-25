@@ -116,14 +116,14 @@ export const LoginRegistrationScreen: React.FC<LoginRegistrationScreenProps> = (
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm sm:text-base font-extrabold text-white tracking-wider">
-                ASHRAF CIVIL STUDIO
+                DOLPHIN BOX
               </h1>
               <span className="text-[9px] bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1.5 py-0.5 rounded font-mono font-bold">
                 PRO
               </span>
             </div>
             <p className="text-[10px] text-[#8ba3c1] hidden sm:block">
-              Civil Engineering Estimation & Multi-Storey BOQ File System
+              Civil Engineering Estimation & Multi-Storey BOQ File System • Developer: Anonymous
             </p>
           </div>
         </div>
@@ -319,7 +319,7 @@ export const LoginRegistrationScreen: React.FC<LoginRegistrationScreenProps> = (
 
       {/* Footer */}
       <footer className="relative z-10 py-3 text-center text-[10px] text-[#8ba3c1] border-t border-[#2d4a6a]/40 bg-[#0a121e]/80">
-        Ashraf Civil Studio PRO · BNBC & ACI Structural Estimation System · Google Firebase Cloud
+        Dolphin Box PRO · Developer: Anonymous · BNBC & ACI Structural Estimation System · Google Firebase Cloud
       </footer>
     </div>
   );

@@ -305,7 +305,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                     required
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="e.g. Engr. Ashraf / Md. Ashraful Islam"
+                    placeholder="e.g. Engineer Name / Anonymous"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7] transition"
                   />
                 </div>
@@ -423,7 +423,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
         {/* Footer info */}
         <div className="p-4 bg-[#0a121e]/80 border-t border-[#24374e] text-center text-[10px] text-[#8ba3c1]">
-          Ashraf Civil Studio • Designed for Professional Civil & Structural Engineers
+          Dolphin Box • Developer: Anonymous • Professional Civil & Structural Suite
         </div>
       </div>
     </div>

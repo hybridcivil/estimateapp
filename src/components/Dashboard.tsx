@@ -389,10 +389,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-[11px] font-bold text-[#00c2c7] tracking-wider uppercase bg-[#00c2c7]/10 px-2 py-0.5 rounded border border-[#00c2c7]/30">
-                Ashraf Civil Studio
+                Dolphin Box
               </span>
               <span className="text-xs text-[#8ba3c1]">
-                · Project Estimation & File Dashboard
+                · Developer: <strong className="text-white">Anonymous</strong> · Engineering Estimation & File System
               </span>
               <button
                 type="button"

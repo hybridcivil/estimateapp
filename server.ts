@@ -79,8 +79,8 @@ function writeProjects(projects: Project[]) {
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
-    app: "Ashraf Civil Studio",
-    platform: "ashraf.ai.studio",
+    app: "Dolphin Box",
+    platform: "dolphinbox.ai.studio",
     timestamp: new Date().toISOString(),
   });
 });
@@ -133,7 +133,7 @@ app.post("/api/projects", (req, res) => {
       name: name.trim(),
       client: (client || "Client").trim(),
       location: (location || "Bangladesh").trim(),
-      engineer: (engineer || "Engr. Ashraf").trim(),
+      engineer: (engineer || "Anonymous").trim(),
       ownerId: ownerId || undefined,
       ownerEmail: ownerEmail || undefined,
       ownerName: ownerName || undefined,
@@ -244,7 +244,7 @@ app.post("/api/projects/:id/estimates", (req, res) => {
         name: projectName || "Civil Engineering Project",
         client: "Client",
         location: "Bangladesh",
-        engineer: "Engr. Ashraf",
+        engineer: "Anonymous",
         ownerId: ownerId || undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -423,7 +423,7 @@ app.post("/api/projects/import", (req, res) => {
       name: (importedProject.name + " (Imported)").trim(),
       client: importedProject.client || "Client",
       location: importedProject.location || "Location",
-      engineer: importedProject.engineer || "Engr. Ashraf",
+      engineer: importedProject.engineer || "Anonymous",
       notes: importedProject.notes || "Imported estimate file",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -525,7 +525,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Ashraf Civil Studio running at http://0.0.0.0:${PORT}`);
+    console.log(`Dolphin Box running at http://0.0.0.0:${PORT}`);
   });
 }
 

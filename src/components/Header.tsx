@@ -96,21 +96,24 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="text-sm sm:text-base font-bold text-white tracking-wide leading-none">
-                ASHRAF CIVIL STUDIO
+                DOLPHIN BOX
               </h1>
               <span className="hidden sm:inline-block text-[9px] bg-[#00c2c7]/20 border border-[#00c2c7]/40 text-[#00c2c7] px-1.5 py-0.2 rounded font-mono font-bold">
                 PRO
               </span>
+              <span className="hidden sm:inline-block text-[9px] bg-[#1a2b42] border border-[#2d4a6a] text-[#38bdf8] px-1.5 py-0.2 rounded font-mono font-semibold">
+                Dev: Anonymous
+              </span>
               <span
                 className="hidden md:inline-flex items-center gap-1 text-[9px] bg-[#2ecc71]/15 border border-[#2ecc71]/40 text-[#2ecc71] px-1.5 py-0.5 rounded font-mono font-semibold"
-                title="Connected to Firebase Firestore: ashraf-civil-studio"
+                title="Connected to Firebase Firestore"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[#2ecc71] animate-pulse" />
                 Firebase Cloud Sync
               </span>
             </div>
             <p className="text-[10px] text-[#8ba3c1] leading-tight mt-0.5">
-              Civil Engineering Estimation & Multi-Storey BOQ File System
+              Civil Engineering Estimation & Multi-Storey BOQ File System • Developer: Anonymous
             </p>
           </div>
         </div>

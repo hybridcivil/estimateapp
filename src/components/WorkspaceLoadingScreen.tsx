@@ -106,7 +106,7 @@ export const WorkspaceLoadingScreen: React.FC<WorkspaceLoadingScreenProps> = ({
         </div>
 
         <div className="mt-6 text-[10px] text-[#8ba3c1]">
-          Ashraf Civil Studio • Isolated Cloud Workspace
+          Dolphin Box • Developer: Anonymous
         </div>
       </div>
     </div>

@@ -232,14 +232,14 @@ export const LoginRegistrationModal: React.FC<LoginRegistrationModalProps> = ({
                     type="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="e.g. engineer.ashraf@gmail.com"
+                    placeholder="e.g. engineer@example.com"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-lg px-3 py-2 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7]"
                   />
                   <input
                     type="text"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Full Name (optional, e.g. Engr. Ashraf)"
+                    placeholder="Full Name (optional, e.g. Anonymous)"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-lg px-3 py-2 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7]"
                   />
                   <button

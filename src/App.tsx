@@ -277,7 +277,7 @@ function MainAppContent() {
         name: projectData.name,
         client: projectData.client || "",
         location: projectData.location || "",
-        engineer: projectData.engineer || appUser?.displayName || "Engr. Ashraf",
+        engineer: projectData.engineer || appUser?.displayName || "Anonymous",
         notes: projectData.notes || "",
       },
       appUser
@@ -531,7 +531,7 @@ function MainAppContent() {
         {loading && projects.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-[#8ba3c1] text-xs">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00c2c7] mr-3" />
-            Loading Ashraf Civil Studio workspace...
+            Loading Dolphin Box workspace...
           </div>
         ) : (
           <>
