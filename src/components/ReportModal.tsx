@@ -571,7 +571,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 <body>
   <div class="header-box">
     <div>
-      <div class="brand-sub">ASHRAF CIVIL STUDIO • CIVIL & STRUCTURAL ENGINEERING</div>
+      <div class="brand-sub">DOLPHIN BOX • CIVIL & STRUCTURAL ENGINEERING</div>
       <div class="doc-title">Bill of Quantities (BOQ) & Component Takeoff</div>
       <div class="doc-subtitle">Complete Structural Elements Breakdown (Footings, Columns, Beams, Slabs, Stairs, Bricks) & Separated Materials Schedule</div>
     </div>
@@ -2038,7 +2038,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               <div>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-[#00c2c7] print:text-blue-800 uppercase mb-0.5">
                   <Building className="w-3.5 h-3.5" />
-                  <span>ASHRAF CIVIL STUDIO • STRUCTURAL & CIVIL ENGINEERING</span>
+                  <span>DOLPHIN BOX • STRUCTURAL & CIVIL ENGINEERING</span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-white print:text-slate-900 tracking-tight">
                   Bill of Quantities (BOQ) & Component Takeoff

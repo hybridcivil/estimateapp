@@ -178,7 +178,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           </div>
 
           <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-            ASHRAF CIVIL STUDIO
+            DOLPHIN BOX
           </h1>
           <p className="text-xs text-[#8ba3c1] mt-1 max-w-xs mx-auto">
             Sign in to access your personal engineering projects, BOQ schedules, and calculation files.
