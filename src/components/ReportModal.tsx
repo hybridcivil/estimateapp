@@ -292,7 +292,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${project.name} - Detailed Bill of Quantities (BOQ) & Component Takeoff</title>
+  <title>${(project.client || "Client").trim()} - Estimate - ${project.name.trim()} - Detailed BOQ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -1477,14 +1477,29 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 </html>`;
   };
 
-  // Direct printing execution with verified page rules
+  // Direct printing execution with verified page rules & client-named PDF filename
   const handlePrint = () => {
     setIsPrinting(true);
     document.body.classList.add("report-modal-open");
 
+    // Temporarily set document.title so that browser "Save as PDF" dialog suggests the client name & estimate format
+    const originalDocTitle = document.title;
+    const clientName = (project.client || "Client").trim();
+    const projectName = project.name.trim();
+    const pdfFilename = `${clientName} - Estimate - ${projectName} - BOQ`;
+    document.title = pdfFilename;
+
+    const restoreTitle = () => {
+      document.title = originalDocTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+    window.addEventListener("afterprint", restoreTitle);
+
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
+      // Fallback restore in case afterprint does not fire in certain browsers
+      setTimeout(restoreTitle, 2500);
     }, 200);
   };
 
@@ -1507,9 +1522,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${project.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "_")}_detailed_boq_${pageSize}.html`;
+    const safeClient = (project.client || "Client")
+      .trim()
+      .replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const safeProject = project.name
+      .trim()
+      .replace(/[^a-zA-Z0-9_\-]/g, "_");
+    link.download = `${safeClient}_Estimate_${safeProject}_Detailed_BOQ_${pageSize}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1667,9 +1686,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
+    const safeClient = (project.client || "Client")
+      .trim()
+      .replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const safeProject = project.name
+      .trim()
+      .replace(/[^a-zA-Z0-9_\-]/g, "_");
     link.setAttribute(
       "download",
-      `${project.name.toLowerCase().replace(/[^a-z0-9]/g, "_")}_detailed_boq.csv`
+      `${safeClient}_Estimate_${safeProject}_Detailed_BOQ.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -1688,15 +1713,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                Detailed BOQ & PDF Export Studio
+                Dolphin Box BOQ & PDF Export
               </h3>
               <p className="text-[10px] text-[#8ba3c1]">
-                Project: <strong className="text-white">{project.name}</strong> •{" "}
-                <span className="text-[#00c2c7] font-bold">{project.stories || 1} Floor(s)</span> •{" "}
-                {estimates.length} sheets • Format:{" "}
-                <span className="text-[#00c2c7] font-bold uppercase">{pageSize}</span>{" "}
-                ({orientation}) • Separated:{" "}
-                <span className="text-[#2ecc71] font-semibold">Columns, Beams, Footings & Materials</span>
+                Client: <strong className="text-white">{(project.client || "Client").trim()}</strong> • Project:{" "}
+                <strong className="text-white">{project.name}</strong> • PDF:{" "}
+                <span className="text-emerald-400 font-mono font-semibold">
+                  {(project.client || "Client").trim()} - Estimate - {project.name.trim()}.pdf
+                </span> •{" "}
+                <span className="text-[#00c2c7] font-bold">{project.stories || 1} Floor(s)</span>
               </p>
             </div>
           </div>
@@ -1769,7 +1794,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
               onClick={handlePrint}
               disabled={isPrinting}
               className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e] px-4 py-1.5 rounded-lg text-xs font-bold transition shadow-md shadow-[#00c2c7]/20 active:scale-95 disabled:opacity-50 cursor-pointer"
-              title="Print or Save PDF with exact margins, paper size and all separated breakdowns"
+              title={`Download / Save PDF as "${(project.client || "Client").trim()} - Estimate - ${project.name.trim()} - BOQ.pdf"`}
             >
               <Printer className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>{isPrinting ? "Opening Print Dialog..." : "Print / Save PDF"}</span>

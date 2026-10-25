@@ -853,25 +853,30 @@ export function downloadProjectJson(project: Project) {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
   const a = document.createElement("a");
   a.setAttribute("href", dataStr);
-  const safeName = project.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  a.setAttribute("download", `${safeName}_estimate.json`);
+  const clientPrefix = (project.client || "client").trim().replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const safeProject = project.name.trim().replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  a.setAttribute("download", `${clientPrefix}_estimate_${safeProject}.json`);
   document.body.appendChild(a);
   a.click();
   a.remove();
 }
 
-export function downloadEstimateJson(estimate: ProjectEstimateItem, projectName: string) {
+export function downloadEstimateJson(estimate: ProjectEstimateItem, projectName: string, clientName?: string) {
   const exportPayload = {
     project: projectName,
+    client: clientName || "Client",
     estimate,
     exportedAt: new Date().toISOString(),
-    source: "ashraf.ai.studio",
+    source: "dolphinbox.ai.studio",
   };
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
   const a = document.createElement("a");
   a.setAttribute("href", dataStr);
+  const clientPrefix = clientName && clientName.trim()
+    ? clientName.trim().replace(/[^a-z0-9]/gi, "_").toLowerCase() + "_estimate_"
+    : "";
   const safeName = (estimate.name || "estimate").replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  a.setAttribute("download", `${safeName}.json`);
+  a.setAttribute("download", `${clientPrefix}${safeName}.json`);
   document.body.appendChild(a);
   a.click();
   a.remove();
