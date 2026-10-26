@@ -354,6 +354,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       accent: "#1abc9c",
     },
     {
+      type: "contractor",
+      name: "Contractor & Labour",
+      description: "Civil floor construction, electrical, plumbing & painting labour rates",
+      icon: HardHat,
+      accent: "#f59e0b",
+    },
+    {
       type: "structural",
       name: "Whole Building",
       description: "Multi-storey structural load, thumb rule BOQ & total budget",
@@ -1238,6 +1245,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 { id: "stair", label: "Stairs" },
                 { id: "brick", label: "Brickwork" },
                 { id: "tiles", label: "Tiles" },
+                { id: "contractor", label: "Contractor Rates" },
                 { id: "structural", label: "Structural" },
               ].map((f) => (
                 <button

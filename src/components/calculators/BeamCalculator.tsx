@@ -818,6 +818,45 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               />
             </div>
 
+            {/* Light Beam Cross-Section Shape Visualizer */}
+            <div className="col-span-2 bg-white border border-slate-300 rounded-xl p-2.5 shadow-sm flex items-center justify-between gap-3 text-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-20 bg-[#f8fafc] border border-slate-300 rounded-lg flex items-center justify-center p-1 shrink-0 relative shadow-inner">
+                  <svg width="60" height="74" viewBox="0 0 60 74" className="overflow-visible">
+                    {/* Concrete Outer Rectangle - Light Concrete */}
+                    <rect x="6" y="8" width="48" height="58" rx="2" fill="#e2e8f0" stroke="#0284c7" strokeWidth="2.5" />
+                    {/* Stirrup */}
+                    <rect x="11" y="13" width="38" height="48" rx="2" fill="none" stroke="#d97706" strokeWidth="1.8" strokeDasharray="3 2" />
+                    {/* Top Bars */}
+                    <circle cx="15" cy="17" r="3" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                    <circle cx="45" cy="17" r="3" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                    {/* Bottom Bars */}
+                    <circle cx="15" cy="57" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                    <circle cx="30" cy="57" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                    <circle cx="45" cy="57" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                    {/* Labels */}
+                    <text x="30" y="6" fill="#0f172a" fontSize="7.5" textAnchor="middle" fontWeight="bold">b: {beamWidth}"</text>
+                    <text x="56" y="38" fill="#0f172a" fontSize="7.5" textAnchor="start" fontWeight="bold" alignmentBaseline="middle">D: {beamDepth}"</text>
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Light Beam Shape ({beamCategory === "grade_beam" ? "গ্রেড বিম শেপ" : "ফ্লোর বিম শেপ"})</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 mt-0.5">
+                    Size: <strong>{beamWidth}" × {beamDepth}"</strong> • Span Length: <strong>{beamLength} ft</strong>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Stirrups: <strong className="text-amber-700">10mm @ {stirrupSpacing}" c/c</strong>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono uppercase bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200 font-bold shrink-0 hidden sm:inline">
+                {beamWidth}" × {beamDepth}"
+              </span>
+            </div>
+
             {/* Main Rebar Rows */}
             <div className="col-span-2 text-[10px] text-[#00c2c7] font-semibold border-b border-[#2d4a6a] pb-1 mt-1 flex justify-between items-center">
               <span>Main Rebar</span>

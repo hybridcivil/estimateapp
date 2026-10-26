@@ -258,7 +258,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   // Compute the comprehensive project breakdown with effective project rates
   const breakdown: FullProjectBreakdown = computeFullProjectBreakdown(estimates, effectiveRates);
 
-  const { allocations, footings, situPiles, sandPiles, columns, beams, slabs, stairs, bricks, tiles, steelBreakdown, totals } = breakdown;
+  const { allocations, footings, situPiles, sandPiles, columns, beams, slabs, stairs, bricks, tiles, contractors, steelBreakdown, totals } = breakdown;
 
   // Dimensions for paper aspect ratio in preview mode
   const getPaperDimensionsClass = () => {
@@ -1396,6 +1396,53 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       : ""
   }
 
+  ${
+    contractors && contractors.length > 0
+      ? `
+  <!-- SECTION CONTRACTOR & LABOUR RATE SCHEDULE -->
+  <div class="section-title avoid-break">
+    <span>Contractor & Construction Labour Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট তালিকা)</span>
+    <span class="section-badge">${contractors.length} Item(s)</span>
+  </div>
+  <div class="table-container avoid-break">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25px" class="text-center">#</th>
+          <th>Work Description (কাজের ধরন)</th>
+          <th style="width: 110px">Category</th>
+          <th class="text-right" style="width: 85px">Rate (BDT)</th>
+          <th class="text-center" style="width: 45px">Unit</th>
+          <th class="text-right" style="width: 85px">Quantity</th>
+          <th class="text-right" style="width: 110px">Total (BDT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${contractors
+          .map(
+            (c, idx) => `<tr>
+          <td class="font-mono text-center" style="color: #64748b;">${idx + 1}</td>
+          <td class="font-bold">${c.workType} ${c.notes ? `<div style="font-size: 8px; color: #64748b; font-weight: normal;">${c.notes}</div>` : ""}</td>
+          <td style="font-size: 8.5px; text-transform: uppercase; color: #0284c7; font-weight: 700;">${c.category}</td>
+          <td class="text-right font-mono font-bold">৳ ${c.rate.toLocaleString("en-IN")}</td>
+          <td class="text-center font-mono uppercase" style="font-size: 8.5px;">${c.unit}</td>
+          <td class="text-right font-mono font-bold">${c.quantity.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">৳ ${c.totalCost.toLocaleString("en-IN")}</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="6" class="font-bold">Total Contractor & Labour Cost:</td>
+          <td class="text-right font-mono grand-total-val">৳ ${contractors.reduce((sum, c) => sum + c.totalCost, 0).toLocaleString("en-IN")}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`
+      : ""
+  }
+
   <!-- SECTION 11: ESTIMATE FILE LIST & ALL MATERIALS -->
   <div class="section-title avoid-break">
     <span>11. Consolidated Project Budget & Saved Estimate Files with All Materials (${estimates.length} Sheets)</span>
@@ -1670,6 +1717,16 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         csv += `${t.sl},"${t.name}","${t.dimensions}","${t.tileSpec}","${t.skirting}",${t.multiplier},${t.tilesPcs},${t.cementBags},${t.sandCft},${t.cost}\n`;
       });
       csv += `\n`;
+    }
+
+    // Contractor & Labour Schedule
+    if (contractors && contractors.length > 0) {
+      csv += `CONTRACTOR & LABOUR RATE SCHEDULE\n`;
+      csv += `SL,Work Description,Category,Rate (BDT),Unit,Quantity,Total Cost (BDT),Notes\n`;
+      contractors.forEach((c, idx) => {
+        csv += `${idx + 1},"${c.workType}","${c.category}",${c.rate},${c.unit},${c.quantity},${c.totalCost},"${c.notes || ""}"\n`;
+      });
+      csv += `Total Contractor Labour Cost,,,,,,${contractors.reduce((sum, c) => sum + c.totalCost, 0)}\n\n`;
     }
 
     // 11. Saved Estimate Files with All Materials
@@ -3075,6 +3132,77 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{tiles.reduce((sum, t) => sum + t.cementBags, 0)}</td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">{tiles.reduce((sum, t) => sum + t.sandCft, 0).toFixed(1)}</td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">৳ {tiles.reduce((sum, t) => sum + t.cost, 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* CONTRACTOR & LABOUR RATE SCHEDULE */}
+            {contractors && contractors.length > 0 && (
+              <div className="space-y-1.5 print-avoid-break">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#f5a623] print:text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-[#f5a623]/20 text-[#f5a623] print:bg-amber-100 print:text-amber-800 text-[10px] flex items-center justify-center font-bold">
+                      ★
+                    </span>
+                    Contractor & Construction Labour Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট)
+                  </h4>
+                  <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
+                    {contractors.length} Item(s)
+                  </span>
+                </div>
+
+                <div className="border border-[#2d4a6a] print:border-slate-300 rounded-lg overflow-x-auto shadow-sm">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#1a2b42] print:bg-slate-100 text-[#8ba3c1] print:text-slate-700 font-bold border-b border-[#2d4a6a] print:border-slate-300">
+                      <tr>
+                        <th style={{ padding: cellPaddingCss, width: "25px" }} className="text-center">#</th>
+                        <th style={{ padding: cellPaddingCss }}>Work Description (কাজের বিবরণ)</th>
+                        <th style={{ padding: cellPaddingCss, width: "100px" }}>Category</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }} className="text-right">Rate (BDT)</th>
+                        <th style={{ padding: cellPaddingCss, width: "45px" }} className="text-center">Unit</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }} className="text-right">Quantity</th>
+                        <th style={{ padding: cellPaddingCss, width: "110px" }} className="text-right">Total (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#2d4a6a]/40 print:divide-slate-200">
+                      {contractors.map((c, idx) => (
+                        <tr key={c.id || idx} className="hover:bg-[#1a2b42]/40 print:hover:bg-transparent">
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[10px] text-[#8ba3c1] print:text-slate-500">{idx + 1}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                            {c.workType}
+                            {c.notes && (
+                              <div className="text-[9px] text-[#8ba3c1] print:text-slate-500 font-normal">
+                                {c.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-[10px] font-mono uppercase text-[#38bdf8] print:text-blue-800 font-bold">
+                            {c.category}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
+                            ৳ {c.rate.toLocaleString("en-IN")}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[10px] uppercase text-[#8ba3c1] print:text-slate-600">
+                            {c.unit}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-800">
+                            {c.quantity.toLocaleString()}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#2ecc71] print:text-slate-900">
+                            ৳ {c.totalCost.toLocaleString("en-IN")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-[#1a2b42] print:bg-slate-100 font-bold border-t-2 border-[#f5a623] print:border-slate-800">
+                      <tr>
+                        <td colSpan={6} style={{ padding: cellPaddingCss }} className="font-bold text-white print:text-slate-900">Total Contractor & Labour Cost:</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono grand-total-val">
+                          ৳ {contractors.reduce((sum, c) => sum + c.totalCost, 0).toLocaleString("en-IN")}
+                        </td>
                       </tr>
                     </tfoot>
                   </table>

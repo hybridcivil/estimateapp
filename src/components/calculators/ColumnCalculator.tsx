@@ -3,7 +3,7 @@ import { Project, ProjectEstimateItem, ColumnItem } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
 import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
-import { Plus, Trash2, RotateCcw, Copy, Edit3, Check, X, Building2, ShieldCheck, Layers, ArrowRight } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Copy, Edit3, Check, X, Building2, ShieldCheck, Layers, ArrowRight, Square, Circle } from "lucide-react";
 
 interface ColumnCalculatorProps {
   activeProject: Project | null;
@@ -935,15 +935,33 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Column Shape</label>
-                <select
-                  value={colType}
-                  onChange={(e) => setColType(e.target.value as any)}
-                  className="w-full h-8 px-2.5 bg-[#243b55] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none"
-                >
-                  <option value="rectangular">Rectangular</option>
-                  <option value="circular">Circular</option>
-                </select>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Column Shape (কলাম শেপ)</label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#1a2b42] rounded-lg border border-[#2d4a6a]">
+                  <button
+                    type="button"
+                    onClick={() => setColType("rectangular")}
+                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-xs transition ${
+                      colType === "rectangular"
+                        ? "bg-[#00c2c7] text-[#0f1c2e] font-bold shadow-sm"
+                        : "text-[#8ba3c1] hover:text-white"
+                    }`}
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                    <span>Rectangular</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColType("circular")}
+                    className={`flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-xs transition ${
+                      colType === "circular"
+                        ? "bg-[#00c2c7] text-[#0f1c2e] font-bold shadow-sm"
+                        : "text-[#8ba3c1] hover:text-white"
+                    }`}
+                  >
+                    <Circle className="w-3.5 h-3.5" />
+                    <span>Circular</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -1060,6 +1078,69 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                   {colType === "rectangular"
                     ? `Area: ${((colX * colY) / 144).toFixed(2)} → ${(((colX + shortOffset) * (colY + shortOffset)) / 144).toFixed(2)} sq.ft (+${Math.round((((colX + shortOffset) * (colY + shortOffset)) / Math.max(1, colX * colY) - 1) * 100)}% concrete)`
                     : `Area: ${((Math.PI * Math.pow(colDia / 2, 2)) / 144).toFixed(2)} → ${((Math.PI * Math.pow((colDia + shortOffset) / 2, 2)) / 144).toFixed(2)} sq.ft`}
+                </div>
+              </div>
+
+              {/* Light Column Cross-Section Shape Visualizer */}
+              <div className="bg-white border border-slate-300 rounded-xl p-3 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-800">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="w-20 h-20 bg-[#f8fafc] border border-slate-300 rounded-lg flex items-center justify-center p-1.5 shrink-0 relative shadow-inner">
+                    {colType === "rectangular" ? (
+                      <svg width="72" height="72" viewBox="0 0 72 72" className="overflow-visible">
+                        {/* Concrete Outer Rectangle - Light Concrete Fill */}
+                        <rect x="6" y="10" width="60" height="52" rx="3" fill="#e2e8f0" stroke="#0284c7" strokeWidth="2.5" />
+                        {/* Tie Stirrup */}
+                        <rect x="12" y="16" width="48" height="40" rx="2" fill="none" stroke="#d97706" strokeWidth="1.8" strokeDasharray="3 2" />
+                        {/* 4 Corner Rebars */}
+                        <circle cx="15" cy="19" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                        <circle cx="57" cy="19" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                        <circle cx="15" cy="53" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                        <circle cx="57" cy="53" r="3.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />
+                        {/* Labels */}
+                        <text x="36" y="7" fill="#0f172a" fontSize="8" textAnchor="middle" fontWeight="bold">b: {colX}"</text>
+                        <text x="69" y="38" fill="#0f172a" fontSize="8" textAnchor="start" fontWeight="bold" alignmentBaseline="middle">D: {colY}"</text>
+                      </svg>
+                    ) : (
+                      <svg width="72" height="72" viewBox="0 0 72 72" className="overflow-visible">
+                        {/* Concrete Outer Circle - Light Concrete Fill */}
+                        <circle cx="36" cy="36" r="30" fill="#e2e8f0" stroke="#0284c7" strokeWidth="2.5" />
+                        {/* Spiral Tie */}
+                        <circle cx="36" cy="36" r="22" fill="none" stroke="#d97706" strokeWidth="1.8" strokeDasharray="3 2" />
+                        {/* 6 Rebars around circular cage */}
+                        {[0, 60, 120, 180, 240, 300].map((deg) => {
+                          const rad = (deg * Math.PI) / 180;
+                          const cx = 36 + 22 * Math.cos(rad);
+                          const cy = 36 + 22 * Math.sin(rad);
+                          return <circle key={deg} cx={cx} cy={cy} r="3" fill="#0284c7" stroke="#ffffff" strokeWidth="1" />;
+                        })}
+                        {/* Diameter Label */}
+                        <text x="36" y="6" fill="#0f172a" fontSize="8" textAnchor="middle" fontWeight="bold">⌀ {colDia}"</text>
+                      </svg>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Light Column Shape ({colType === "rectangular" ? "আয়তাকার কলাম" : "গোলাকার কলাম"})</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      {colType === "rectangular"
+                        ? `Superstructure: ${colX}" × ${colY}" • Pedestal: ${colX + shortOffset}" × ${colY + shortOffset}"`
+                        : `Superstructure: ⌀${colDia}" • Pedestal: ⌀${colDia + shortOffset}"`}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500">
+                      <span>Cover: <strong className="text-slate-800">{clearCover}"</strong> (Floor) / <strong className="text-blue-700">{shortClearCover}"</strong> (Short)</span>
+                      <span>•</span>
+                      <span>Ties: <strong className="text-amber-700">{stirrupDia}mm @ {longStirrupSpacing}" c/c</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-right self-end sm:self-center">
+                  <span className="text-[10px] font-mono uppercase bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200 font-bold">
+                    Shape: {colType.toUpperCase()}
+                  </span>
                 </div>
               </div>
 

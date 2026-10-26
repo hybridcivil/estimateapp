@@ -743,29 +743,37 @@ body.light-theme select option {
 }
 
 /* ----------------------------------------------------
-   SVG Diagrams & Shape Visualizers in Light Mode
+   SVG Diagrams & Shape Visualizers (Universal Light Shapes)
    ---------------------------------------------------- */
-html.light [class*="bg-[#0b1320]"],
-body.light-theme [class*="bg-[#0b1320]"] {
+[class*="bg-[#0b1320]"],
+.shape-light-canvas {
   background-color: #f8fafc !important;
   border-color: #cbd5e1 !important;
+  color: #0f172a !important;
 }
 
-html.light [class*="bg-[#0b1320]"] svg text,
-body.light-theme [class*="bg-[#0b1320]"] svg text {
+[class*="bg-[#0b1320]"] svg text,
+.shape-light-canvas svg text {
   fill: #0f172a !important;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-html.light [class*="bg-[#0b1320]"] svg circle[fill="#1e293b"],
-body.light-theme [class*="bg-[#0b1320]"] svg circle[fill="#1e293b"] {
+[class*="bg-[#0b1320]"] svg circle[fill="#1e293b"],
+.shape-light-canvas svg circle[fill="#1e293b"] {
   fill: #e2e8f0 !important;
-  stroke: #94a3b8 !important;
+  stroke: #0284c7 !important;
 }
 
-html.light [class*="bg-[#0b1320]"] svg line[stroke="#8ba3c1"],
-body.light-theme [class*="bg-[#0b1320]"] svg line[stroke="#8ba3c1"] {
-  stroke: #64748b !important;
+[class*="bg-[#0b1320]"] svg line[stroke="#8ba3c1"],
+.shape-light-canvas svg line[stroke="#8ba3c1"] {
+  stroke: #475569 !important;
+}
+
+/* Light shape blueprint container */
+.shape-blueprint-card {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* ----------------------------------------------------

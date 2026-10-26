@@ -630,6 +630,48 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
               />
             </div>
 
+            {/* Light Footing Shape Visualizer */}
+            <div className="col-span-2 bg-white border border-slate-300 rounded-xl p-2.5 shadow-sm flex items-center justify-between gap-3 text-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 bg-[#f8fafc] border border-slate-300 rounded-lg flex items-center justify-center p-1 shrink-0 relative shadow-inner">
+                  <svg width="60" height="60" viewBox="0 0 60 60" className="overflow-visible">
+                    {/* Concrete Footing Trapezoid/Pad - Light Concrete */}
+                    <rect x="5" y="24" width="50" height="24" rx="2" fill="#e2e8f0" stroke="#0284c7" strokeWidth="2.5" />
+                    {/* Pedestal Stub */}
+                    <rect x="22" y="10" width="16" height="14" fill="#cbd5e1" stroke="#0284c7" strokeWidth="1.5" />
+                    {/* Bottom Rebar Mat */}
+                    <line x1="9" y1="42" x2="51" y2="42" stroke="#d97706" strokeWidth="2" />
+                    {/* Upward Hooks */}
+                    <line x1="9" y1="42" x2="9" y2="34" stroke="#d97706" strokeWidth="2" />
+                    <line x1="51" y1="42" x2="51" y2="34" stroke="#d97706" strokeWidth="2" />
+                    {/* Transverse Rebars */}
+                    <circle cx="15" cy="42" r="1.8" fill="#0284c7" />
+                    <circle cx="23" cy="42" r="1.8" fill="#0284c7" />
+                    <circle cx="30" cy="42" r="1.8" fill="#0284c7" />
+                    <circle cx="37" cy="42" r="1.8" fill="#0284c7" />
+                    <circle cx="45" cy="42" r="1.8" fill="#0284c7" />
+                    {/* Labels */}
+                    <text x="30" y="55" fill="#0f172a" fontSize="7" textAnchor="middle" fontWeight="bold">L: {length}' × B: {breadth}'</text>
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Light Footing Shape (ফুটিং বেস শেপ)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 mt-0.5">
+                    Plan: <strong>{length}' × {breadth}'</strong> • Thickness: <strong>{thicknessIn}"</strong> (T)
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">
+                    Clear Cover: <strong className="text-slate-800">{coverIn}"</strong> • Hooks: <strong className="text-amber-700">{hookIn}" each side</strong>
+                  </div>
+                </div>
+              </div>
+              <span className="text-[9px] font-mono uppercase bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200 font-bold shrink-0 hidden sm:inline">
+                Pad Footing
+              </span>
+            </div>
+
             {/* Rebar */}
             <div className="col-span-2 text-[10px] text-[#00c2c7] font-semibold border-b border-[#2d4a6a] pb-1 mt-1 flex justify-between items-center">
               <span>Rebar Mesh (Dia + Spacing)</span>

@@ -561,46 +561,46 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
                   </span>
                 </div>
 
-                {/* SVG Visualizer */}
-                <div className="bg-[#0b1320] border border-[#1e2f47] rounded-xl p-3 flex flex-col items-center justify-center">
+                {/* SVG Visualizer (Clean Light Shape) */}
+                <div className="bg-white border border-slate-300 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
                   <svg width="220" height="150" viewBox="0 0 220 150" className="overflow-visible">
                     {/* Ground line */}
-                    <line x1="10" y1="20" x2="210" y2="20" stroke="#8ba3c1" strokeWidth="2" strokeDasharray="4 2" />
-                    <text x="110" y="14" fill="#8ba3c1" fontSize="9" textAnchor="middle">Existing Ground Level (EGL)</text>
+                    <line x1="10" y1="20" x2="210" y2="20" stroke="#475569" strokeWidth="2" strokeDasharray="4 2" />
+                    <text x="110" y="14" fill="#0f172a" fontSize="9.5" textAnchor="middle" fontWeight="bold">Existing Ground Level (EGL)</text>
 
-                    {/* Pile 1 */}
-                    <rect x="40" y="20" width="30" height="110" fill="#f5a623" fillOpacity="0.8" rx="3" stroke="#f59e0b" strokeWidth="1.5" />
+                    {/* Pile 1 - Light Golden Sand Fill */}
+                    <rect x="40" y="20" width="30" height="110" fill="#fef3c7" rx="3" stroke="#d97706" strokeWidth="2" />
                     {/* Sand dots texture */}
-                    <circle cx="50" cy="35" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="60" cy="45" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="48" cy="70" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="58" cy="90" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="52" cy="115" r="1.5" fill="#fff" opacity="0.6" />
+                    <circle cx="50" cy="35" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="60" cy="45" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="48" cy="70" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="58" cy="90" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="52" cy="115" r="1.5" fill="#b45309" opacity="0.7" />
 
                     {/* Spacing Dimension between Piles */}
-                    <line x1="55" y1="135" x2="165" y2="135" stroke="#00c2c7" strokeWidth="1.5" />
-                    <line x1="55" y1="130" x2="55" y2="140" stroke="#00c2c7" strokeWidth="1.5" />
-                    <line x1="165" y1="130" x2="165" y2="140" stroke="#00c2c7" strokeWidth="1.5" />
-                    <text x="110" y="147" fill="#00c2c7" fontSize="9" textAnchor="middle" fontWeight="bold">
+                    <line x1="55" y1="135" x2="165" y2="135" stroke="#0284c7" strokeWidth="1.5" />
+                    <line x1="55" y1="130" x2="55" y2="140" stroke="#0284c7" strokeWidth="1.5" />
+                    <line x1="165" y1="130" x2="165" y2="140" stroke="#0284c7" strokeWidth="1.5" />
+                    <text x="110" y="147" fill="#0284c7" fontSize="9.5" textAnchor="middle" fontWeight="bold">
                       Spacing: {pileSpacing}" c/c
                     </text>
 
-                    {/* Pile 2 */}
-                    <rect x="150" y="20" width="30" height="110" fill="#f5a623" fillOpacity="0.8" rx="3" stroke="#f59e0b" strokeWidth="1.5" />
-                    <circle cx="160" cy="40" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="170" cy="65" r="1.5" fill="#fff" opacity="0.6" />
-                    <circle cx="158" cy="95" r="1.5" fill="#fff" opacity="0.6" />
+                    {/* Pile 2 - Light Golden Sand Fill */}
+                    <rect x="150" y="20" width="30" height="110" fill="#fef3c7" rx="3" stroke="#d97706" strokeWidth="2" />
+                    <circle cx="160" cy="40" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="170" cy="65" r="1.5" fill="#b45309" opacity="0.7" />
+                    <circle cx="158" cy="95" r="1.5" fill="#b45309" opacity="0.7" />
 
                     {/* Depth label */}
-                    <line x1="195" y1="20" x2="195" y2="130" stroke="#8ba3c1" strokeWidth="1" />
-                    <line x1="190" y1="20" x2="200" y2="20" stroke="#8ba3c1" strokeWidth="1" />
-                    <line x1="190" y1="130" x2="200" y2="130" stroke="#8ba3c1" strokeWidth="1" />
-                    <text x="202" y="75" fill="#8ba3c1" fontSize="8.5" alignmentBaseline="middle">
+                    <line x1="195" y1="20" x2="195" y2="130" stroke="#475569" strokeWidth="1.5" />
+                    <line x1="190" y1="20" x2="200" y2="20" stroke="#475569" strokeWidth="1.5" />
+                    <line x1="190" y1="130" x2="200" y2="130" stroke="#475569" strokeWidth="1.5" />
+                    <text x="203" y="75" fill="#0f172a" fontSize="9.5" fontWeight="bold" alignmentBaseline="middle">
                       {pileLength}'
                     </text>
                   </svg>
-                  <div className="text-[10px] text-[#8ba3c1] text-center mt-1">
-                    Compacted Sand Core • Pile Diameter: <strong className="text-white">{pileDiameter} inches</strong>
+                  <div className="text-[10px] text-slate-700 text-center mt-1">
+                    Compacted Sand Core • Pile Diameter: <strong className="text-slate-900">{pileDiameter} inches</strong>
                   </div>
                 </div>
 

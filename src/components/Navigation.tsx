@@ -12,6 +12,7 @@ import {
   Building2,
   CircleDot,
   Cylinder,
+  HardHat,
 } from "lucide-react";
 
 interface NavigationProps {
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "stair", label: "Staircase", shortLabel: "Stairs", icon: Footprints },
   { id: "brick", label: "Brickwork", shortLabel: "Brick", icon: BrickWall },
   { id: "tiles", label: "Tiles", shortLabel: "Tiles", icon: Grid3X3 },
+  { id: "contractor", label: "Contractor Rates", shortLabel: "Contractor", icon: HardHat },
   { id: "structural", label: "Structural Load", shortLabel: "Load", icon: Calculator },
 ];
 

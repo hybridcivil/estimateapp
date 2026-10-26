@@ -9,6 +9,7 @@ export type EstimateType =
   | "stair"
   | "brick"
   | "tiles"
+  | "contractor"
   | "structural";
 
 export interface ProjectEstimateItem {
@@ -365,4 +366,35 @@ export interface SituPileResults {
   totalCost: number;
   multiplier?: number;
   isMultiplying?: boolean;
+}
+
+export type ContractorCategory =
+  | "civil_floor"
+  | "electrical"
+  | "plumbing"
+  | "painting"
+  | "custom";
+
+export interface ContractorRateItem {
+  id: string;
+  category: ContractorCategory;
+  workType: string;
+  unit: "sft" | "rft" | "lump" | "point" | "cft";
+  rate: number;
+  quantity: number;
+  floorNumber?: number;
+  notes?: string;
+  totalCost: number;
+}
+
+export interface ContractorSummary {
+  civilFloorTotal: number;
+  electricalTotal: number;
+  plumbingTotal: number;
+  paintingTotal: number;
+  customTotal: number;
+  grandTotalCost: number;
+  totalBuiltupAreaSft: number;
+  totalPaintingWallAreaSft: number;
+  itemsCount: number;
 }

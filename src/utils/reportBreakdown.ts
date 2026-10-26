@@ -171,6 +171,18 @@ export interface SteelDiaBreakdown {
   cost: number;
 }
 
+export interface ContractorBreakdownItem {
+  id: string;
+  estimateName: string;
+  workType: string;
+  category: string;
+  rate: number;
+  unit: string;
+  quantity: number;
+  totalCost: number;
+  notes?: string;
+}
+
 export interface FullProjectBreakdown {
   allocations: ComponentMaterialAllocation[];
   footings: FootingRow[];
@@ -182,6 +194,7 @@ export interface FullProjectBreakdown {
   stairs: StairRow[];
   bricks: BrickRow[];
   tiles: TileRow[];
+  contractors: ContractorBreakdownItem[];
   steelBreakdown: SteelDiaBreakdown[];
   totals: {
     concreteVolCft: number;
@@ -303,6 +316,7 @@ export function computeFullProjectBreakdown(
   const stairs: StairRow[] = [];
   const bricks: BrickRow[] = [];
   const tiles: TileRow[] = [];
+  const contractors: ContractorBreakdownItem[] = [];
 
   const rawSteelByDia: Record<number, number> = {};
 
@@ -434,6 +448,21 @@ export function computeFullProjectBreakdown(
       category: "finishing",
       count: 0,
       unit: "Pcs",
+      concreteVolCft: 0,
+      cementBags: 0,
+      sandCft: 0,
+      aggCft: 0,
+      steelKg: 0,
+      bricksPcs: 0,
+      tilesPcs: 0,
+      cost: 0,
+    },
+    contractor: {
+      key: "contractor",
+      label: "Contractor & Construction Labour Schedule",
+      category: "other",
+      count: 0,
+      unit: "Items",
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
@@ -958,6 +987,25 @@ export function computeFullProjectBreakdown(
         });
       }
     }
+
+    if (est.type === "contractor") {
+      const itemsList = est.data?.items || est.summary?.items || [];
+      if (Array.isArray(itemsList)) {
+        itemsList.forEach((it: any) => {
+          contractors.push({
+            id: it.id || "c_" + Math.random(),
+            estimateName: est.name,
+            workType: it.workType || "Contractor Work",
+            category: it.category || "custom",
+            rate: Number(it.rate) || 0,
+            unit: it.unit || "sft",
+            quantity: Number(it.quantity) || 0,
+            totalCost: Number(it.totalCost) || Math.round(Number(it.rate || 0) * Number(it.quantity || 0)),
+            notes: it.notes,
+          });
+        });
+      }
+    }
   });
 
   // Calculate totals across allocations
@@ -1043,6 +1091,7 @@ export function computeFullProjectBreakdown(
     stairs,
     bricks,
     tiles,
+    contractors,
     steelBreakdown,
     totals: {
       concreteVolCft: Number(totalConcrete.toFixed(1)),

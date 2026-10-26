@@ -640,17 +640,17 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                   </span>
                 </div>
 
-                {/* SVG Visualizer */}
-                <div className="bg-[#0b1320] border border-[#1e2f47] rounded-xl p-3 flex flex-col items-center justify-center">
+                {/* SVG Visualizer (Clean Light Shape) */}
+                <div className="bg-white border border-slate-300 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
                   <svg width="200" height="190" viewBox="0 0 200 190" className="overflow-visible">
-                    {/* Concrete Outer Circle */}
-                    <circle cx="100" cy="95" r="75" fill="#1e293b" stroke="#64748b" strokeWidth="2" strokeDasharray="3 3" />
-                    <text x="100" y="15" fill="#8ba3c1" fontSize="9" textAnchor="middle" fontWeight="bold">
+                    {/* Concrete Outer Circle - Light Concrete Fill */}
+                    <circle cx="100" cy="95" r="75" fill="#e2e8f0" stroke="#0284c7" strokeWidth="2.5" />
+                    <text x="100" y="14" fill="#0f172a" fontSize="10" textAnchor="middle" fontWeight="bold">
                       Outer Borehole: {pileDiameter}"ø
                     </text>
 
                     {/* Spiral Tie Circle */}
-                    <circle cx="100" cy="95" r="54" fill="none" stroke="#f5a623" strokeWidth="2.5" />
+                    <circle cx="100" cy="95" r="54" fill="#f8fafc" stroke="#d97706" strokeWidth="2.5" />
                     
                     {/* Longitudinal Rebars around circumference */}
                     {Array.from({ length: barNos }).map((_, i) => {
@@ -659,23 +659,23 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                       const ry = 95 + 54 * Math.sin(angle);
                       return (
                         <g key={i}>
-                          <circle cx={rx} cy={ry} r="5.5" fill="#00c2c7" stroke="#0f172a" strokeWidth="1.5" />
+                          <circle cx={rx} cy={ry} r="5.5" fill="#0284c7" stroke="#ffffff" strokeWidth="1.5" />
                         </g>
                       );
                     })}
 
                     {/* Center crosshair */}
-                    <line x1="94" y1="95" x2="106" y2="95" stroke="#475569" strokeWidth="1" />
-                    <line x1="100" y1="89" x2="100" y2="101" stroke="#475569" strokeWidth="1" />
+                    <line x1="94" y1="95" x2="106" y2="95" stroke="#64748b" strokeWidth="1.5" />
+                    <line x1="100" y1="89" x2="100" y2="101" stroke="#64748b" strokeWidth="1.5" />
 
                     {/* Clear cover dimension indicator */}
-                    <line x1="154" y1="95" x2="175" y2="95" stroke="#ef4444" strokeWidth="1.5" />
-                    <text x="165" y="90" fill="#ef4444" fontSize="8" textAnchor="middle" fontWeight="bold">
+                    <line x1="154" y1="95" x2="175" y2="95" stroke="#dc2626" strokeWidth="2" />
+                    <text x="165" y="90" fill="#dc2626" fontSize="9" textAnchor="middle" fontWeight="bold">
                       {clearCoverIn}"
                     </text>
                   </svg>
-                  <div className="text-[10px] text-[#8ba3c1] text-center mt-0.5">
-                    Clear Cover: <strong className="text-white">{clearCoverIn}"</strong> • Spiral: <strong className="text-[#f5a623]">{spiralDia}mmø @ {spiralSpacing}" c/c</strong>
+                  <div className="text-[10px] text-slate-700 text-center mt-1">
+                    Clear Cover: <strong className="text-slate-900">{clearCoverIn}"</strong> • Spiral: <strong className="text-amber-700">{spiralDia}mmø @ {spiralSpacing}" c/c</strong>
                   </div>
                 </div>
 
