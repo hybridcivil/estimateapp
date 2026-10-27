@@ -443,23 +443,23 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4">
         <div className="max-w-5xl mx-auto space-y-4">
-          {/* Header Banner & Proposed Rate Reference Box */}
-          <div className="bg-gradient-to-r from-[#152338] via-[#101b2b] to-[#152338] border border-[#2d4a6a] rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden">
+          {/* Header Banner & Proposed Rate Reference Box (Light Box Shape) */}
+          <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border border-slate-300 rounded-2xl p-4 sm:p-5 shadow-sm relative overflow-hidden text-slate-800">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold tracking-widest text-[#00c2c7] uppercase bg-[#00c2c7]/10 px-2 py-0.5 rounded border border-[#00c2c7]/30 flex items-center gap-1.5">
-                    <HardHat className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold tracking-widest text-teal-800 uppercase bg-teal-100 px-2 py-0.5 rounded border border-teal-200 flex items-center gap-1.5">
+                    <HardHat className="w-3.5 h-3.5 text-teal-700" />
                     Contractor & Labour Schedule
                   </span>
-                  <span className="text-[11px] text-[#8ba3c1]">
+                  <span className="text-[11px] text-slate-600 font-medium">
                     প্রস্তাবিত কন্ট্রাক্টর ও লেবার রেট তালিকা
                   </span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
                   Building Contractor & Labour Rate Calculator
                 </h2>
-                <p className="text-xs text-[#8ba3c1] max-w-2xl mt-1">
+                <p className="text-xs text-slate-600 max-w-2xl mt-1">
                   সিভিল কনস্ট্রাকশন (গ্রাউন্ড ও ঊর্ধ্বমুখী তলা), ইলেকট্রিক্যাল, প্লাম্বিং এবং পেইন্টিং লেবার
                   রেট দিয়ে স্বয়ংক্রিয় প্রজেক্ট কন্ট্রাক্টর বাজেট তৈরি করুন।
                 </p>
@@ -470,17 +470,17 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                 <button
                   type="button"
                   onClick={handleResetToProposedRates}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border border-[#2d4a6a] transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 shadow-sm transition"
                   title="Reset to the original proposed contractor rates"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <RefreshCw className="w-3.5 h-3.5 text-teal-700" />
                   <span>Restore Proposed Rates</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowAddCustom(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] transition shadow-md shadow-[#00c2c7]/20"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>Add Work Item</span>
@@ -488,61 +488,63 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
               </div>
             </div>
 
-            {/* Quick Reference Chips of Proposed Rates */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-4 pt-3 border-t border-[#24374e]">
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">Ground Floor Civil</div>
-                <div className="text-xs font-bold text-[#00c2c7] font-mono">৳ 400 / sft</div>
+            {/* Quick Reference Chips of Proposed Rates (Clean Light Pill Boxes) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-4 pt-3 border-t border-slate-200">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">Ground Floor Civil</div>
+                <div className="text-xs font-bold text-teal-700 font-mono">৳ 400 / sft</div>
               </div>
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">1st Floor Civil</div>
-                <div className="text-xs font-bold text-[#38bdf8] font-mono">৳ 300 / sft</div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">1st Floor Civil</div>
+                <div className="text-xs font-bold text-sky-700 font-mono">৳ 300 / sft</div>
               </div>
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">2nd Floor Civil</div>
-                <div className="text-xs font-bold text-[#2ecc71] font-mono">৳ 310 / sft</div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">2nd Floor Civil</div>
+                <div className="text-xs font-bold text-emerald-700 font-mono">৳ 310 / sft</div>
               </div>
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">Electrical Labour</div>
-                <div className="text-xs font-bold text-[#f5a623] font-mono">৳ 20 / sft</div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">Electrical Labour</div>
+                <div className="text-xs font-bold text-amber-700 font-mono">৳ 20 / sft</div>
               </div>
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">Plumbing Labour</div>
-                <div className="text-xs font-bold text-[#38bdf8] font-mono">৳ 25 / sft</div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">Plumbing Labour</div>
+                <div className="text-xs font-bold text-blue-700 font-mono">৳ 25 / sft</div>
               </div>
-              <div className="bg-[#0e1624]/90 p-2 rounded-xl border border-[#24374e]">
-                <div className="text-[9px] text-[#8ba3c1] truncate">Painting Labour</div>
-                <div className="text-xs font-bold text-[#a855f7] font-mono">৳ 10 / sft</div>
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                <div className="text-[9px] text-slate-500 font-medium truncate">Painting Labour</div>
+                <div className="text-xs font-bold text-purple-700 font-mono">৳ 10 / sft</div>
               </div>
             </div>
           </div>
 
-          {/* Quick Dimension Sync Helper */}
-          <div className="bg-[#121c2d] border border-[#2d4a6a] rounded-2xl p-3.5 shadow-md flex flex-col md:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-[#8ba3c1]">
-              <Sparkles className="w-4 h-4 text-[#00c2c7] shrink-0" />
+          {/* Quick Dimension Sync Helper (Light Box Shape & Light Input Pill Shapes) */}
+          <div className="bg-gradient-to-r from-teal-50/80 via-white to-cyan-50/80 border border-teal-200 rounded-2xl p-3.5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3 text-slate-800">
+            <div className="flex items-center gap-2 text-xs text-slate-700">
+              <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
               <span>
-                <strong>Quick Area Auto-Fill:</strong> Set standard floor area to instantly calculate all floor civil works, electrical, plumbing and wall painting.
+                <strong className="text-slate-900">Quick Area Auto-Fill:</strong> Set standard floor area to instantly calculate all floor civil works, electrical, plumbing and wall painting.
               </span>
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto shrink-0 flex-wrap">
-              <div className="flex items-center gap-1.5 bg-[#0e1624] px-2.5 py-1 rounded-xl border border-[#2d4a6a]">
-                <span className="text-[11px] text-[#8ba3c1] whitespace-nowrap">Floor Area:</span>
+              {/* Box Shape 1: Floor Area Light Input Box */}
+              <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-teal-300 shadow-sm">
+                <span className="text-[11px] text-slate-700 font-semibold whitespace-nowrap">Floor Area:</span>
                 <input
                   type="number"
                   min="0"
                   step="50"
                   value={batchFloorArea || ""}
                   onChange={(e) => setBatchFloorArea(Number(e.target.value) || 0)}
-                  className="w-20 bg-transparent text-xs text-white font-mono font-bold outline-none text-right"
+                  className="w-20 bg-transparent text-xs text-slate-900 font-mono font-bold outline-none text-right"
                   placeholder="1500"
                 />
-                <span className="text-[10px] text-[#5d7a9e]">sft</span>
+                <span className="text-[10px] text-slate-500 font-mono">sft</span>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-[#0e1624] px-2.5 py-1 rounded-xl border border-[#2d4a6a]" title="Painting wall area is approx 3.5× to 4× the floor area">
-                <span className="text-[11px] text-[#8ba3c1] whitespace-nowrap">Wall Factor:</span>
+              {/* Box Shape 2: Wall Factor Light Input Box */}
+              <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-purple-300 shadow-sm" title="Painting wall area is approx 3.5× to 4× the floor area">
+                <span className="text-[11px] text-slate-700 font-semibold whitespace-nowrap">Wall Factor:</span>
                 <input
                   type="number"
                   min="1"
@@ -550,16 +552,16 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                   step="0.5"
                   value={wallAreaMultiplier || ""}
                   onChange={(e) => setWallAreaMultiplier(Number(e.target.value) || 3.5)}
-                  className="w-12 bg-transparent text-xs text-[#a855f7] font-mono font-bold outline-none text-center"
+                  className="w-12 bg-transparent text-xs text-purple-700 font-mono font-bold outline-none text-center"
                   placeholder="3.5"
                 />
-                <span className="text-[10px] text-[#5d7a9e]">×</span>
+                <span className="text-[10px] text-purple-600 font-mono font-bold">×</span>
               </div>
 
               <button
                 type="button"
                 onClick={handleApplyBatchFloorArea}
-                className="flex items-center gap-1 bg-[#2ecc71] hover:bg-[#27ae60] text-[#0f1c2e] px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm shadow-[#2ecc71]/20 cursor-pointer"
+                className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm shadow-emerald-600/20 cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Apply to All</span>
@@ -651,8 +653,8 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
 
                         {/* Rate */}
                         <td className="py-2.5 px-3 text-right">
-                          <div className="inline-flex items-center gap-1 bg-[#0e1624] px-2 py-1 rounded-lg border border-[#2d4a6a]">
-                            <span className="text-[10px] text-[#5d7a9e]">৳</span>
+                          <div className="inline-flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-sm">
+                            <span className="text-[10px] text-slate-500 font-bold">৳</span>
                             <input
                               type="number"
                               min="0"
@@ -661,7 +663,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                               onChange={(e) =>
                                 updateItem(item.id, { rate: Number(e.target.value) || 0 })
                               }
-                              className="w-16 bg-transparent text-xs text-white font-mono font-bold outline-none text-right"
+                              className="w-16 bg-transparent text-xs text-slate-900 font-mono font-bold outline-none text-right"
                             />
                           </div>
                         </td>
@@ -673,7 +675,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
 
                         {/* Quantity */}
                         <td className="py-2.5 px-3 text-right">
-                          <div className="inline-flex items-center gap-1 bg-[#0e1624] px-2 py-1 rounded-lg border border-[#2d4a6a]">
+                          <div className="inline-flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-300 shadow-sm">
                             <input
                               type="number"
                               min="0"
@@ -682,9 +684,9 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                               onChange={(e) =>
                                 updateItem(item.id, { quantity: Number(e.target.value) || 0 })
                               }
-                              className="w-20 bg-transparent text-xs text-white font-mono font-bold outline-none text-right"
+                              className="w-20 bg-transparent text-xs text-slate-900 font-mono font-bold outline-none text-right"
                             />
-                            <span className="text-[9px] text-[#5d7a9e]">{item.unit}</span>
+                            <span className="text-[9px] text-slate-500 font-mono">{item.unit}</span>
                           </div>
                         </td>
 
@@ -834,96 +836,96 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
             </div>
           )}
 
-          {/* Comprehensive Category Cost Cards */}
+          {/* Comprehensive Category Cost Cards (Light Cards) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Civil Total */}
-            <div className="bg-[#121c2d] border border-[#00c2c7]/40 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-2">
-                <span className="flex items-center gap-1.5 font-bold text-white">
-                  <Building2 className="w-4 h-4 text-[#00c2c7]" />
+            <div className="bg-white border border-teal-300 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between text-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Building2 className="w-4 h-4 text-teal-600" />
                   Civil Construction
                 </span>
-                <span className="text-[10px] font-mono bg-[#00c2c7]/15 text-[#00c2c7] px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-mono bg-teal-50 text-teal-800 px-1.5 py-0.5 rounded border border-teal-200 font-bold">
                   {summary.totalBuiltupAreaSft.toLocaleString()} sft
                 </span>
               </div>
-              <div className="text-xl font-black text-[#00c2c7] font-mono">
+              <div className="text-xl font-black text-teal-700 font-mono">
                 ৳ {summary.civilFloorTotal.toLocaleString("en-IN")}
               </div>
-              <div className="text-[10px] text-[#5d7a9e] mt-1">
+              <div className="text-[10px] text-slate-500 mt-1">
                 Ground + All Storey Civil Works
               </div>
             </div>
 
             {/* Electrical Total */}
-            <div className="bg-[#121c2d] border border-[#f5a623]/40 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-2">
-                <span className="flex items-center gap-1.5 font-bold text-white">
-                  <Zap className="w-4 h-4 text-[#f5a623]" />
+            <div className="bg-white border border-amber-300 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between text-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Zap className="w-4 h-4 text-amber-600" />
                   Electrical Labour
                 </span>
-                <span className="text-[10px] font-mono bg-[#f5a623]/15 text-[#f5a623] px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-mono bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200 font-bold">
                   ৳20 / sft
                 </span>
               </div>
-              <div className="text-xl font-black text-[#f5a623] font-mono">
+              <div className="text-xl font-black text-amber-700 font-mono">
                 ৳ {summary.electricalTotal.toLocaleString("en-IN")}
               </div>
-              <div className="text-[10px] text-[#5d7a9e] mt-1">
+              <div className="text-[10px] text-slate-500 mt-1">
                 Conduit, wiring & boards installation
               </div>
             </div>
 
             {/* Plumbing Total */}
-            <div className="bg-[#121c2d] border border-[#38bdf8]/40 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-2">
-                <span className="flex items-center gap-1.5 font-bold text-white">
-                  <Wrench className="w-4 h-4 text-[#38bdf8]" />
+            <div className="bg-white border border-sky-300 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between text-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Wrench className="w-4 h-4 text-sky-600" />
                   Plumbing Labour
                 </span>
-                <span className="text-[10px] font-mono bg-[#38bdf8]/15 text-[#38bdf8] px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-mono bg-sky-50 text-sky-800 px-1.5 py-0.5 rounded border border-sky-200 font-bold">
                   ৳25 / sft
                 </span>
               </div>
-              <div className="text-xl font-black text-[#38bdf8] font-mono">
+              <div className="text-xl font-black text-sky-700 font-mono">
                 ৳ {summary.plumbingTotal.toLocaleString("en-IN")}
               </div>
-              <div className="text-[10px] text-[#5d7a9e] mt-1">
+              <div className="text-[10px] text-slate-500 mt-1">
                 Water lines, sanitary & fixtures
               </div>
             </div>
 
             {/* Painting Total */}
-            <div className="bg-[#121c2d] border border-[#a855f7]/40 rounded-2xl p-3.5 shadow-md flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-2">
-                <span className="flex items-center gap-1.5 font-bold text-white">
-                  <Paintbrush className="w-4 h-4 text-[#a855f7]" />
+            <div className="bg-white border border-purple-300 rounded-2xl p-3.5 shadow-sm flex flex-col justify-between text-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Paintbrush className="w-4 h-4 text-purple-600" />
                   Painting Labour
                 </span>
-                <span className="text-[10px] font-mono bg-[#a855f7]/15 text-[#a855f7] px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-mono bg-purple-50 text-purple-800 px-1.5 py-0.5 rounded border border-purple-200 font-bold">
                   ৳10 / sft wall
                 </span>
               </div>
-              <div className="text-xl font-black text-[#a855f7] font-mono">
+              <div className="text-xl font-black text-purple-700 font-mono">
                 ৳ {summary.paintingTotal.toLocaleString("en-IN")}
               </div>
-              <div className="text-[10px] text-[#5d7a9e] mt-1">
+              <div className="text-[10px] text-slate-500 mt-1">
                 {summary.totalPaintingWallAreaSft.toLocaleString()} sq.ft wall & ceiling
               </div>
             </div>
           </div>
 
-          {/* Grand Budget Card */}
-          <div className="bg-gradient-to-r from-[#11291f] via-[#0e2219] to-[#152e23] border-2 border-[#2ecc71] rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* Grand Budget Card (Light Card) */}
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100 border-2 border-emerald-500 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-800">
             <div>
-              <div className="text-xs text-[#2ecc71] uppercase font-bold tracking-wider flex items-center gap-1.5 mb-1">
-                <Coins className="w-4 h-4" />
+              <div className="text-xs text-emerald-800 uppercase font-black tracking-wider flex items-center gap-1.5 mb-1">
+                <Coins className="w-4 h-4 text-emerald-600" />
                 Comprehensive Contractor & Labour Budget (কন্ট্রাক্টর মোট চুক্তি মূল্য)
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+              <div className="text-2xl sm:text-3xl font-black text-emerald-950 font-mono tracking-tight">
                 ৳ {summary.grandTotalCost.toLocaleString("en-IN")}
               </div>
-              <div className="text-[11px] text-[#8ba3c1] mt-1">
+              <div className="text-[11px] text-slate-600 mt-1">
                 {summary.itemsCount} total contractor tasks • Ready for contract agreement & client BOQ report
               </div>
             </div>
@@ -931,7 +933,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
             <button
               type="button"
               onClick={() => handleSaveToProject(false)}
-              className="flex items-center gap-2 bg-[#2ecc71] hover:bg-[#27ae60] text-[#0f1c2e] font-bold px-5 py-2.5 rounded-xl transition active:scale-95 shadow-lg shadow-[#2ecc71]/25 shrink-0 cursor-pointer"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl transition active:scale-95 shadow-md shadow-emerald-600/25 shrink-0 cursor-pointer"
             >
               <span>Save Schedule to Project</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
