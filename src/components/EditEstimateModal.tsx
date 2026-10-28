@@ -127,119 +127,182 @@ export const EditEstimateModal: React.FC<EditEstimateModalProps> = ({
               return (
                 <div className="space-y-2 pt-2 border-t border-[#2d4a6a]/60">
                   <div className="text-[11px] font-bold text-[#00c2c7] flex items-center justify-between">
-                    <span>All Item Materials Takeoff</span>
+                    <span>{estimate.type === "contractor" ? "Contractor & Labour Breakdown" : "All Item Materials Takeoff"}</span>
                     <span className="text-[10px] text-[#8ba3c1] font-mono">
-                      {isFoundation ? "1× Foundation Substructure (Used Once)" : mat.isMultiplying ? `${mat.multiplier} Storeys Multiplier` : "Single Floor Baseline"}
+                      {estimate.type === "contractor"
+                        ? `${estimate.summary?.itemsCount || estimate.data?.items?.length || 0} Work Tasks Specified`
+                        : isFoundation
+                        ? "1× Foundation Substructure (Used Once)"
+                        : mat.isMultiplying
+                        ? `${mat.multiplier} Storeys Multiplier`
+                        : "Single Floor Baseline"}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {/* Cement */}
-                    {mat.cementBags > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#f5a623]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Cement</div>
-                        <div className="text-xs font-bold text-[#f5a623]">
-                          {mat.cementBags} bags
+                  {estimate.type === "contractor" ? (
+                    <div className="space-y-1.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {/* Civil */}
+                        <div className="bg-[#1a2b42] border border-[#00c2c7]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Civil Works</div>
+                          <div className="text-xs font-bold text-[#00c2c7]">
+                            ৳ {Number(estimate.summary?.civilFloorTotal || 0).toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            {estimate.summary?.totalBuiltupAreaSft ? `${Number(estimate.summary.totalBuiltupAreaSft).toLocaleString()} sft` : "All Floors"}
+                          </div>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          ৳ {mat.cementCost.toLocaleString("en-IN")}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Sand */}
-                    {mat.sandCft > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#f1f5f9]/20 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Sand</div>
-                        <div className="text-xs font-bold text-[#f1f5f9]">
-                          {mat.sandCft} cft
+                        {/* Electrical */}
+                        <div className="bg-[#1a2b42] border border-[#f5a623]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Electrical</div>
+                          <div className="text-xs font-bold text-[#f5a623]">
+                            ৳ {Number(estimate.summary?.electricalTotal || 0).toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳20/sft built-up
+                          </div>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          ৳ {mat.sandCost.toLocaleString("en-IN")}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Aggregates (Stone or Khoa) */}
-                    {mat.aggCft > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#38bdf8]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">
-                          {mat.aggType === "brick_khoa" ? "Khoa Agg" : "Stone Agg"}
+                        {/* Plumbing */}
+                        <div className="bg-[#1a2b42] border border-[#38bdf8]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Plumbing</div>
+                          <div className="text-xs font-bold text-[#38bdf8]">
+                            ৳ {Number(estimate.summary?.plumbingTotal || 0).toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳25/sft built-up
+                          </div>
                         </div>
-                        <div className="text-xs font-bold text-[#38bdf8]">
-                          {mat.aggCft} cft
-                        </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          ৳ {mat.aggCost.toLocaleString("en-IN")}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Rebar Steel */}
-                    {mat.steelKg > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#00c2c7]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Rebar Steel</div>
-                        <div className="text-xs font-bold text-[#00c2c7]">
-                          {mat.steelKg.toLocaleString("en-IN")} kg
-                        </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          ৳ {mat.steelCost.toLocaleString("en-IN")}
+                        {/* Painting */}
+                        <div className="bg-[#1a2b42] border border-[#a855f7]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Painting</div>
+                          <div className="text-xs font-bold text-[#a855f7]">
+                            ৳ {Number(estimate.summary?.paintingTotal || 0).toLocaleString("en-IN")}
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳10/sft wall & ceiling
+                          </div>
                         </div>
                       </div>
-                    )}
 
-                    {/* Bricks */}
-                    {mat.bricksPcs > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#e67e22]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Bricks</div>
-                        <div className="text-xs font-bold text-[#e67e22]">
-                          {mat.bricksPcs.toLocaleString("en-IN")} pcs
+                      {Boolean(estimate.summary?.customTotal) && (
+                        <div className="bg-[#1a2b42] border border-[#2ecc71]/30 rounded-lg p-1.5 px-2 flex items-center justify-between text-[10px]">
+                          <span className="text-[#8ba3c1] text-[9px] uppercase font-mono">Other / Custom Work</span>
+                          <span className="font-bold text-[#2ecc71]">৳ {Number(estimate.summary.customTotal).toLocaleString("en-IN")}</span>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          ৳ {mat.brickCost.toLocaleString("en-IN")}
+                      )}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {/* Cement */}
+                      {mat.cementBags > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#f5a623]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Cement</div>
+                          <div className="text-xs font-bold text-[#f5a623]">
+                            {mat.cementBags} bags
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.cementCost.toLocaleString("en-IN")}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Tiles */}
-                    {mat.tilesPcs > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#1abc9c]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Tiles</div>
-                        <div className="text-xs font-bold text-[#1abc9c]">
-                          {mat.tilesPcs.toLocaleString("en-IN")} pcs
+                      {/* Sand */}
+                      {mat.sandCft > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#f1f5f9]/20 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Sand</div>
+                          <div className="text-xs font-bold text-[#f1f5f9]">
+                            {mat.sandCft} cft
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.sandCost.toLocaleString("en-IN")}
+                          </div>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          {mat.tilesBoxes} boxes ({mat.tileAreaSqft} sqft)
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Concrete Volume */}
-                    {(mat.wetVolCft > 0 || mat.dryVolCft > 0) && (
-                      <div className="bg-[#1a2b42] border border-[#c4b5fd]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Concrete Vol</div>
-                        <div className="text-xs font-bold text-[#c4b5fd]">
-                          {mat.wetVolCft || mat.dryVolCft} cft
+                      {/* Aggregates (Stone or Khoa) */}
+                      {mat.aggCft > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#38bdf8]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">
+                            {mat.aggType === "brick_khoa" ? "Khoa Agg" : "Stone Agg"}
+                          </div>
+                          <div className="text-xs font-bold text-[#38bdf8]">
+                            {mat.aggCft} cft
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.aggCost.toLocaleString("en-IN")}
+                          </div>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          Dry: {mat.dryVolCft || (mat.wetVolCft * 1.54).toFixed(1)} cft
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Piles / Boring */}
-                    {mat.pilesCount > 0 && (
-                      <div className="bg-[#1a2b42] border border-[#f43f5e]/30 rounded-lg p-2 text-center">
-                        <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Piles & Depth</div>
-                        <div className="text-xs font-bold text-[#f43f5e]">
-                          {mat.pilesCount} Piles
+                      {/* Rebar Steel */}
+                      {mat.steelKg > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#00c2c7]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Rebar Steel</div>
+                          <div className="text-xs font-bold text-[#00c2c7]">
+                            {mat.steelKg.toLocaleString("en-IN")} kg
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.steelCost.toLocaleString("en-IN")}
+                          </div>
                         </div>
-                        <div className="text-[9px] text-[#8ba3c1]/80">
-                          {mat.boringRft} rft depth ({mat.pileDiameterIn}" dia)
+                      )}
+
+                      {/* Bricks */}
+                      {mat.bricksPcs > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#e67e22]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Bricks</div>
+                          <div className="text-xs font-bold text-[#e67e22]">
+                            {mat.bricksPcs.toLocaleString("en-IN")} pcs
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.brickCost.toLocaleString("en-IN")}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+
+                      {/* Tiles */}
+                      {mat.tilesPcs > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#1abc9c]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Tiles</div>
+                          <div className="text-xs font-bold text-[#1abc9c]">
+                            {mat.tilesPcs.toLocaleString("en-IN")} pcs
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            {mat.tilesBoxes} boxes ({mat.tileAreaSqft} sqft)
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Concrete Volume */}
+                      {(mat.wetVolCft > 0 || mat.dryVolCft > 0) && (
+                        <div className="bg-[#1a2b42] border border-[#c4b5fd]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Concrete Vol</div>
+                          <div className="text-xs font-bold text-[#c4b5fd]">
+                            {mat.wetVolCft || mat.dryVolCft} cft
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            Dry: {mat.dryVolCft || (mat.wetVolCft * 1.54).toFixed(1)} cft
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Piles / Boring */}
+                      {mat.pilesCount > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#f43f5e]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Piles & Depth</div>
+                          <div className="text-xs font-bold text-[#f43f5e]">
+                            {mat.pilesCount} Piles
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            {mat.boringRft} rft depth ({mat.pileDiameterIn}" dia)
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Steel Diameter Schedule if available */}
                   {hasSteelBreakdown && (

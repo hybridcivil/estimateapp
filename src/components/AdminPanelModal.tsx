@@ -222,12 +222,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   onChange={(e) => setUserFilter(e.target.value)}
                   className="py-1 px-2 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none cursor-pointer"
                 >
-                  <option value="all">All Owners</option>
-                  {allUsers.map((u) => (
-                    <option key={u.uid} value={u.email || u.uid}>
-                      {u.displayName || u.email || u.uid}
-                    </option>
-                  ))}
+                  <option value="all">All Owners ({allProjects.length})</option>
+                  {allUsers.map((u) => {
+                    const count = allProjects.filter((p) => p.ownerId === u.uid || p.ownerEmail === u.email).length;
+                    return (
+                      <option key={u.uid} value={u.email || u.uid}>
+                        {u.displayName || u.email || u.uid} ({count} {count === 1 ? "project" : "projects"})
+                      </option>
+                    );
+                  })}
                 </select>
               )}
             </div>
@@ -398,6 +401,15 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 <span className="font-semibold text-white">
                                   {u.displayName || "Civil Engineer"}
                                 </span>
+                                {u.email?.toLowerCase().endsWith("@gmail.com") || u.photoURL ? (
+                                  <span className="text-[8.5px] font-mono font-semibold px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                    Gmail
+                                  </span>
+                                ) : (
+                                  <span className="text-[8.5px] font-mono font-semibold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                    Registered
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="py-2.5 px-4 font-mono text-[#8ba3c1]">

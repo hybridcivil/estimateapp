@@ -714,9 +714,24 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             : ""
         }
         ${
-          totals.ancillaryCost > 0
+          (totals.contractorCost > 0 || (contractors && contractors.length > 0))
             ? `<tr>
           <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}</td>
+          <td class="font-bold">
+            Building Contractor & Construction Labour Rate Schedule
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Ground & upper floors civil works, electrical, plumbing & painting labour (${contractors.length} tasks)</div>
+          </td>
+          <td class="text-center">Schedule</td>
+          <td class="text-right font-mono">—</td>
+          <td class="text-right font-bold font-mono">${contractors.length} Tasks</td>
+          <td class="text-right font-bold font-mono">৳ ${(totals.contractorCost || contractors.reduce((s, c) => s + c.totalCost, 0)).toLocaleString("en-IN")}</td>
+        </tr>`
+            : ""
+        }
+        ${
+          totals.ancillaryCost > 0
+            ? `<tr>
+          <td class="text-center font-mono" style="color: #64748b;">${(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 6}</td>
           <td class="font-bold">
             Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Footing flat brick soling, sand cushion, tile adhesive mortar, pointing & edge finishing</div>
@@ -734,7 +749,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td colspan="5" class="text-right font-bold">
             Consolidated Materials & Works Subtotal Cost:
             <div style="font-size: 8px; font-weight: normal; color: #475569;">
-              [Direct Raw Materials: ৳ ${totals.rawMaterialsCost.toLocaleString("en-IN")}${totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}${totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
+              [Direct Raw Materials: ৳ ${totals.rawMaterialsCost.toLocaleString("en-IN")}${totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}${(totals.contractorCost > 0 || (contractors && contractors.length > 0)) ? ` + Contractor & Labour: ৳ ${(totals.contractorCost || contractors.reduce((s, c) => s + c.totalCost, 0)).toLocaleString("en-IN")}` : ""}${totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
             </div>
           </td>
           <td class="text-right grand-total-val font-mono">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
@@ -1399,9 +1414,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   ${
     contractors && contractors.length > 0
       ? `
-  <!-- SECTION CONTRACTOR & LABOUR RATE SCHEDULE -->
+  <!-- SECTION 10: CONTRACTOR & LABOUR RATE SCHEDULE -->
   <div class="section-title avoid-break">
-    <span>Contractor & Construction Labour Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট তালিকা)</span>
+    <span>10. Contractor & Construction Labour Rate Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট তালিকা)</span>
     <span class="section-badge">${contractors.length} Item(s)</span>
   </div>
   <div class="table-container avoid-break">
@@ -1470,11 +1485,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${estimates
           .map((e, idx) => {
             const m = extractEstimateMaterials(e);
+            const isContractor = e.type === "contractor";
+            const contractorSub = isContractor
+              ? `<div style="font-size: 8px; font-weight: normal; color: #007791;">Contractor Schedule: ${e.data?.items?.length || e.summary?.itemsCount || 0} Tasks (${e.summary?.totalBuiltupAreaSft ? `${Number(e.summary.totalBuiltupAreaSft).toLocaleString()} sft` : "All Floors"}) · Civil, Electrical, Plumbing, Painting</div>`
+              : "";
             return `<tr>
           <td class="font-mono text-center" style="color: #64748b;">${idx + 1}</td>
-          <td class="font-bold">${e.name}</td>
-          <td style="text-transform: uppercase; font-size: 8.5px; font-weight: 700; color: #007791;">${e.type}</td>
-          <td class="text-center font-mono font-bold">×${m.multiplier}</td>
+          <td class="font-bold">${e.name}${contractorSub}</td>
+          <td style="text-transform: uppercase; font-size: 8.5px; font-weight: 700; color: ${isContractor ? "#d97706" : "#007791"};">${isContractor ? "CONTRACTOR" : e.type}</td>
+          <td class="text-center font-mono font-bold">${isContractor ? (e.data?.stories ? `${e.data.stories} Flr` : "Fixed") : `×${m.multiplier}`}</td>
           <td class="text-right font-mono">${m.wetVolCft > 0 ? m.wetVolCft : "-"}</td>
           <td class="text-right font-mono font-bold" style="color: #b45309;">${m.cementBags > 0 ? m.cementBags.toLocaleString() : "-"}</td>
           <td class="text-right font-mono">${m.sandCft > 0 ? m.sandCft.toLocaleString() : "-"}</td>
@@ -2334,10 +2353,33 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       </tr>
                     )}
 
+                    {/* Contractor & Labour Schedule */}
+                    {(totals.contractorCost > 0 || (contractors && contractors.length > 0)) && (
+                      <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">
+                          {totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                          Building Contractor & Construction Labour Rate Schedule
+                          <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                            Ground & upper floors civil works, electrical, plumbing & painting labour ({contractors.length} tasks)
+                          </div>
+                        </td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Schedule</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">—</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{contractors.length} Tasks</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">
+                          ৳ {(totals.contractorCost || contractors.reduce((s, c) => s + c.totalCost, 0)).toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    )}
+
                     {/* Substructure Soling, Tile Mortar, Skirting & Finishing */}
                     {totals.ancillaryCost > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">
+                          {(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 6}
+                        </td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
                           <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2356,7 +2398,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td colSpan={5} style={{ padding: cellPaddingCss }} className="text-right text-white print:text-slate-900 font-bold">
                         Consolidated Materials & Works Subtotal Cost:
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          [Direct Raw Materials: ৳ {totals.rawMaterialsCost.toLocaleString("en-IN")}{totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}{totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
+                          [Direct Raw Materials: ৳ {totals.rawMaterialsCost.toLocaleString("en-IN")}{totals.boringCost > 0 ? ` + Pile Boring: ৳ ${totals.boringCost.toLocaleString("en-IN")}` : ""}${(totals.contractorCost > 0 || (contractors && contractors.length > 0)) ? ` + Contractor & Labour: ৳ ${(totals.contractorCost || contractors.reduce((s, c) => s + c.totalCost, 0)).toLocaleString("en-IN")}` : ""}${totals.ancillaryCost > 0 ? ` + Soling, Skirting & Finishing: ৳ ${totals.ancillaryCost.toLocaleString("en-IN")}` : ""}]
                         </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right text-sm text-[#2ecc71] print:text-slate-950 font-black font-mono">
@@ -3145,9 +3187,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-[#f5a623] print:text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-4 h-4 rounded-full bg-[#f5a623]/20 text-[#f5a623] print:bg-amber-100 print:text-amber-800 text-[10px] flex items-center justify-center font-bold">
-                      ★
+                      10
                     </span>
-                    Contractor & Construction Labour Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট)
+                    10. Contractor & Construction Labour Rate Schedule (কন্ট্রাক্টর ও নির্মাণ লেবার রেট তালিকা)
                   </h4>
                   <span className="text-[10px] text-[#8ba3c1] print:text-slate-500 font-semibold">
                     {contractors.length} Item(s)
@@ -3245,12 +3287,25 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   <tbody className="divide-y divide-[#2d4a6a]/60 print:divide-slate-200">
                     {estimates.map((e, idx) => {
                       const m = extractEstimateMaterials(e);
+                      const isContractor = e.type === "contractor";
+                      const contractorSub = isContractor ? (
+                        <div className="text-[9px] font-normal text-[#00c2c7] print:text-amber-800">
+                          Contractor Schedule: {e.data?.items?.length || e.summary?.itemsCount || 0} Tasks ({e.summary?.totalBuiltupAreaSft ? `${Number(e.summary.totalBuiltupAreaSft).toLocaleString()} sft` : "All Floors"}) · Civil, Electrical, Plumbing, Painting
+                        </div>
+                      ) : null;
                       return (
                         <tr key={e.id} className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                           <td style={{ padding: cellPaddingCss }} className="font-mono text-center text-[#8ba3c1] print:text-slate-500">{idx + 1}</td>
-                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">{e.name}</td>
-                          <td style={{ padding: cellPaddingCss }} className="uppercase font-mono text-[9px] text-[#00c2c7] print:text-blue-800 font-bold">{e.type}</td>
-                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">×{m.multiplier}</td>
+                          <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                            <div>{e.name}</div>
+                            {contractorSub}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className={`uppercase font-mono text-[9px] font-bold ${isContractor ? "text-[#f5a623] print:text-amber-800" : "text-[#00c2c7] print:text-blue-800"}`}>
+                            {isContractor ? "CONTRACTOR" : e.type}
+                          </td>
+                          <td style={{ padding: cellPaddingCss }} className="text-center font-mono font-bold text-white print:text-slate-900">
+                            {isContractor ? (e.data?.stories ? `${e.data.stories} Flr` : "Fixed") : `×${m.multiplier}`}
+                          </td>
                           <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{m.wetVolCft > 0 ? m.wetVolCft : "-"}</td>
                           <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f5a623] print:text-slate-900">{m.cementBags > 0 ? m.cementBags.toLocaleString() : "-"}</td>
                           <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">{m.sandCft > 0 ? m.sandCft.toLocaleString() : "-"}</td>

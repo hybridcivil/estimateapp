@@ -217,14 +217,14 @@ export const LoginRegistrationModal: React.FC<LoginRegistrationModalProps> = ({
                 </button>
               </div>
 
-              {/* Option 3: Custom Gmail / Email Workspace Sign-In */}
+              {/* Option 2: Registered Engineer Account Sign-In / Register */}
               <div className="bg-[#111c2c] border border-[#24374e] rounded-xl p-3.5 space-y-2.5">
                 <div className="text-xs font-bold text-white flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5 text-[#00c2c7]" />
-                  <span>Sign In with Your Gmail / Work Email</span>
+                  <span>Registered User / Engineer Sign In</span>
                 </div>
                 <p className="text-[11px] text-[#8ba3c1]">
-                  Enter your email address to register or access your dedicated personal estimation project repository.
+                  Enter your registered email address to access your dedicated personal estimation project repository.
                 </p>
 
                 <div className="space-y-2">
@@ -239,7 +239,7 @@ export const LoginRegistrationModal: React.FC<LoginRegistrationModalProps> = ({
                     type="text"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Full Name (optional, e.g. Anonymous)"
+                    placeholder="Engineer Full Name (e.g. Anonymous)"
                     className="w-full bg-[#18273b] border border-[#2d4a6a] rounded-lg px-3 py-2 text-xs text-white placeholder-[#5d7a9e] outline-none focus:border-[#00c2c7]"
                   />
                   <button
@@ -248,7 +248,7 @@ export const LoginRegistrationModal: React.FC<LoginRegistrationModalProps> = ({
                     disabled={isLoadingDirect || !emailInput.trim()}
                     className="w-full flex items-center justify-center gap-1.5 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] font-bold px-3 py-2 rounded-lg text-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
-                    <span>Sign In / Register Workspace</span>
+                    <span>Sign In as Registered User</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

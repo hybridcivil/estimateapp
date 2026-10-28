@@ -207,6 +207,7 @@ export interface FullProjectBreakdown {
     tilesPcs: number;
     rawMaterialsCost: number;
     boringCost: number;
+    contractorCost: number;
     ancillaryCost: number;
     materialsCost: number;
     grandTotalCost: number;
@@ -991,6 +992,8 @@ export function computeFullProjectBreakdown(
     if (est.type === "contractor") {
       const itemsList = est.data?.items || est.summary?.items || [];
       if (Array.isArray(itemsList)) {
+        alloc.count += itemsList.length;
+        alloc.unit = "Tasks";
         itemsList.forEach((it: any) => {
           contractors.push({
             id: it.id || "c_" + Math.random(),
@@ -1076,9 +1079,12 @@ export function computeFullProjectBreakdown(
     totalBricks * defaultRates.brickRate +
     totalTiles * defaultRates.tileRate;
 
+  // Contractor & labour schedule total
+  const totalContractorCost = contractors.reduce((sum, c) => sum + c.totalCost, 0);
+
   // Ancillary / auxiliary works: Footing BFS soling, sand cushion, tile skirting & adhesive mortar,
   // nosing, plaster work, and element assembly adjustments included in estimate item totalCosts
-  const ancillaryCost = Math.max(0, Math.round(totalCost - rawMaterialsCost - totalBoringCost));
+  const ancillaryCost = Math.max(0, Math.round(totalCost - rawMaterialsCost - totalBoringCost - totalContractorCost));
 
   return {
     allocations: activeAllocations,
@@ -1104,6 +1110,7 @@ export function computeFullProjectBreakdown(
       tilesPcs: totalTiles,
       rawMaterialsCost: Math.round(rawMaterialsCost),
       boringCost: Math.round(totalBoringCost),
+      contractorCost: Math.round(totalContractorCost),
       ancillaryCost: Math.round(ancillaryCost),
       materialsCost: Math.round(totalCost),
       grandTotalCost: Math.round(totalCost),
@@ -1361,6 +1368,18 @@ export function extractItemMaterials(
     specs.push(`Bedding Mortar: ${cementBags} bags cement, ${sandCft} cft sand`);
   } else if (est.type === "structural") {
     specs.push(`Full Building Plinth Area: ${s.totalBuiltUpArea || 1500} sqft`);
+  } else if (est.type === "contractor") {
+    const itemsList: any[] = Array.isArray(d.items) ? d.items : Array.isArray(s.items) ? s.items : [];
+    const totalArea = s.totalBuiltupAreaSft || (d.batchFloorArea && d.stories ? d.batchFloorArea * d.stories : d.batchFloorArea) || 1500;
+    specs.push(`Contractor & Labour Schedule (${itemsList.length} Tasks · ${Number(totalArea).toLocaleString()} sqft Built-up)`);
+    if (s.civilFloorTotal) specs.push(`Civil Works: ৳ ${Number(s.civilFloorTotal).toLocaleString("en-IN")}`);
+    if (s.electricalTotal) specs.push(`Electrical Labour: ৳ ${Number(s.electricalTotal).toLocaleString("en-IN")}`);
+    if (s.plumbingTotal) specs.push(`Plumbing Labour: ৳ ${Number(s.plumbingTotal).toLocaleString("en-IN")}`);
+    if (s.paintingTotal) specs.push(`Painting Labour: ৳ ${Number(s.paintingTotal).toLocaleString("en-IN")}`);
+    if (s.customTotal) specs.push(`Other / Custom: ৳ ${Number(s.customTotal).toLocaleString("en-IN")}`);
+    itemsList.forEach((it: any) => {
+      specs.push(`• ${it.workType}: ৳${it.rate}/${it.unit} × ${Number(it.quantity).toLocaleString()} ${it.unit} = ৳${Number(it.totalCost).toLocaleString("en-IN")}`);
+    });
   }
 
   // Calculate totalCost based on overridden material rates if provided, otherwise preserve saved totalCost
@@ -1375,6 +1394,8 @@ export function extractItemMaterials(
     } else if (est.type === "tiles") {
       const labourCost = s.totalLabourCost || Math.round(tilesPcs * 45);
       calculatedCost = tilesCost + cementCost + sandCost + labourCost;
+    } else if (est.type === "contractor") {
+      calculatedCost = Math.round(est.totalCost || s.grandTotalCost || 0);
     } else {
       calculatedCost = cementCost + sandCost + aggCost + steelCost + (bricksPcs > 0 && aggType === "brick_khoa" ? brickCost : 0);
     }

@@ -18,6 +18,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType } from "../services/firebase";
 import { AppUser } from "../types";
+import { syncUserToAllStores } from "../services/api";
 
 export const BOOTSTRAP_ADMIN_EMAIL = "engrkalilinux@gmail.com";
 
@@ -178,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
           } catch {}
 
+          syncUserToAllStores(userData);
           setAppUser(userData);
           setIsAdmin(role === "admin");
         } catch (err: any) {
@@ -262,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
     } catch {}
 
+    syncUserToAllStores(userData);
     setAppUser(userData);
     setIsAdmin(role === "admin");
 
@@ -358,6 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem("ashraf_auth_session", JSON.stringify(userData));
       } catch {}
 
+      syncUserToAllStores(userData);
       setAppUser(userData);
       setIsAdmin(role === "admin");
       return { success: true };
@@ -371,7 +375,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         msg = "Password is too weak. Please choose a password with at least 6 characters.";
       } else if (err.code === "auth/invalid-email") {
         msg = "The email address format is not valid.";
-      } else if (err.code === "auth/operation-not-allowed") {
+      } else if (
+        err.code === "auth/operation-not-allowed" ||
+        err.code === "auth/admin-restricted-operation" ||
+        err.code === "auth/configuration-not-found" ||
+        err.code === "auth/internal-error"
+      ) {
         return await fallbackDirectAuth(cleanEmail, cleanName);
       }
 
@@ -411,7 +420,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         msg = "Incorrect email or password. If you do not have an account, please switch to Register.";
       } else if (err.code === "auth/too-many-requests") {
         msg = "Too many failed login attempts. Please wait a moment before trying again.";
-      } else if (err.code === "auth/operation-not-allowed") {
+      } else if (
+        err.code === "auth/operation-not-allowed" ||
+        err.code === "auth/admin-restricted-operation" ||
+        err.code === "auth/configuration-not-found" ||
+        err.code === "auth/internal-error"
+      ) {
         return await fallbackDirectAuth(cleanEmail);
       }
       setError(msg);

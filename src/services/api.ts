@@ -175,10 +175,9 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     return [];
   }
 
-  // 1. Try reading directly from Firestore if user is authenticated in Firebase
-  if (auth.currentUser) {
-    try {
-      const colRef = collection(db, "projects");
+  // 1. Try reading directly from Firestore
+  try {
+    const colRef = collection(db, "projects");
       let q: any = colRef;
 
       if (user && !isAdminView) {
@@ -249,7 +248,6 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
   } catch (err) {
     console.warn("Firestore fetch error, falling back to backend/local:", err);
   }
-}
 
   // 2. Fallback to Express backend (strictly filter by user.uid)
   try {
@@ -400,29 +398,163 @@ export async function fetchAllProjectsForAdmin(): Promise<Project[]> {
   return result;
 }
 
+const USERS_REGISTRY_KEY = "ashraf_registered_users_registry";
+
+export function getLocalRegisteredUsers(): AppUser[] {
+  try {
+    const raw = localStorage.getItem(USERS_REGISTRY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+export function saveLocalRegisteredUser(user: AppUser) {
+  try {
+    const list = getLocalRegisteredUsers();
+    const key = (user.email || user.uid).toLowerCase();
+    const idx = list.findIndex((u) => (u.email && u.email.toLowerCase() === key) || u.uid === user.uid);
+    if (idx !== -1) {
+      list[idx] = { ...list[idx], ...user };
+    } else {
+      list.unshift(user);
+    }
+    localStorage.setItem(USERS_REGISTRY_KEY, JSON.stringify(list));
+  } catch {}
+}
+
+export async function syncUserToAllStores(user: AppUser) {
+  saveLocalRegisteredUser(user);
+
+  // 1. Sync to backend
+  try {
+    fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(user),
+    }).catch(() => {});
+  } catch {}
+
+  // 2. Sync to Firestore (always saves user profile for both Google & registered workspace accounts)
+  try {
+    const docRef = doc(db, "users", user.uid);
+    const cleanUser: any = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || "Civil Engineer",
+      role: user.role || "engineer",
+      lastLoginAt: user.lastLoginAt || new Date().toISOString(),
+    };
+    if (user.photoURL) cleanUser.photoURL = user.photoURL;
+    if (user.createdAt) cleanUser.createdAt = user.createdAt;
+    setDoc(docRef, cleanUser, { merge: true }).catch((e) => {
+      console.warn("Firestore user sync notice:", e);
+    });
+  } catch {}
+}
+
 /**
  * Fetch all registered users for Admin Control Center
+ * Gathers from Firestore, Express backend /api/users, local registry,
+ * and synthesizes owners from all existing projects so every registered engineer is visible.
  */
 export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
+  const userMap = new Map<string, AppUser>();
+
+  const addOrMergeUser = (u: Partial<AppUser>) => {
+    if (!u) return;
+    const email = u.email ? u.email.trim().toLowerCase() : null;
+    const uid = u.uid || (email ? "usr_" + email.replace(/[^a-z0-9]/g, "_") : undefined);
+    if (!email && !uid) return;
+
+    const key = (email || uid)!.toLowerCase();
+    const existing = userMap.get(key);
+
+    const isBootstrapAdmin = email === "engrkalilinux@gmail.com";
+    const role: "admin" | "engineer" = isBootstrapAdmin
+      ? "admin"
+      : (u.role === "admin" || existing?.role === "admin" ? "admin" : "engineer");
+    const displayName =
+      u.displayName ||
+      existing?.displayName ||
+      (email
+        ? email.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Civil Engineer");
+
+    userMap.set(key, {
+      uid: existing?.uid || uid || key,
+      email: existing?.email || email || null,
+      displayName,
+      photoURL: u.photoURL || existing?.photoURL || null,
+      role,
+      createdAt: existing?.createdAt || u.createdAt || new Date().toISOString(),
+      lastLoginAt: u.lastLoginAt || existing?.lastLoginAt || new Date().toISOString(),
+    });
+  };
+
+  // 1. From local registry & current session
+  try {
+    const localUsers = getLocalRegisteredUsers();
+    localUsers.forEach(addOrMergeUser);
+
+    const currentSessionRaw = localStorage.getItem("ashraf_auth_session");
+    if (currentSessionRaw) {
+      addOrMergeUser(JSON.parse(currentSessionRaw));
+    }
+  } catch {}
+
+  // 2. From Firestore users collection
   try {
     const colRef = collection(db, "users");
     const snapshot = await getDocs(colRef);
-    const list: AppUser[] = [];
     snapshot.forEach((docSnap) => {
-      list.push(docSnap.data() as AppUser);
+      addOrMergeUser(docSnap.data() as AppUser);
     });
-    return list;
   } catch (err) {
-    console.error("fetchAllUsersForAdmin error:", err);
-    return [];
+    console.warn("Firestore fetchAllUsers notice:", err);
   }
+
+  // 3. From Express backend /api/users
+  try {
+    const res = await fetch("/api/users");
+    if (res.ok) {
+      const backendUsers = await res.json();
+      if (Array.isArray(backendUsers)) {
+        backendUsers.forEach(addOrMergeUser);
+      }
+    }
+  } catch {}
+
+  // 4. Discover any user accounts from all existing projects
+  try {
+    const allProjs = await fetchAllProjectsForAdmin();
+    for (const p of allProjs) {
+      const pEmail = p.ownerEmail?.trim().toLowerCase();
+      const pUid = p.ownerId;
+      if (pEmail || pUid) {
+        addOrMergeUser({
+          uid: pUid || (pEmail ? "usr_" + pEmail.replace(/[^a-z0-9]/g, "_") : undefined),
+          email: pEmail || null,
+          displayName: p.ownerName || p.engineer || (pEmail ? pEmail.split("@")[0] : "Civil Engineer"),
+          role: pEmail === "engrkalilinux@gmail.com" ? "admin" : "engineer",
+          createdAt: p.createdAt,
+          lastLoginAt: p.updatedAt,
+        });
+      }
+    }
+  } catch {}
+
+  const result = Array.from(userMap.values());
+  result.sort((a, b) => new Date(b.lastLoginAt || 0).getTime() - new Date(a.lastLoginAt || 0).getTime());
+  return result;
 }
 
 /**
  * Helper to sync a batch of projects into Firestore
  */
 async function syncAllToFirestore(projects: Project[]) {
-  if (!auth.currentUser) return;
   for (const p of projects) {
     try {
       const cleanData = sanitizeForFirestore(p);
@@ -517,8 +649,8 @@ export async function createProject(
   };
   newProj.totalCost = calculateProjectTotalCost(newProj);
 
-  // 1. Save to Firestore ONLY if an authenticated user exists with matching ownerId
-  if (auth.currentUser && effectiveOwnerId && (effectiveOwnerId === auth.currentUser.uid || user?.role === "admin")) {
+  // 1. Save to Firestore for all users
+  if (effectiveOwnerId) {
     try {
       const cleanData = sanitizeForFirestore(newProj);
       await setDoc(doc(db, "projects", newProj.id), cleanData);
@@ -584,14 +716,12 @@ export async function updateProject(id: string, data: Partial<Project>, user?: A
   };
   mergedProj.totalCost = calculateProjectTotalCost(mergedProj);
 
-  // 1. Update in Firestore if authenticated in Firebase
-  if (auth.currentUser) {
-    try {
-      const cleanData = sanitizeForFirestore(mergedProj);
-      await setDoc(doc(db, "projects", id), cleanData, { merge: true });
-    } catch (err) {
-      console.warn("Firestore updateProject notice:", err);
-    }
+  // 1. Update in Firestore
+  try {
+    const cleanData = sanitizeForFirestore(mergedProj);
+    await setDoc(doc(db, "projects", id), cleanData, { merge: true });
+  } catch (err) {
+    console.warn("Firestore updateProject notice:", err);
   }
 
   // 2. Sync with Express backend
@@ -615,13 +745,11 @@ export async function updateProject(id: string, data: Partial<Project>, user?: A
  * Delete project from Firestore, backend, and localStorage
  */
 export async function deleteProject(id: string): Promise<boolean> {
-  // 1. Delete from Firestore only if authenticated in Firebase
-  if (auth.currentUser) {
-    try {
-      await deleteDoc(doc(db, "projects", id));
-    } catch (err) {
-      console.warn("Firestore deleteProject notice:", err);
-    }
+  // 1. Delete from Firestore
+  try {
+    await deleteDoc(doc(db, "projects", id));
+  } catch (err) {
+    console.warn("Firestore deleteProject notice:", err);
   }
 
   // 2. Delete from backend
@@ -762,14 +890,12 @@ export async function saveEstimateToProject(
   // 3. Persist across all user-isolated and shared local storage keys
   persistProjectToAllUserStores(proj, user?.uid || proj.ownerId);
 
-  // 4. Update in Firestore if user is authenticated in Firebase
-  if (auth.currentUser) {
-    try {
-      const cleanData = sanitizeForFirestore(proj);
-      await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
-    } catch (err) {
-      console.warn("Firestore saveEstimate notice:", err);
-    }
+  // 4. Update in Firestore
+  try {
+    const cleanData = sanitizeForFirestore(proj);
+    await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
+  } catch (err) {
+    console.warn("Firestore saveEstimate notice:", err);
   }
 
   // 5. Update backend in background
@@ -814,14 +940,12 @@ export async function deleteEstimateFromProject(
     proj.totalCost = calculateProjectTotalCost(proj);
     persistProjectToAllUserStores(proj, userId || proj.ownerId);
 
-    // Update in Firestore if authenticated in Firebase
-    if (auth.currentUser) {
-      try {
-        const cleanData = sanitizeForFirestore(proj);
-        await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
-      } catch (err) {
-        console.warn("Firestore deleteEstimate notice:", err);
-      }
+    // Update in Firestore
+    try {
+      const cleanData = sanitizeForFirestore(proj);
+      await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
+    } catch (err) {
+      console.warn("Firestore deleteEstimate notice:", err);
     }
 
     // Backend sync

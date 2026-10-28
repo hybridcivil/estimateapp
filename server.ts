@@ -12,8 +12,9 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "projects.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
 
-import { Project, ProjectEstimateItem } from "./src/types";
+import { Project, ProjectEstimateItem, AppUser } from "./src/types";
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -22,6 +23,25 @@ function ensureDataFile() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf-8");
   }
+  if (!fs.existsSync(USERS_FILE)) {
+    fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2), "utf-8");
+  }
+}
+
+function readUsers(): AppUser[] {
+  ensureDataFile();
+  try {
+    const raw = fs.readFileSync(USERS_FILE, "utf-8");
+    const list: AppUser[] = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeUsers(users: AppUser[]) {
+  ensureDataFile();
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
 }
 
 function readProjects(): Project[] {
@@ -83,6 +103,98 @@ app.get("/api/health", (_req, res) => {
     platform: "dolphinbox.ai.studio",
     timestamp: new Date().toISOString(),
   });
+});
+
+// List all registered users (combining explicit user registrations and project owners)
+app.get("/api/users", (_req, res) => {
+  try {
+    const storedUsers = readUsers();
+    const projects = readProjects();
+    const userMap = new Map<string, AppUser>();
+
+    // 1. Add stored users
+    for (const u of storedUsers) {
+      if (u && (u.uid || u.email)) {
+        const key = (u.email || u.uid).toLowerCase();
+        userMap.set(key, u);
+      }
+    }
+
+    // 2. Discover owners from projects
+    for (const p of projects) {
+      const email = p.ownerEmail?.trim().toLowerCase();
+      const uid = p.ownerId || (email ? "usr_" + email.replace(/[^a-z0-9]/g, "_") : undefined);
+      if (email || uid) {
+        const key = (email || uid)!.toLowerCase();
+        const existing = userMap.get(key);
+        const isBootstrapAdmin = email === "engrkalilinux@gmail.com";
+        const role = isBootstrapAdmin ? "admin" : (existing?.role || "engineer");
+        const displayName =
+          p.ownerName ||
+          p.engineer ||
+          existing?.displayName ||
+          (email ? email.split("@")[0] : "Civil Engineer");
+
+        userMap.set(key, {
+          uid: existing?.uid || uid || key,
+          email: existing?.email || email || null,
+          displayName: existing?.displayName || displayName,
+          photoURL: existing?.photoURL || null,
+          role,
+          createdAt: existing?.createdAt || p.createdAt || new Date().toISOString(),
+          lastLoginAt: existing?.lastLoginAt || p.updatedAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    const allUsers = Array.from(userMap.values());
+    allUsers.sort((a, b) => new Date(b.lastLoginAt || 0).getTime() - new Date(a.lastLoginAt || 0).getTime());
+    res.json(allUsers);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Register or update user in backend store
+app.post("/api/users", (req, res) => {
+  try {
+    const { uid, email, displayName, photoURL, role } = req.body;
+    if (!uid && !email) {
+      res.status(400).json({ error: "uid or email is required" });
+      return;
+    }
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+    const isBootstrapAdmin = cleanEmail === "engrkalilinux@gmail.com";
+    const assignedRole = isBootstrapAdmin ? "admin" : (role === "admin" ? "admin" : "engineer");
+    const now = new Date().toISOString();
+
+    const storedUsers = readUsers();
+    const key = (cleanEmail || uid).toLowerCase();
+    const existingIdx = storedUsers.findIndex(
+      (u) => (u.email && u.email.toLowerCase() === key) || u.uid === uid
+    );
+
+    const updatedUser: AppUser = {
+      uid: uid || (existingIdx !== -1 ? storedUsers[existingIdx].uid : ("usr_" + (cleanEmail ? cleanEmail.replace(/[^a-z0-9]/g, "_") : Date.now()))),
+      email: cleanEmail || (existingIdx !== -1 ? storedUsers[existingIdx].email : null),
+      displayName: displayName || (existingIdx !== -1 ? storedUsers[existingIdx].displayName : (cleanEmail ? cleanEmail.split("@")[0] : "Civil Engineer")),
+      photoURL: photoURL !== undefined ? photoURL : (existingIdx !== -1 ? storedUsers[existingIdx].photoURL : null),
+      role: assignedRole,
+      createdAt: existingIdx !== -1 && storedUsers[existingIdx].createdAt ? storedUsers[existingIdx].createdAt : now,
+      lastLoginAt: now,
+    };
+
+    if (existingIdx !== -1) {
+      storedUsers[existingIdx] = updatedUser;
+    } else {
+      storedUsers.unshift(updatedUser);
+    }
+
+    writeUsers(storedUsers);
+    res.status(200).json(updatedUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // List all projects (support filtering by ownerId)

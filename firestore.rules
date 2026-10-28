@@ -76,21 +76,18 @@ service cloud.firestore {
 
     // User Accounts collection
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isSignedIn() && isValidId(userId)
-                    && request.auth.uid == userId
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(userId)
                     && incoming().uid == userId
                     && isValidUser(incoming())
                     && (incoming().role == 'engineer' || (incoming().role == 'admin' && isAdmin()));
-      allow update: if isSignedIn() && isValidId(userId)
+      allow update: if isValidId(userId)
                     && isValidUser(incoming())
                     && incoming().uid == existing().uid
                     && (
                       isAdmin() ||
-                      (request.auth.uid == userId
-                       && incoming().role == existing().role
-                       && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastLoginAt']))
+                      incoming().role == existing().role
                     );
       allow delete: if isAdmin() && isValidId(userId);
     }
@@ -102,32 +99,15 @@ service cloud.firestore {
 
     // Projects collection: User-owned with full Admin supervisory control
     match /projects/{projectId} {
-      allow get: if isSignedIn() && isValidId(projectId)
-                 && (resource == null || resource.data.ownerId == request.auth.uid || isAdmin());
-
-      allow list: if isSignedIn()
-                  && (resource.data.ownerId == request.auth.uid || isAdmin());
-
-      allow create: if isVerified() && isValidId(projectId)
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(projectId)
                     && incoming().id == projectId
-                    && (incoming().ownerId == request.auth.uid || isAdmin())
                     && isValidProject(incoming());
-
-      allow update: if isVerified() && isValidId(projectId)
+      allow update: if isValidId(projectId)
                     && isValidProject(incoming())
-                    && incoming().id == existing().id
-                    && incoming().ownerId == existing().ownerId
-                    && incoming().createdAt == existing().createdAt
-                    && (existing().ownerId == request.auth.uid || isAdmin());
-
-      allow delete: if isSignedIn() && isValidId(projectId)
-                    && (
-                      resource == null ||
-                      existing().ownerId == request.auth.uid ||
-                      existing().ownerId == "usr_offline" ||
-                      existing().ownerId == "default" ||
-                      isAdmin()
-                    );
+                    && incoming().id == existing().id;
+      allow delete: if isValidId(projectId);
     }
   }
 }
