@@ -39,6 +39,8 @@ export interface AppUser {
   displayName: string | null;
   photoURL: string | null;
   role: "admin" | "engineer";
+  authProvider?: "google" | "email_password";
+  password?: string;
   createdAt?: string;
   lastLoginAt?: string;
 }

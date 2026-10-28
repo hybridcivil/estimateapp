@@ -18,7 +18,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType } from "../services/firebase";
 import { AppUser } from "../types";
-import { syncUserToAllStores } from "../services/api";
+import { syncUserToAllStores, getLocalRegisteredUsers } from "../services/api";
 
 export const BOOTSTRAP_ADMIN_EMAIL = "engrkalilinux@gmail.com";
 
@@ -127,12 +127,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           const now = new Date().toISOString();
+          const isGoogle = user.providerData?.some((p) => p.providerId === "google.com") || Boolean(user.photoURL);
           const userData: AppUser = {
             uid: user.uid,
             email: effectiveEmail,
             displayName: user.displayName || existingData?.displayName || (isBootstrapAdmin ? "Engr. Kali (Admin)" : "Civil Engineer"),
             photoURL: user.photoURL || existingData?.photoURL || null,
             role,
+            authProvider: isGoogle ? "google" : (existingData?.authProvider || "google"),
             createdAt: existingData?.createdAt || now,
             lastLoginAt: now,
           };
@@ -144,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: userData.email,
               displayName: userData.displayName,
               role: userData.role,
+              authProvider: userData.authProvider,
               lastLoginAt: now,
             };
             if (userData.photoURL) {
@@ -232,16 +235,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fallbackDirectAuth = async (
     email: string,
-    displayName?: string
+    displayName?: string,
+    password?: string,
+    provider: "google" | "email_password" = "email_password"
   ): Promise<{ success: boolean; error?: string }> => {
     setError(null);
     const cleanEmail = email.trim().toLowerCase();
     const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
     const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
-    const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const finalName = displayName?.trim() || (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
-    const now = new Date().toISOString();
-
     const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
 
     if (auth.currentUser && auth.currentUser.email && auth.currentUser.email.toLowerCase() !== cleanEmail) {
@@ -250,13 +251,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
     }
 
+    // Check existing profile in Firestore first to retain registered display name and creation time
+    let existingData: any = null;
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        existingData = snap.data();
+      }
+    } catch (e) {
+      console.warn("Direct auth read error from Firestore:", e);
+    }
+
+    if (!existingData) {
+      try {
+        const localList = getLocalRegisteredUsers();
+        const found = localList.find((u) => u.uid === uid || u.email?.toLowerCase() === cleanEmail);
+        if (found) existingData = found;
+      } catch {}
+    }
+
+    const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const finalName =
+      displayName?.trim() ||
+      existingData?.displayName ||
+      (isBootstrapAdmin ? "Engr. Kali (Admin)" : `Engr. ${fallbackName}`);
+    const now = new Date().toISOString();
+
+    const effectiveProvider = provider || existingData?.authProvider || "email_password";
+    const effectivePassword = password || existingData?.password;
+
     const userData: AppUser = {
       uid,
       email: cleanEmail,
       displayName: finalName,
-      photoURL: null,
+      photoURL: existingData?.photoURL || null,
       role,
-      createdAt: now,
+      authProvider: effectiveProvider,
+      password: effectivePassword,
+      createdAt: existingData?.createdAt || now,
       lastLoginAt: now,
     };
 
@@ -269,18 +301,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAdmin(role === "admin");
 
     try {
-      await setDoc(
-        doc(db, "users", uid),
-        {
-          uid: userData.uid,
-          email: userData.email,
-          displayName: userData.displayName,
-          role: userData.role,
-          createdAt: now,
-          lastLoginAt: now,
-        },
-        { merge: true }
-      );
+      const userPayload: any = {
+        uid: userData.uid,
+        email: userData.email,
+        displayName: userData.displayName,
+        role: userData.role,
+        authProvider: effectiveProvider,
+        createdAt: userData.createdAt,
+        lastLoginAt: now,
+      };
+      if (effectivePassword) userPayload.password = effectivePassword;
+      await setDoc(doc(db, "users", uid), userPayload, { merge: true });
     } catch (e) {
       console.warn("Could not sync fallback user to Firestore:", e);
     }
@@ -340,6 +371,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: cleanName,
         photoURL: null,
         role,
+        authProvider: "email_password",
+        password,
         createdAt: now,
         lastLoginAt: now,
       };
@@ -350,9 +383,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: cleanEmail,
           displayName: cleanName,
           role,
+          authProvider: "email_password",
+          password,
           createdAt: now,
           lastLoginAt: now,
-        });
+        }, { merge: true });
       } catch (e) {
         console.warn("Could not save user profile to Firestore:", e);
       }
@@ -367,21 +402,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true };
     } catch (err: any) {
       console.warn("createUserWithEmailAndPassword encountered error:", err.code, err.message);
-      let msg = err.message || "Failed to register account.";
 
-      if (err.code === "auth/email-already-in-use") {
-        msg = "An account with this email already exists. Please switch to the Sign In tab.";
-      } else if (err.code === "auth/weak-password") {
-        msg = "Password is too weak. Please choose a password with at least 6 characters.";
-      } else if (err.code === "auth/invalid-email") {
-        msg = "The email address format is not valid.";
-      } else if (
+      // If Firebase Auth does not allow email/password provider, seamlessly persist to Firestore + backend
+      if (
         err.code === "auth/operation-not-allowed" ||
         err.code === "auth/admin-restricted-operation" ||
         err.code === "auth/configuration-not-found" ||
         err.code === "auth/internal-error"
       ) {
-        return await fallbackDirectAuth(cleanEmail, cleanName);
+        return await fallbackDirectAuth(cleanEmail, cleanName, password, "email_password");
+      }
+
+      let msg = err.message || "Failed to register account.";
+      if (err.code === "auth/email-already-in-use") {
+        msg = "An account with this email already exists. Please switch to Sign In.";
+      } else if (err.code === "auth/weak-password") {
+        msg = "Password is too weak. Please choose a password with at least 6 characters.";
+      } else if (err.code === "auth/invalid-email") {
+        msg = "The email address format is not valid.";
       }
 
       setError(msg);
@@ -406,11 +444,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: msg };
     }
 
+    const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
+
+    // 1. Check if user exists in direct database (Firestore / backend / local storage)
+    let existingProfile: any = null;
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        existingProfile = snap.data();
+      }
+    } catch (e) {
+      console.warn("Direct check user error:", e);
+    }
+
+    if (!existingProfile) {
+      try {
+        const localList = getLocalRegisteredUsers();
+        const found = localList.find((u) => u.uid === uid || u.email?.toLowerCase() === cleanEmail);
+        if (found) existingProfile = found;
+      } catch {}
+    }
+
+    if (existingProfile) {
+      if (existingProfile.password && existingProfile.password !== password) {
+        const msg = "Incorrect password. Please verify and try again.";
+        setError(msg);
+        return { success: false, error: msg };
+      }
+      return await fallbackDirectAuth(
+        cleanEmail,
+        existingProfile.displayName,
+        password,
+        "email_password"
+      );
+    }
+
+    // 2. Try Firebase Auth
     try {
       await signInWithEmailAndPassword(auth, cleanEmail, password);
       return { success: true };
     } catch (err: any) {
       console.warn("signInWithEmailAndPassword error:", err.code, err.message);
+
+      // If Firebase Auth provider is disabled or not allowed, log them in via direct auth
+      if (
+        err.code === "auth/operation-not-allowed" ||
+        err.code === "auth/admin-restricted-operation" ||
+        err.code === "auth/configuration-not-found" ||
+        err.code === "auth/internal-error"
+      ) {
+        return await fallbackDirectAuth(cleanEmail, undefined, password, "email_password");
+      }
+
       let msg = err.message || "Failed to sign in.";
       if (
         err.code === "auth/user-not-found" ||
@@ -420,14 +505,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         msg = "Incorrect email or password. If you do not have an account, please switch to Register.";
       } else if (err.code === "auth/too-many-requests") {
         msg = "Too many failed login attempts. Please wait a moment before trying again.";
-      } else if (
-        err.code === "auth/operation-not-allowed" ||
-        err.code === "auth/admin-restricted-operation" ||
-        err.code === "auth/configuration-not-found" ||
-        err.code === "auth/internal-error"
-      ) {
-        return await fallbackDirectAuth(cleanEmail);
       }
+
       setError(msg);
       return { success: false, error: msg };
     }

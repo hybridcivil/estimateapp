@@ -445,10 +445,12 @@ export async function syncUserToAllStores(user: AppUser) {
       email: user.email,
       displayName: user.displayName || "Civil Engineer",
       role: user.role || "engineer",
+      authProvider: user.authProvider || (user.photoURL ? "google" : "email_password"),
       lastLoginAt: user.lastLoginAt || new Date().toISOString(),
     };
     if (user.photoURL) cleanUser.photoURL = user.photoURL;
     if (user.createdAt) cleanUser.createdAt = user.createdAt;
+    if (user.password) cleanUser.password = user.password;
     setDoc(docRef, cleanUser, { merge: true }).catch((e) => {
       console.warn("Firestore user sync notice:", e);
     });
@@ -483,12 +485,19 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
         ? email.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
         : "Civil Engineer");
 
+    const authProvider: "google" | "email_password" =
+      u.authProvider ||
+      existing?.authProvider ||
+      (u.photoURL ? "google" : "email_password");
+
     userMap.set(key, {
       uid: existing?.uid || uid || key,
       email: existing?.email || email || null,
       displayName,
       photoURL: u.photoURL || existing?.photoURL || null,
       role,
+      authProvider,
+      password: u.password || existing?.password,
       createdAt: existing?.createdAt || u.createdAt || new Date().toISOString(),
       lastLoginAt: u.lastLoginAt || existing?.lastLoginAt || new Date().toISOString(),
     });

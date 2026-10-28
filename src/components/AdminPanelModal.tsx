@@ -12,6 +12,8 @@ import {
   DollarSign,
   AlertCircle,
   RefreshCw,
+  Key,
+  Globe,
 } from "lucide-react";
 import { Project, AppUser } from "../types";
 import {
@@ -41,6 +43,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [userFilter, setUserFilter] = useState<string>("all");
+  const [userTypeFilter, setUserTypeFilter] = useState<"all" | "email_password" | "google">("all");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -69,6 +73,32 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   if (!isOpen) return null;
 
   const totalCostAll = allProjects.reduce((sum, p) => sum + calculateProjectTotalCost(p), 0);
+
+  const emailPasswordUsers = allUsers.filter(
+    (u) => u.authProvider === "email_password" || (!u.photoURL && u.authProvider !== "google")
+  );
+  const googleUsers = allUsers.filter(
+    (u) => u.authProvider === "google" || Boolean(u.photoURL)
+  );
+
+  const filteredUsers = allUsers.filter((u) => {
+    const isEmailPass =
+      u.authProvider === "email_password" || (!u.photoURL && u.authProvider !== "google");
+    if (userTypeFilter === "email_password" && !isEmailPass) return false;
+    if (userTypeFilter === "google" && isEmailPass) return false;
+
+    if (userSearchQuery.trim()) {
+      const q = userSearchQuery.toLowerCase();
+      const matchesName = (u.displayName || "").toLowerCase().includes(q);
+      const matchesEmail = (u.email || "").toLowerCase().includes(q);
+      const matchesRole = (u.role || "").toLowerCase().includes(q);
+      const matchesProvider = isEmailPass
+        ? "email password register registered workspace".includes(q)
+        : "google gmail oauth".includes(q);
+      return matchesName || matchesEmail || matchesRole || matchesProvider;
+    }
+    return true;
+  });
 
   const filteredProjects = allProjects.filter((p) => {
     const matchesSearch =
@@ -152,7 +182,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               <span>Registered Users</span>
               <Users className="w-3.5 h-3.5 text-[#38bdf8]" />
             </div>
-            <div className="text-xl font-bold font-mono text-white">{allUsers.length}</div>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-xl font-bold font-mono text-white">{allUsers.length}</span>
+              <span className="text-[10px] text-[#8ba3c1] font-mono">
+                ({emailPasswordUsers.length} Email/Pass · {googleUsers.length} Google)
+              </span>
+            </div>
           </div>
 
           <div className="bg-[#152033] p-3 rounded-xl border border-[#24374e]">
@@ -355,12 +390,63 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             )
           ) : (
             // Users / Engineers Tab
-            <div className="space-y-2">
+            <div className="space-y-3">
+              {/* Filter pills and search bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#0e1624] p-3 rounded-xl border border-[#24374e]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    onClick={() => setUserTypeFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      userTypeFilter === "all"
+                        ? "bg-[#00c2c7] text-[#0f1c2e] font-bold shadow-sm"
+                        : "bg-[#152033] text-[#8ba3c1] hover:text-white border border-[#24374e]"
+                    }`}
+                  >
+                    All Engineers ({allUsers.length})
+                  </button>
+                  <button
+                    onClick={() => setUserTypeFilter("email_password")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                      userTypeFilter === "email_password"
+                        ? "bg-emerald-500 text-slate-950 font-bold shadow-sm"
+                        : "bg-[#152033] text-emerald-400 hover:text-emerald-300 border border-emerald-500/30"
+                    }`}
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Email & Password ({emailPasswordUsers.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setUserTypeFilter("google")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                      userTypeFilter === "google"
+                        ? "bg-blue-500 text-white font-bold shadow-sm"
+                        : "bg-[#152033] text-blue-400 hover:text-blue-300 border border-blue-500/30"
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>Google Sign-In ({googleUsers.length})</span>
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ba3c1]" />
+                  <input
+                    type="text"
+                    placeholder="Search engineer, email, or role..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white placeholder-[#8ba3c1] outline-none w-52 sm:w-64 focus:border-[#00c2c7]"
+                  />
+                </div>
+              </div>
+
+              {/* Engineers Table */}
               <div className="bg-[#152033] border border-[#24374e] rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#0e1624] text-[#8ba3c1] uppercase font-mono text-[10px] border-b border-[#24374e]">
                     <tr>
                       <th className="py-2.5 px-4">User / Engineer</th>
+                      <th className="py-2.5 px-4">Login / Auth Method</th>
                       <th className="py-2.5 px-4">Email Address</th>
                       <th className="py-2.5 px-4">Role</th>
                       <th className="py-2.5 px-4">Projects Owned</th>
@@ -369,19 +455,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#24374e]">
-                    {allUsers.length === 0 ? (
+                    {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-[#8ba3c1]">
-                          No registered users recorded in database yet.
+                        <td colSpan={7} className="py-8 text-center text-[#8ba3c1]">
+                          No registered engineers found matching filter criteria.
                         </td>
                       </tr>
                     ) : (
-                      allUsers.map((u) => {
+                      filteredUsers.map((u) => {
                         const userProjs = allProjects.filter(
                           (p) => p.ownerId === u.uid || p.ownerEmail === u.email
                         );
                         const isBootstrap =
                           u.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+                        const isEmailPass =
+                          u.authProvider === "email_password" || (!u.photoURL && u.authProvider !== "google");
 
                         return (
                           <tr key={u.uid} className="hover:bg-[#1a2b42]/50 transition">
@@ -394,23 +482,32 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                     className="w-7 h-7 rounded-full border border-[#2d4a6a]"
                                   />
                                 ) : (
-                                  <div className="w-7 h-7 rounded-full bg-[#24374e] text-[#00c2c7] font-bold flex items-center justify-center font-mono">
+                                  <div className="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center font-mono border border-emerald-500/30">
                                     {(u.displayName || u.email || "E")[0].toUpperCase()}
                                   </div>
                                 )}
-                                <span className="font-semibold text-white">
-                                  {u.displayName || "Civil Engineer"}
-                                </span>
-                                {u.email?.toLowerCase().endsWith("@gmail.com") || u.photoURL ? (
-                                  <span className="text-[8.5px] font-mono font-semibold px-1.5 py-0.2 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                                    Gmail
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-white">
+                                    {u.displayName || "Civil Engineer"}
                                   </span>
-                                ) : (
-                                  <span className="text-[8.5px] font-mono font-semibold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                    Registered
+                                  <span className="text-[10px] text-[#8ba3c1] font-mono">
+                                    {u.uid}
                                   </span>
-                                )}
+                                </div>
                               </div>
+                            </td>
+                            <td className="py-2.5 px-4">
+                              {isEmailPass ? (
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                  <Key className="w-2.5 h-2.5 text-emerald-400" />
+                                  <span>Email & Password</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                                  <Globe className="w-2.5 h-2.5 text-blue-400" />
+                                  <span>Google Sign-In</span>
+                                </span>
+                              )}
                             </td>
                             <td className="py-2.5 px-4 font-mono text-[#8ba3c1]">
                               {u.email || "No email"}
@@ -441,7 +538,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   setUserFilter(u.email || u.uid);
                                   setActiveTab("projects");
                                 }}
-                                className="px-2.5 py-1 bg-[#1a2b42] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded text-[11px] font-semibold transition"
+                                className="px-2.5 py-1 bg-[#1a2b42] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded text-[11px] font-semibold transition cursor-pointer"
                               >
                                 View Projects
                               </button>

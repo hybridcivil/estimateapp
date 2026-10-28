@@ -116,7 +116,10 @@ app.get("/api/users", (_req, res) => {
     for (const u of storedUsers) {
       if (u && (u.uid || u.email)) {
         const key = (u.email || u.uid).toLowerCase();
-        userMap.set(key, u);
+        userMap.set(key, {
+          ...u,
+          authProvider: u.authProvider || (u.photoURL ? "google" : "email_password"),
+        });
       }
     }
 
@@ -141,6 +144,7 @@ app.get("/api/users", (_req, res) => {
           displayName: existing?.displayName || displayName,
           photoURL: existing?.photoURL || null,
           role,
+          authProvider: existing?.authProvider || (existing?.photoURL ? "google" : "email_password"),
           createdAt: existing?.createdAt || p.createdAt || new Date().toISOString(),
           lastLoginAt: existing?.lastLoginAt || p.updatedAt || new Date().toISOString(),
         });
@@ -158,7 +162,7 @@ app.get("/api/users", (_req, res) => {
 // Register or update user in backend store
 app.post("/api/users", (req, res) => {
   try {
-    const { uid, email, displayName, photoURL, role } = req.body;
+    const { uid, email, displayName, photoURL, role, authProvider, password } = req.body;
     if (!uid && !email) {
       res.status(400).json({ error: "uid or email is required" });
       return;
@@ -174,12 +178,22 @@ app.post("/api/users", (req, res) => {
       (u) => (u.email && u.email.toLowerCase() === key) || u.uid === uid
     );
 
+    const effectiveAuthProvider =
+      authProvider ||
+      (existingIdx !== -1 && storedUsers[existingIdx].authProvider
+        ? storedUsers[existingIdx].authProvider
+        : photoURL
+        ? "google"
+        : "email_password");
+
     const updatedUser: AppUser = {
       uid: uid || (existingIdx !== -1 ? storedUsers[existingIdx].uid : ("usr_" + (cleanEmail ? cleanEmail.replace(/[^a-z0-9]/g, "_") : Date.now()))),
       email: cleanEmail || (existingIdx !== -1 ? storedUsers[existingIdx].email : null),
       displayName: displayName || (existingIdx !== -1 ? storedUsers[existingIdx].displayName : (cleanEmail ? cleanEmail.split("@")[0] : "Civil Engineer")),
       photoURL: photoURL !== undefined ? photoURL : (existingIdx !== -1 ? storedUsers[existingIdx].photoURL : null),
       role: assignedRole,
+      authProvider: effectiveAuthProvider,
+      password: password || (existingIdx !== -1 ? storedUsers[existingIdx].password : undefined),
       createdAt: existingIdx !== -1 && storedUsers[existingIdx].createdAt ? storedUsers[existingIdx].createdAt : now,
       lastLoginAt: now,
     };
