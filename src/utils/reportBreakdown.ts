@@ -1454,6 +1454,11 @@ export function recalculateEstimateWithRates(
   est: ProjectEstimateItem,
   rates: typeof DEFAULT_MATERIAL_RATES
 ): ProjectEstimateItem {
+  // Contractor rate schedule estimates represent labour rates and workmanship, NOT material rates
+  if (est.type === "contractor") {
+    return est;
+  }
+
   const isFoundation = est.type === "footing" || est.type === "situ_pile" || est.type === "sand_pile";
   const isGradeBeam =
     est.type === "beam" &&

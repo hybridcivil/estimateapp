@@ -10,6 +10,10 @@ import {
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
 import {
+  generateDefaultContractorItems,
+  rescaleContractorItems,
+} from "../../utils/buildingSchedule";
+import {
   HardHat,
   Zap,
   Wrench,
@@ -40,112 +44,6 @@ interface ContractorCalculatorProps {
     data: Record<string, any>;
   }) => Promise<void>;
   onDeleteEstimate: (id: string) => Promise<void>;
-}
-
-// Default initial rate generator based on project storeys
-function generateDefaultContractorItems(stories: number = 3, defaultFloorArea: number = 1500): ContractorRateItem[] {
-  const items: ContractorRateItem[] = [];
-
-  // Ground Floor: ৳400/sft
-  items.push({
-    id: "item_gf_civil",
-    category: "civil_floor",
-    workType: "Ground floor civil construction (গ্রাউন্ড ফ্লোর সিভিল নির্মাণ)",
-    unit: "sft",
-    rate: 400,
-    quantity: defaultFloorArea,
-    floorNumber: 0,
-    notes: "Foundation, plinth brick soling, earthwork, RCC casting & shuttering",
-    totalCost: 400 * defaultFloorArea,
-  });
-
-  // 1st Floor: ৳300/sft
-  if (stories >= 2) {
-    items.push({
-      id: "item_1f_civil",
-      category: "civil_floor",
-      workType: "1st floor civil construction (১ম তলা সিভিল নির্মাণ)",
-      unit: "sft",
-      rate: 300,
-      quantity: defaultFloorArea,
-      floorNumber: 1,
-      notes: "Column casting, beam/slab formwork, reinforcement & brick masonry",
-      totalCost: 300 * defaultFloorArea,
-    });
-  }
-
-  // 2nd Floor: ৳310/sft
-  if (stories >= 3) {
-    items.push({
-      id: "item_2f_civil",
-      category: "civil_floor",
-      workType: "2nd floor civil construction (২য় তলা সিভিল নির্মাণ)",
-      unit: "sft",
-      rate: 310,
-      quantity: defaultFloorArea,
-      floorNumber: 2,
-      notes: "Height allowance +৳10/sft for lifting & shuttering",
-      totalCost: 310 * defaultFloorArea,
-    });
-  }
-
-  // Higher Floors (3rd floor onward: +৳10 per floor)
-  for (let f = 3; f < stories; f++) {
-    const floorRate = 310 + (f - 2) * 10;
-    const floorLabel = f === 3 ? "3rd" : `${f}th`;
-    items.push({
-      id: `item_${f}f_civil`,
-      category: "civil_floor",
-      workType: `${floorLabel} floor civil construction (${f}ম তলা সিভিল নির্মাণ)`,
-      unit: "sft",
-      rate: floorRate,
-      quantity: defaultFloorArea,
-      floorNumber: f,
-      notes: `Lifting allowance rate (+৳10/sft per floor height)`,
-      totalCost: floorRate * defaultFloorArea,
-    });
-  }
-
-  const totalBuiltupArea = defaultFloorArea * Math.max(1, stories);
-
-  // Electrical Installation Labour: ৳20/sft
-  items.push({
-    id: "item_electrical",
-    category: "electrical",
-    workType: "Electrical installation labour (বৈদ্যুতিক ওয়্যারিং ও পাইপিং মজুরি)",
-    unit: "sft",
-    rate: 20,
-    quantity: totalBuiltupArea,
-    notes: "Conduit piping, switchboards, db wiring, lighting & earthing labour",
-    totalCost: 20 * totalBuiltupArea,
-  });
-
-  // Plumbing Installation Labour: ৳25/sft
-  items.push({
-    id: "item_plumbing",
-    category: "plumbing",
-    workType: "Plumbing installation labour (প্লাম্বিং ও স্যানিটারি ফিটিংস মজুরি)",
-    unit: "sft",
-    rate: 25,
-    quantity: totalBuiltupArea,
-    notes: "Water supply lines, sanitary drainage, waste stack & bath fittings",
-    totalCost: 25 * totalBuiltupArea,
-  });
-
-  // Painting Labour: ৳10/sft (wall & ceiling area, approx 3.5x floor area)
-  const estimatedWallArea = Math.round(totalBuiltupArea * 3.5);
-  items.push({
-    id: "item_painting",
-    category: "painting",
-    workType: "Painting labour (রং কাজের মজুরি - ওয়াল ও সিলিং এরিয়া)",
-    unit: "sft",
-    rate: 10,
-    quantity: estimatedWallArea,
-    notes: "Putty / seamer, primer coat, 2-coat plastic paint & weather coat (approx 3.5× floor sft)",
-    totalCost: 10 * estimatedWallArea,
-  });
-
-  return items;
 }
 
 export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
@@ -307,6 +205,28 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
     setCustomQty(1);
     setCustomNotes("");
     setShowAddCustom(false);
+  };
+
+  // Synchronize current contractor items to match activeProject stories accurately
+  const handleSyncWithProjectStories = () => {
+    const rescaled = rescaleContractorItems(
+      items,
+      projectStories,
+      batchFloorArea || 1500,
+      wallAreaMultiplier || 3.5
+    );
+    setItems(rescaled.items);
+    const storeyRegex = /\(\s*\d+\s*(?:Floors?|Storeys?)\s*(?:[×x]\s*Multiplied|Schedule|Covered)?\s*\)/i;
+    if (storeyRegex.test(estimateName)) {
+      setEstimateName(
+        estimateName.replace(
+          storeyRegex,
+          `(${projectStories} ${projectStories === 1 ? "Storey" : "Storeys"} Covered)`
+        )
+      );
+    } else if (!estimateName.includes(`${projectStories} Storey`)) {
+      setEstimateName(`${estimateName} (${projectStories} ${projectStories === 1 ? "Storey" : "Storeys"} Covered)`);
+    }
   };
 
   // Reset to proposed default rates
@@ -487,6 +407,20 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
               <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <button
                   type="button"
+                  onClick={handleSyncWithProjectStories}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                    isLight
+                      ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 shadow-sm"
+                      : "bg-[#f59e0b]/15 hover:bg-[#f59e0b]/25 text-[#f59e0b] border-[#f59e0b]/40 shadow-sm"
+                  }`}
+                  title={`Rescale all floors, electrical, plumbing & painting to match active project (${projectStories} storeys)`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Sync Project ({projectStories} {projectStories === 1 ? "Storey" : "Storeys"})</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleResetToProposedRates}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
                     isLight
@@ -661,6 +595,22 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {items.filter((i) => i.category === "civil_floor").length !== projectStories && (
+                  <button
+                    type="button"
+                    onClick={handleSyncWithProjectStories}
+                    className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer active:scale-95 ${
+                      isLight
+                        ? "bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300 shadow-xs"
+                        : "text-[#f5a623] hover:text-white bg-[#f5a623]/20 hover:bg-[#f5a623]/30 border-[#f5a623]/50"
+                    }`}
+                    title={`Click to synchronize items with project's ${projectStories} storeys`}
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Sync with Project ({projectStories} Storeys)</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={handleAddFloorItem}

@@ -694,16 +694,24 @@ export async function createProject(
 /**
  * Update project in Firestore, backend, and localStorage
  */
-export async function updateProject(id: string, data: Partial<Project>, user?: AppUser | null): Promise<Project | null> {
+export async function updateProject(
+  id: string,
+  data: Partial<Project>,
+  user?: AppUser | null,
+  projectContext?: Project | null
+): Promise<Project | null> {
   const activeUid = user?.uid || getCurrentActiveUserId();
   const local = getLocalProjects(activeUid);
-  const existingProj = local.find((p) => p.id === id);
+  const existingProj =
+    (projectContext && projectContext.id === id)
+      ? projectContext
+      : (local.find((p) => p.id === id) || findProjectInAnyStorage(id, activeUid));
 
   const oldStories = existingProj?.stories || 1;
   const newStories = data.stories !== undefined ? Math.max(1, data.stories) : oldStories;
   let rescaledEstimates = data.estimates || existingProj?.estimates || [];
 
-  if (!data.estimates && newStories !== oldStories && Array.isArray(rescaledEstimates) && rescaledEstimates.length > 0) {
+  if (newStories !== oldStories && Array.isArray(rescaledEstimates) && rescaledEstimates.length > 0) {
     rescaledEstimates = rescaleEstimatesForStories(rescaledEstimates, newStories, oldStories);
   }
 

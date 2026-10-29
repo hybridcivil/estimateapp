@@ -741,10 +741,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   type="button"
                   onClick={onAddDefaultBuildingList}
                   className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/40 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
-                  title="Auto-populate default 7 building elements (Beam, Column, Footing, Slab, Stair, Tile, Brick)"
+                  title="Auto-populate default building elements & contractor labour schedule (Beam, Column, Footing, Slab, Stair, Tile, Brick, Labour Rates)"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Auto-Add 7 Elements</span>
+                  <span>Auto-Add Elements</span>
                 </button>
               )}
               <button

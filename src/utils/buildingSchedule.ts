@@ -1,4 +1,4 @@
-import { ProjectEstimateItem, EstimateType } from "../types";
+import { ProjectEstimateItem, EstimateType, ContractorRateItem } from "../types";
 
 export interface BuildingElementMeta {
   type: EstimateType;
@@ -82,7 +82,301 @@ export const BUILDING_ELEMENTS: BuildingElementMeta[] = [
     defaultTitle: "Brickwork & Plaster Takeoff",
     accent: "#fb923c",
   },
+  {
+    type: "contractor",
+    name: "Contractor & Labour",
+    category: "structural",
+    unitDescription: "Civil Floor, Electrical, Plumbing & Painting Labour Rates",
+    defaultTitle: "Contractor & Labour Rate Schedule",
+    accent: "#f59e0b",
+  },
 ];
+
+export function generateDefaultContractorItems(
+  stories: number = 1,
+  defaultFloorArea: number = 1500
+): ContractorRateItem[] {
+  const items: ContractorRateItem[] = [];
+  const s = Math.max(1, stories);
+
+  // Ground Floor: ৳400/sft
+  items.push({
+    id: "item_gf_civil",
+    category: "civil_floor",
+    workType: "Ground floor civil construction (গ্রাউন্ড ফ্লোর সিভিল নির্মাণ)",
+    unit: "sft",
+    rate: 400,
+    quantity: defaultFloorArea,
+    floorNumber: 0,
+    notes: "Foundation, plinth brick soling, earthwork, RCC casting & shuttering",
+    totalCost: 400 * defaultFloorArea,
+  });
+
+  // 1st Floor: ৳300/sft
+  if (s >= 2) {
+    items.push({
+      id: "item_1f_civil",
+      category: "civil_floor",
+      workType: "1st floor civil construction (১ম তলা সিভিল নির্মাণ)",
+      unit: "sft",
+      rate: 300,
+      quantity: defaultFloorArea,
+      floorNumber: 1,
+      notes: "Column casting, beam/slab formwork, reinforcement & brick masonry",
+      totalCost: 300 * defaultFloorArea,
+    });
+  }
+
+  // 2nd Floor: ৳310/sft
+  if (s >= 3) {
+    items.push({
+      id: "item_2f_civil",
+      category: "civil_floor",
+      workType: "2nd floor civil construction (২য় তলা সিভিল নির্মাণ)",
+      unit: "sft",
+      rate: 310,
+      quantity: defaultFloorArea,
+      floorNumber: 2,
+      notes: "Height allowance +৳10/sft for lifting & shuttering",
+      totalCost: 310 * defaultFloorArea,
+    });
+  }
+
+  // Higher Floors (3rd floor onward: +৳10 per floor)
+  for (let f = 3; f < s; f++) {
+    const floorRate = 310 + (f - 2) * 10;
+    const floorLabel = f === 3 ? "3rd" : `${f}th`;
+    items.push({
+      id: `item_${f}f_civil`,
+      category: "civil_floor",
+      workType: `${floorLabel} floor civil construction (${f}ম তলা সিভিল নির্মাণ)`,
+      unit: "sft",
+      rate: floorRate,
+      quantity: defaultFloorArea,
+      floorNumber: f,
+      notes: "Lifting allowance rate (+৳10/sft per floor height)",
+      totalCost: floorRate * defaultFloorArea,
+    });
+  }
+
+  const totalBuiltupArea = defaultFloorArea * s;
+
+  // Electrical Installation Labour: ৳20/sft
+  items.push({
+    id: "item_electrical",
+    category: "electrical",
+    workType: "Electrical installation labour (বৈদ্যুতিক ওয়্যারিং ও পাইপিং মজুরি)",
+    unit: "sft",
+    rate: 20,
+    quantity: totalBuiltupArea,
+    notes: "Conduit piping, switchboards, db wiring, lighting & earthing labour",
+    totalCost: 20 * totalBuiltupArea,
+  });
+
+  // Plumbing Installation Labour: ৳25/sft
+  items.push({
+    id: "item_plumbing",
+    category: "plumbing",
+    workType: "Plumbing installation labour (প্লাম্বিং ও স্যানিটারি ফিটিংস মজুরি)",
+    unit: "sft",
+    rate: 25,
+    quantity: totalBuiltupArea,
+    notes: "Water supply lines, sanitary drainage, waste stack & bath fittings",
+    totalCost: 25 * totalBuiltupArea,
+  });
+
+  // Painting Labour: ৳10/sft (wall & ceiling area, approx 3.5x floor area)
+  const estimatedWallArea = Math.round(totalBuiltupArea * 3.5);
+  items.push({
+    id: "item_painting",
+    category: "painting",
+    workType: "Painting labour (রং কাজের মজুরি - ওয়াল ও সিলিং এরিয়া)",
+    unit: "sft",
+    rate: 10,
+    quantity: estimatedWallArea,
+    notes: "Putty / seamer, primer coat, 2-coat plastic paint & weather coat (approx 3.5× floor sft)",
+    totalCost: 10 * estimatedWallArea,
+  });
+
+  return items;
+}
+
+/**
+ * Rescales contractor rate items accurately for a target storey count.
+ * - Expands or trims civil floor items for floors 0 to s-1.
+ * - Preserves custom rates configured by the user for ground floor, 1st floor, 2nd floor, etc.
+ * - Dynamically computes height allowance (+৳10/sft per floor) for new higher floors.
+ * - Multiplies electrical & plumbing total builtup area by floorArea * s.
+ * - Multiplies painting wall & ceiling area by Math.round(floorArea * s * wallAreaMultiplier).
+ * - Preserves any additional custom items added by the user.
+ * - Returns exact updated items, breakdown sums, and grand total cost.
+ */
+export function rescaleContractorItems(
+  existingItems: ContractorRateItem[] = [],
+  targetStories: number,
+  floorArea: number = 1500,
+  wallMult: number = 3.5
+): {
+  items: ContractorRateItem[];
+  civilFloorTotal: number;
+  electricalTotal: number;
+  plumbingTotal: number;
+  paintingTotal: number;
+  customTotal: number;
+  grandTotalCost: number;
+  totalBuiltupArea: number;
+  wallArea: number;
+} {
+  const s = Math.max(1, Math.round(targetStories) || 1);
+  const items = Array.isArray(existingItems) ? existingItems : [];
+
+  // Extract existing custom rates if present
+  const existingGf = items.find((i) => i.category === "civil_floor" && i.floorNumber === 0);
+  const gfRate = existingGf?.rate || 400;
+
+  const existing1f = items.find((i) => i.category === "civil_floor" && i.floorNumber === 1);
+  const f1Rate = existing1f?.rate || 300;
+
+  const existing2f = items.find((i) => i.category === "civil_floor" && i.floorNumber === 2);
+  const f2Rate = existing2f?.rate || 310;
+
+  const existingEl = items.find((i) => i.category === "electrical");
+  const elRate = existingEl?.rate ?? 20;
+
+  const existingPl = items.find((i) => i.category === "plumbing");
+  const plRate = existingPl?.rate ?? 25;
+
+  const existingPt = items.find((i) => i.category === "painting");
+  const ptRate = existingPt?.rate ?? 10;
+
+  // Other custom additional items
+  const customItems = items.filter(
+    (i) =>
+      i.category !== "civil_floor" &&
+      i.category !== "electrical" &&
+      i.category !== "plumbing" &&
+      i.category !== "painting"
+  );
+
+  // Reconstruct civil floor items strictly matching targetStories `s`
+  const newCivilItems: ContractorRateItem[] = [];
+  for (let f = 0; f < s; f++) {
+    const existingFloorItem = items.find(
+      (i) => i.category === "civil_floor" && i.floorNumber === f
+    );
+
+    let floorRate: number;
+    if (existingFloorItem && typeof existingFloorItem.rate === "number") {
+      floorRate = existingFloorItem.rate;
+    } else if (f === 0) {
+      floorRate = gfRate;
+    } else if (f === 1) {
+      floorRate = f1Rate;
+    } else if (f === 2) {
+      floorRate = f2Rate;
+    } else {
+      floorRate = f2Rate + (f - 2) * 10;
+    }
+
+    const floorLabel =
+      f === 0
+        ? "Ground floor"
+        : f === 1
+        ? "1st floor"
+        : f === 2
+        ? "2nd floor"
+        : f === 3
+        ? "3rd floor"
+        : `${f}th floor`;
+    const banglaLabel = f === 0 ? "গ্রাউন্ড ফ্লোর" : `${f}ম তলা`;
+
+    newCivilItems.push({
+      id: existingFloorItem?.id || `item_${f}f_civil`,
+      category: "civil_floor",
+      workType:
+        existingFloorItem?.workType || `${floorLabel} civil construction (${banglaLabel} সিভিল নির্মাণ)`,
+      unit: "sft",
+      rate: floorRate,
+      quantity: floorArea,
+      floorNumber: f,
+      notes:
+        existingFloorItem?.notes ||
+        (f >= 2
+          ? "Height allowance (+৳10/sft per floor height)"
+          : f === 0
+          ? "Foundation, plinth brick soling, earthwork, RCC casting & shuttering"
+          : "Column casting, beam/slab formwork, reinforcement & brick masonry"),
+      totalCost: Math.round(floorRate * floorArea),
+    });
+  }
+
+  const totalBuiltupArea = floorArea * s;
+  const wallArea = Math.round(totalBuiltupArea * wallMult);
+
+  const elItem: ContractorRateItem = {
+    id: existingEl?.id || "item_electrical",
+    category: "electrical",
+    workType:
+      existingEl?.workType || "Electrical installation labour (বৈদ্বুতিক ওয়্যারিং ও পাইপিং মজুরি)",
+    unit: existingEl?.unit || "sft",
+    rate: elRate,
+    quantity: totalBuiltupArea,
+    notes:
+      existingEl?.notes ||
+      "Conduit piping, switchboards, db wiring, lighting & earthing labour",
+    totalCost: Math.round(elRate * totalBuiltupArea),
+  };
+
+  const plItem: ContractorRateItem = {
+    id: existingPl?.id || "item_plumbing",
+    category: "plumbing",
+    workType:
+      existingPl?.workType || "Plumbing installation labour (প্লাম্বিং ও স্যানিটারি ফিটিংস মজুরি)",
+    unit: existingPl?.unit || "sft",
+    rate: plRate,
+    quantity: totalBuiltupArea,
+    notes:
+      existingPl?.notes ||
+      "Water supply lines, sanitary drainage, waste stack & bath fittings",
+    totalCost: Math.round(plRate * totalBuiltupArea),
+  };
+
+  const ptItem: ContractorRateItem = {
+    id: existingPt?.id || "item_painting",
+    category: "painting",
+    workType:
+      existingPt?.workType || "Painting labour (রং কাজের মজুরি - ওয়াল ও সিলিং এরিয়া)",
+    unit: existingPt?.unit || "sft",
+    rate: ptRate,
+    quantity: wallArea,
+    notes:
+      existingPt?.notes ||
+      `Putty / seamer, primer coat, 2-coat plastic paint & weather coat (approx ${wallMult}× floor sft)`,
+    totalCost: Math.round(ptRate * wallArea),
+  };
+
+  const updatedItems: ContractorRateItem[] = [...newCivilItems, elItem, plItem, ptItem, ...customItems];
+
+  const civilFloorTotal = newCivilItems.reduce((sum, it) => sum + it.totalCost, 0);
+  const electricalTotal = elItem.totalCost;
+  const plumbingTotal = plItem.totalCost;
+  const paintingTotal = ptItem.totalCost;
+  const customTotal = customItems.reduce((sum, it) => sum + (Number(it.totalCost) || 0), 0);
+  const grandTotalCost =
+    civilFloorTotal + electricalTotal + plumbingTotal + paintingTotal + customTotal;
+
+  return {
+    items: updatedItems,
+    civilFloorTotal,
+    electricalTotal,
+    plumbingTotal,
+    paintingTotal,
+    customTotal,
+    grandTotalCost,
+    totalBuiltupArea,
+    wallArea,
+  };
+}
 
 export function createDefaultBuildingEstimates(stories: number = 1): ProjectEstimateItem[] {
   const s = Math.max(1, stories);
@@ -468,7 +762,64 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     },
   };
 
-  return [gradeBeamItem, floorBeamItem, columnItem, footingItem, slabItem, stairItem, tileItem, brickItem];
+  // 8. CONTRACTOR & LABOUR SCHEDULE
+  const contractorItems = generateDefaultContractorItems(s, 1500);
+  const contractorGrandTotal = contractorItems.reduce((sum, item) => sum + item.totalCost, 0);
+  const contractorCivilTotal = contractorItems
+    .filter((i) => i.category === "civil_floor")
+    .reduce((sum, item) => sum + item.totalCost, 0);
+  const contractorElTotal = contractorItems
+    .filter((i) => i.category === "electrical")
+    .reduce((sum, item) => sum + item.totalCost, 0);
+  const contractorPlTotal = contractorItems
+    .filter((i) => i.category === "plumbing")
+    .reduce((sum, item) => sum + item.totalCost, 0);
+  const contractorPtTotal = contractorItems
+    .filter((i) => i.category === "painting")
+    .reduce((sum, item) => sum + item.totalCost, 0);
+
+  const contractorItem: ProjectEstimateItem = {
+    id: "est_contractor_init_" + Date.now(),
+    type: "contractor",
+    name: `Contractor & Labour Schedule (${s} ${s === 1 ? "Storey" : "Storeys"} Covered)`,
+    date: now,
+    totalCost: contractorGrandTotal,
+    summary: {
+      civilFloorTotal: contractorCivilTotal,
+      electricalTotal: contractorElTotal,
+      plumbingTotal: contractorPlTotal,
+      paintingTotal: contractorPtTotal,
+      customTotal: 0,
+      grandTotalCost: contractorGrandTotal,
+      totalCost: contractorGrandTotal,
+      totalBuiltupAreaSft: 1500 * s,
+      totalPaintingWallAreaSft: Math.round(1500 * s * 3.5),
+      itemsCount: contractorItems.length,
+      stories: s,
+      multiplier: s,
+      isMultiplying: s > 1,
+    },
+    data: {
+      items: contractorItems,
+      batchFloorArea: 1500,
+      wallAreaMultiplier: 3.5,
+      stories: s,
+      multiplier: s,
+      isMultiplying: s > 1,
+    },
+  };
+
+  return [
+    gradeBeamItem,
+    floorBeamItem,
+    columnItem,
+    footingItem,
+    slabItem,
+    stairItem,
+    tileItem,
+    brickItem,
+    contractorItem,
+  ];
 }
 
 /**
@@ -476,6 +827,8 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
  * Ensures total bricks, beams, columns, slabs, stairs, tiles, cement, steel, etc.,
  * match the exact new storey count.
  * Grade beams remain locked to 1 storey, while floor beams scale as per storeys.
+ * Contractor and labour rate schedule dynamically adjusts every floor item, electrical, plumbing,
+ * and painting tasks to accurately compute the real labour rate total.
  */
 export function rescaleEstimatesForStories(
   estimates: ProjectEstimateItem[],
@@ -531,6 +884,59 @@ export function rescaleEstimatesForStories(
           isMultiplying: false,
           ...(isGradeBeam ? { beamSubtype: "grade_beam" } : {}),
           ...(isShortCol ? { colMode: "short" } : {}),
+        },
+      };
+    }
+
+    // ACCURATE DEDICATED RESCALING FOR CONTRACTOR & LABOUR RATE SCHEDULE
+    if (est.type === "contractor") {
+      const d = est.data || {};
+      const prevSummary = est.summary || {};
+      const floorArea = Number(d.batchFloorArea) || 1500;
+      const wallMult = Number(d.wallAreaMultiplier) || 3.5;
+      const existingItems: ContractorRateItem[] = Array.isArray(d.items) ? d.items : [];
+
+      const rescaled = rescaleContractorItems(existingItems, s, floorArea, wallMult);
+
+      let updatedName = est.name;
+      const storeyRegex = /\(\s*\d+\s*(?:Floors?|Storeys?)\s*(?:[×x]\s*Multiplied|Schedule|Covered)?\s*\)/i;
+      if (storeyRegex.test(updatedName)) {
+        updatedName = updatedName.replace(
+          storeyRegex,
+          `(${s} ${s === 1 ? "Storey" : "Storeys"} Covered)`
+        );
+      } else if (!updatedName.includes(`${s} Storey`)) {
+        updatedName = `${updatedName} (${s} ${s === 1 ? "Storey" : "Storeys"} Covered)`;
+      }
+
+      return {
+        ...est,
+        name: updatedName,
+        totalCost: rescaled.grandTotalCost,
+        summary: {
+          ...prevSummary,
+          civilFloorTotal: rescaled.civilFloorTotal,
+          electricalTotal: rescaled.electricalTotal,
+          plumbingTotal: rescaled.plumbingTotal,
+          paintingTotal: rescaled.paintingTotal,
+          customTotal: rescaled.customTotal,
+          grandTotalCost: rescaled.grandTotalCost,
+          totalCost: rescaled.grandTotalCost,
+          totalBuiltupAreaSft: rescaled.totalBuiltupArea,
+          totalPaintingWallAreaSft: rescaled.wallArea,
+          itemsCount: rescaled.items.length,
+          stories: s,
+          multiplier: s,
+          isMultiplying: s > 1,
+        },
+        data: {
+          ...d,
+          items: rescaled.items,
+          batchFloorArea: floorArea,
+          wallAreaMultiplier: wallMult,
+          stories: s,
+          multiplier: s,
+          isMultiplying: s > 1,
         },
       };
     }

@@ -253,7 +253,8 @@ function MainAppContent() {
     rates?: any;
     estimates?: ProjectEstimateItem[];
   }>) => {
-    const updated = await updateProject(id, data, appUser);
+    const contextProj = (activeProject && activeProject.id === id) ? activeProject : null;
+    const updated = await updateProject(id, data, appUser, contextProj);
     if (updated) {
       await loadProjects(id);
       const storiesMsg =
