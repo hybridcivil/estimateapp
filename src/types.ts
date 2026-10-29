@@ -33,12 +33,14 @@ export interface GlobalMaterialRates {
   sandPileCostPerFt: number;
 }
 
+export type UserRole = "admin" | "editor" | "viewer" | "engineer";
+
 export interface AppUser {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  role: "admin" | "engineer";
+  role: UserRole;
   authProvider?: "google" | "email_password";
   password?: string;
   createdAt?: string;

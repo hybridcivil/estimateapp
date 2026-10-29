@@ -131,7 +131,9 @@ app.get("/api/users", (_req, res) => {
         const key = (email || uid)!.toLowerCase();
         const existing = userMap.get(key);
         const isBootstrapAdmin = email === "engrkalilinux@gmail.com";
-        const role = isBootstrapAdmin ? "admin" : (existing?.role || "engineer");
+        const role = isBootstrapAdmin
+          ? "admin"
+          : (existing?.role === "viewer" ? "viewer" : existing?.role === "admin" ? "admin" : "editor");
         const displayName =
           p.ownerName ||
           p.engineer ||
@@ -169,7 +171,13 @@ app.post("/api/users", (req, res) => {
     }
     const cleanEmail = email ? email.trim().toLowerCase() : null;
     const isBootstrapAdmin = cleanEmail === "engrkalilinux@gmail.com";
-    const assignedRole = isBootstrapAdmin ? "admin" : (role === "admin" ? "admin" : "engineer");
+    const assignedRole = isBootstrapAdmin
+      ? "admin"
+      : role === "admin"
+      ? "admin"
+      : role === "viewer"
+      ? "viewer"
+      : "editor";
     const now = new Date().toISOString();
 
     const storedUsers = readUsers();
@@ -206,6 +214,37 @@ app.post("/api/users", (req, res) => {
 
     writeUsers(storedUsers);
     res.status(200).json(updatedUser);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user role (assign editor / viewer / admin)
+app.patch("/api/users/:uid/role", (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { role } = req.body;
+    if (!["admin", "editor", "viewer", "engineer"].includes(role)) {
+      res.status(400).json({ error: "Invalid role. Role must be admin, editor, or viewer." });
+      return;
+    }
+    const cleanRole = role === "engineer" ? "editor" : role;
+    const storedUsers = readUsers();
+    const idx = storedUsers.findIndex(
+      (u) => u.uid === uid || (u.email && u.email.toLowerCase() === uid.toLowerCase())
+    );
+    if (idx !== -1) {
+      if (storedUsers[idx].email?.toLowerCase() === "engrkalilinux@gmail.com") {
+        storedUsers[idx].role = "admin";
+      } else {
+        storedUsers[idx].role = cleanRole;
+      }
+      storedUsers[idx].lastLoginAt = new Date().toISOString();
+      writeUsers(storedUsers);
+      res.json(storedUsers[idx]);
+      return;
+    }
+    res.status(404).json({ error: "User not found" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

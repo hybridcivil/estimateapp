@@ -15,7 +15,7 @@ import {
   Key,
   Globe,
 } from "lucide-react";
-import { Project, AppUser } from "../types";
+import { Project, AppUser, UserRole } from "../types";
 import {
   fetchAllProjectsForAdmin,
   fetchAllUsersForAdmin,
@@ -36,7 +36,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onClose,
   onSelectProject,
 }) => {
-  const { currentUser, appUser } = useAuth();
+  const { currentUser, appUser, assignUserRole } = useAuth();
   const [activeTab, setActiveTab] = useState<"projects" | "users">("projects");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
@@ -47,6 +47,31 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [roleNotice, setRoleNotice] = useState<{ text: string; error?: boolean } | null>(null);
+
+  const handleRoleChange = async (user: AppUser, newRole: UserRole) => {
+    setUpdatingUserId(user.uid);
+    setRoleNotice(null);
+    try {
+      const res = await assignUserRole(user.uid, newRole, user.email);
+      if (res.success) {
+        setAllUsers((prev) =>
+          prev.map((u) => (u.uid === user.uid ? { ...u, role: newRole } : u))
+        );
+        setRoleNotice({
+          text: `Role for "${user.displayName || user.email}" updated to ${newRole.toUpperCase()}.`,
+        });
+        setTimeout(() => setRoleNotice(null), 4000);
+      } else {
+        setRoleNotice({ text: res.error || "Failed to update role", error: true });
+      }
+    } catch (err: any) {
+      setRoleNotice({ text: err.message || "Failed to update role", error: true });
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -440,6 +465,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               </div>
 
+              {/* Role update notice toast/banner */}
+              {roleNotice && (
+                <div
+                  className={`p-2.5 rounded-lg text-xs flex items-center justify-between border ${
+                    roleNotice.error
+                      ? "bg-rose-500/10 text-rose-300 border-rose-500/30"
+                      : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{roleNotice.text}</span>
+                  </div>
+                  <button
+                    onClick={() => setRoleNotice(null)}
+                    className="p-1 hover:text-white transition cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Engineers Table */}
               <div className="bg-[#152033] border border-[#24374e] rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
@@ -448,7 +495,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       <th className="py-2.5 px-4">User / Engineer</th>
                       <th className="py-2.5 px-4">Login / Auth Method</th>
                       <th className="py-2.5 px-4">Email Address</th>
-                      <th className="py-2.5 px-4">Role</th>
+                      <th className="py-2.5 px-4">Assigned Role (Editor/Viewer)</th>
                       <th className="py-2.5 px-4">Projects Owned</th>
                       <th className="py-2.5 px-4">Last Activity</th>
                       <th className="py-2.5 px-4 text-right">Actions</th>
@@ -513,15 +560,48 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                               {u.email || "No email"}
                             </td>
                             <td className="py-2.5 px-4">
-                              {u.role === "admin" || isBootstrap ? (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">
-                                  <Shield className="w-2.5 h-2.5" />
-                                  Admin
+                              {isBootstrap ? (
+                                <span
+                                  className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs"
+                                  title="Permanent System Super Admin"
+                                >
+                                  <Shield className="w-3 h-3 text-amber-400" />
+                                  <span>Super Admin</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40">
-                                  Engineer
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <div className="relative inline-block">
+                                    <select
+                                      value={u.role === "viewer" ? "viewer" : u.role === "admin" ? "admin" : "editor"}
+                                      disabled={updatingUserId === u.uid}
+                                      onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                                      aria-label={`Role for ${u.displayName || u.email}`}
+                                      className={`text-[11px] font-bold py-1 pl-2.5 pr-6 rounded-lg cursor-pointer transition border appearance-none outline-none font-sans ${
+                                        u.role === "viewer"
+                                          ? "bg-purple-950/60 text-purple-300 border-purple-500/50 hover:border-purple-400"
+                                          : u.role === "admin"
+                                          ? "bg-amber-950/60 text-amber-300 border-amber-500/50 hover:border-amber-400"
+                                          : "bg-teal-950/60 text-[#00c2c7] border-[#00c2c7]/50 hover:border-[#00c2c7]"
+                                      }`}
+                                    >
+                                      <option value="editor" className="bg-[#152033] text-[#00c2c7]">
+                                        Editor (Full Edit)
+                                      </option>
+                                      <option value="viewer" className="bg-[#152033] text-purple-300">
+                                        Viewer (Read-Only)
+                                      </option>
+                                      <option value="admin" className="bg-[#152033] text-amber-300">
+                                        Admin (Supervisor)
+                                      </option>
+                                    </select>
+                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[#8ba3c1]">
+                                      ▼
+                                    </span>
+                                  </div>
+                                  {updatingUserId === u.uid && (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#00c2c7]" />
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className="py-2.5 px-4 font-mono font-bold text-white">

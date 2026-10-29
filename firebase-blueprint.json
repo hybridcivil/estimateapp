@@ -100,8 +100,8 @@
         },
         "role": {
           "type": "string",
-          "description": "Access control role: admin or engineer",
-          "enum": ["admin", "engineer"]
+          "description": "Access control role: admin, editor, or viewer",
+          "enum": ["admin", "editor", "viewer", "engineer"]
         },
         "createdAt": {
           "type": "string",

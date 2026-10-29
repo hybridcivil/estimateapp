@@ -17,8 +17,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType } from "../services/firebase";
-import { AppUser } from "../types";
-import { syncUserToAllStores, getLocalRegisteredUsers } from "../services/api";
+import { AppUser, UserRole } from "../types";
+import { syncUserToAllStores, getLocalRegisteredUsers, updateUserRoleInAllStores } from "../services/api";
 
 export const BOOTSTRAP_ADMIN_EMAIL = "engrkalilinux@gmail.com";
 
@@ -26,6 +26,9 @@ interface AuthContextType {
   currentUser: User | null;
   appUser: AppUser | null;
   isAdmin: boolean;
+  isEditor: boolean;
+  isViewer: boolean;
+  userRole: UserRole;
   loading: boolean;
   error: string | null;
   registerWithEmail: (email: string, password: string, displayName: string) => Promise<{ success: boolean; error?: string }>;
@@ -33,6 +36,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   signInWithDirectAdmin: () => Promise<{ success: boolean; error?: string }>;
   signInWithDirectEmail: (email: string, displayName?: string) => Promise<{ success: boolean; error?: string }>;
+  assignUserRole: (userKeyOrUid: string, newRole: UserRole, userEmail?: string | null) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -41,6 +45,9 @@ const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   appUser: null,
   isAdmin: false,
+  isEditor: true,
+  isViewer: false,
+  userRole: "editor",
   loading: true,
   error: null,
   registerWithEmail: async () => ({ success: false }),
@@ -48,6 +55,7 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => ({ success: false }),
   signInWithDirectAdmin: async () => ({ success: false }),
   signInWithDirectEmail: async () => ({ success: false }),
+  assignUserRole: async () => ({ success: false }),
   logout: async () => {},
   clearError: () => {},
 });
@@ -97,8 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const isBootstrapAdmin = effectiveEmail.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
           const userDocRef = doc(db, "users", user.uid);
-          
-          let role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
 
           // Read existing profile if available
           let existingData: any = null;
@@ -106,16 +112,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userSnap = await getDoc(userDocRef);
             if (userSnap.exists()) {
               existingData = userSnap.data();
-              if (existingData.role === "admin" || isBootstrapAdmin) {
-                role = "admin";
-              }
             }
           } catch (e) {
             console.warn("Could not read user profile from firestore:", e);
           }
 
+          if (!existingData) {
+            try {
+              const localList = getLocalRegisteredUsers();
+              const found = localList.find((u) => u.uid === user.uid || (u.email && u.email.toLowerCase() === effectiveEmail.toLowerCase()));
+              if (found) existingData = found;
+            } catch {}
+          }
+
+          let role: UserRole = "editor";
+          if (isBootstrapAdmin) {
+            role = "admin";
+          } else if (existingData?.role === "admin") {
+            role = "admin";
+          } else if (existingData?.role === "viewer") {
+            role = "viewer";
+          } else {
+            role = "editor";
+          }
+
           // Check admins collection
-          if (!isBootstrapAdmin) {
+          if (!isBootstrapAdmin && role !== "admin") {
             try {
               const adminSnap = await getDoc(doc(db, "admins", user.uid));
               if (adminSnap.exists()) {
@@ -242,7 +264,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     const cleanEmail = email.trim().toLowerCase();
     const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
-    const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
     const uid = "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_");
 
     if (auth.currentUser && auth.currentUser.email && auth.currentUser.email.toLowerCase() !== cleanEmail) {
@@ -268,6 +289,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const found = localList.find((u) => u.uid === uid || u.email?.toLowerCase() === cleanEmail);
         if (found) existingData = found;
       } catch {}
+    }
+
+    let role: UserRole = "editor";
+    if (isBootstrapAdmin) {
+      role = "admin";
+    } else if (existingData?.role === "admin") {
+      role = "admin";
+    } else if (existingData?.role === "viewer") {
+      role = "viewer";
+    } else {
+      role = "editor";
     }
 
     const fallbackName = cleanEmail.split("@")[0].replace(/[\._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -362,7 +394,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const isBootstrapAdmin = cleanEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
-      const role: "admin" | "engineer" = isBootstrapAdmin ? "admin" : "engineer";
+      const role: UserRole = isBootstrapAdmin ? "admin" : "editor";
       const now = new Date().toISOString();
 
       const userData: AppUser = {
@@ -538,12 +570,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isViewer = !isAdmin && appUser?.role === "viewer";
+  const isEditor = isAdmin || appUser?.role !== "viewer";
+  const userRole: UserRole = isAdmin ? "admin" : (appUser?.role === "viewer" ? "viewer" : "editor");
+
+  const assignUserRole = async (
+    userKeyOrUid: string,
+    newRole: UserRole,
+    userEmail?: string | null
+  ): Promise<{ success: boolean; error?: string }> => {
+    const res = await updateUserRoleInAllStores(userKeyOrUid, newRole, userEmail);
+    if (res.success) {
+      const cleanEmail = userEmail?.trim().toLowerCase();
+      const currentEmail = appUser?.email?.trim().toLowerCase();
+      const isTargetingCurrent =
+        (appUser && appUser.uid === userKeyOrUid) ||
+        (cleanEmail && currentEmail && cleanEmail === currentEmail) ||
+        (currentEmail && userKeyOrUid.toLowerCase() === currentEmail);
+
+      if (isTargetingCurrent && appUser) {
+        const isBootstrap = currentEmail === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+        const updatedRole: UserRole = isBootstrap ? "admin" : (newRole === "engineer" ? "editor" : newRole);
+        const updatedUser: AppUser = { ...appUser, role: updatedRole };
+        setAppUser(updatedUser);
+        setIsAdmin(updatedRole === "admin");
+      }
+    }
+    return res;
+  };
+
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         appUser,
         isAdmin,
+        isEditor,
+        isViewer,
+        userRole,
         loading,
         error,
         registerWithEmail,
@@ -551,6 +615,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signInWithGoogle,
         signInWithDirectAdmin,
         signInWithDirectEmail,
+        assignUserRole,
         logout,
         clearError: () => setError(null),
       }}

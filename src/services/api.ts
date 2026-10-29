@@ -1,4 +1,4 @@
-import { Project, ProjectEstimateItem, AppUser } from "../types";
+import { Project, ProjectEstimateItem, AppUser, UserRole } from "../types";
 import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 import {
   db,
@@ -475,9 +475,13 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
     const existing = userMap.get(key);
 
     const isBootstrapAdmin = email === "engrkalilinux@gmail.com";
-    const role: "admin" | "engineer" = isBootstrapAdmin
+    const role: UserRole = isBootstrapAdmin
       ? "admin"
-      : (u.role === "admin" || existing?.role === "admin" ? "admin" : "engineer");
+      : (u.role === "admin" || existing?.role === "admin"
+          ? "admin"
+          : u.role === "viewer" || existing?.role === "viewer"
+          ? "viewer"
+          : "editor");
     const displayName =
       u.displayName ||
       existing?.displayName ||
@@ -547,7 +551,7 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
           uid: pUid || (pEmail ? "usr_" + pEmail.replace(/[^a-z0-9]/g, "_") : undefined),
           email: pEmail || null,
           displayName: p.ownerName || p.engineer || (pEmail ? pEmail.split("@")[0] : "Civil Engineer"),
-          role: pEmail === "engrkalilinux@gmail.com" ? "admin" : "engineer",
+          role: pEmail === "engrkalilinux@gmail.com" ? "admin" : (pEmail && userMap.get(pEmail)?.role) || "editor",
           createdAt: p.createdAt,
           lastLoginAt: p.updatedAt,
         });
@@ -558,6 +562,90 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
   const result = Array.from(userMap.values());
   result.sort((a, b) => new Date(b.lastLoginAt || 0).getTime() - new Date(a.lastLoginAt || 0).getTime());
   return result;
+}
+
+/**
+ * Assign / update user role (admin, editor, viewer) across all data stores.
+ * - Updates Express backend /api/users/:uid/role
+ * - Updates Firestore users collection
+ * - Updates local registered users cache & current session if matching
+ */
+export async function updateUserRoleInAllStores(
+  userKeyOrUid: string,
+  newRole: UserRole,
+  userEmail?: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const isBootstrap = userEmail?.toLowerCase() === "engrkalilinux@gmail.com";
+    const finalRole: UserRole = isBootstrap ? "admin" : (newRole === "engineer" ? "editor" : newRole);
+
+    // 1. Update Express backend
+    try {
+      await fetch(`/api/users/${encodeURIComponent(userKeyOrUid)}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: finalRole }),
+      });
+    } catch (err) {
+      console.warn("Backend user role update notice:", err);
+    }
+
+    // 2. Update Firestore users collection
+    try {
+      if (userKeyOrUid) {
+        const userDocRef = doc(db, "users", userKeyOrUid);
+        await setDoc(userDocRef, { role: finalRole, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+      if (userEmail) {
+        const cleanEmail = userEmail.trim().toLowerCase();
+        const emailDocRef = doc(db, "users", "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_"));
+        await setDoc(emailDocRef, { role: finalRole, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch (err) {
+      console.warn("Firestore user role update notice:", err);
+    }
+
+    // 3. Update local storage registry
+    try {
+      const localUsers = getLocalRegisteredUsers();
+      let updated = false;
+      const updatedList = localUsers.map((u) => {
+        const matches =
+          (userKeyOrUid && u.uid === userKeyOrUid) ||
+          (userEmail && u.email && u.email.toLowerCase() === userEmail.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === userKeyOrUid.toLowerCase());
+        if (matches) {
+          updated = true;
+          return { ...u, role: finalRole };
+        }
+        return u;
+      });
+      if (updated) {
+        localStorage.setItem("ashraf_registered_users", JSON.stringify(updatedList));
+      }
+
+      // Check current active session
+      const currentSessionRaw = localStorage.getItem("ashraf_auth_session");
+      if (currentSessionRaw) {
+        const sessionUser = JSON.parse(currentSessionRaw);
+        const matchesSession =
+          (userKeyOrUid && sessionUser.uid === userKeyOrUid) ||
+          (userEmail && sessionUser.email && sessionUser.email.toLowerCase() === userEmail.toLowerCase()) ||
+          (sessionUser.email && sessionUser.email.toLowerCase() === userKeyOrUid.toLowerCase());
+        if (matchesSession) {
+          sessionUser.role = finalRole;
+          localStorage.setItem("ashraf_auth_session", JSON.stringify(sessionUser));
+        }
+      }
+    } catch (err) {
+      console.warn("Local storage role update notice:", err);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to update user role:", err);
+    return { success: false, error: err.message || "Failed to update role" };
+  }
 }
 
 /**

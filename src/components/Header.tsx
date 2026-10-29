@@ -14,6 +14,7 @@ import {
   LogOut,
   User as UserIcon,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -48,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSetViewMode,
 }) => {
   const { theme, toggleTheme, isLight } = useTheme();
-  const { currentUser, appUser, isAdmin, signInWithGoogle, logout, loading: authLoading } = useAuth();
+  const { currentUser, appUser, isAdmin, isViewer, isEditor, userRole, signInWithGoogle, logout, loading: authLoading } = useAuth();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -227,7 +228,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </select>
 
-            {activeProject && (
+            {!isViewer && activeProject && (
               <button
                 type="button"
                 onClick={onOpenEditProjectModal}
@@ -240,14 +241,23 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* New Project Button */}
-          <button
-            onClick={onOpenNewProjectModal}
-            className="flex items-center gap-1 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] px-2.5 py-1.5 rounded-lg font-semibold text-[11px] transition active:scale-95 shadow-sm"
-            title="Create New Project"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="hidden sm:inline">New Project</span>
-          </button>
+          {!isViewer && (
+            <button
+              onClick={onOpenNewProjectModal}
+              className="flex items-center gap-1 bg-[#00c2c7] hover:bg-[#00a8ad] text-[#0f1c2e] px-2.5 py-1.5 rounded-lg font-semibold text-[11px] transition active:scale-95 shadow-sm"
+              title="Create New Project"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">New Project</span>
+            </button>
+          )}
+
+          {isViewer && (
+            <span className="hidden sm:inline-flex items-center gap-1 bg-purple-950/40 text-purple-300 border border-purple-500/40 px-2 py-1 rounded-lg text-[10px] font-bold select-none">
+              <Eye className="w-3 h-3 text-purple-400" />
+              <span>Viewer</span>
+            </span>
+          )}
 
           {/* BOQ Summary Report */}
           {activeProject && (
@@ -304,8 +314,14 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-[11px] font-bold text-white truncate max-w-[120px]">
                       {currentUser?.displayName || appUser?.displayName || (currentUser?.email || appUser?.email)?.split("@")[0] || "Engineer"}
                     </span>
-                    <span className="text-[9px] text-[#00c2c7] font-mono truncate max-w-[120px]">
-                      {isAdmin ? "Admin" : "Engineer"}
+                    <span className="text-[9px] font-mono truncate max-w-[120px]">
+                      {isAdmin ? (
+                        <span className="text-amber-400 font-bold">Admin</span>
+                      ) : isViewer ? (
+                        <span className="text-purple-300 font-bold">Viewer</span>
+                      ) : (
+                        <span className="text-[#00c2c7] font-semibold">Editor</span>
+                      )}
                     </span>
                   </div>
                   <ChevronDown className="w-3 h-3 text-[#8ba3c1]" />
@@ -339,9 +355,15 @@ export const Header: React.FC<HeaderProps> = ({
                               <Shield className="w-2.5 h-2.5" />
                               System Administrator
                             </span>
+                          ) : isViewer ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                              <Eye className="w-2.5 h-2.5" />
+                              Viewer (Read-Only)
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.2 rounded bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40">
-                              Registered Engineer
+                              <Edit3 className="w-2.5 h-2.5" />
+                              Editor Workspace
                             </span>
                           )}
                         </div>

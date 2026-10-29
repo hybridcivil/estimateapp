@@ -14,9 +14,11 @@ import {
   PlusCircle,
   Edit,
   X,
+  Lock,
 } from "lucide-react";
 import { downloadEstimateJson } from "../services/api";
 import { ConfirmModal } from "./common/ConfirmModal";
+import { useAuth } from "../context/AuthContext";
 
 interface SaveEstimateBarProps {
   type: EstimateType;
@@ -49,6 +51,7 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
   getCurrentPayload,
   onImportPayload,
 }) => {
+  const { isViewer } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
@@ -63,6 +66,11 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
       : [];
 
   const handleSaveClick = async () => {
+    if (isViewer) {
+      setErrorNotice("Viewer accounts have read-only access. Saving or modifying estimates is restricted.");
+      setTimeout(() => setErrorNotice(null), 3500);
+      return;
+    }
     if (!activeProject) {
       setErrorNotice("Please select or create a project first!");
       setTimeout(() => setErrorNotice(null), 3000);
@@ -92,7 +100,7 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
   };
 
   const handleSaveCopyClick = async () => {
-    if (!activeProject) return;
+    if (isViewer || !activeProject) return;
     try {
       setIsSaving(true);
       if (onSaveAsCopy) {
@@ -202,29 +210,39 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0 justify-end overflow-x-auto no-scrollbar">
           {/* Main Save / Update Button */}
-          <button
-            type="button"
-            onClick={handleSaveClick}
-            disabled={isSaving}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 ${
-              currentEstimateId
-                ? "bg-gradient-to-r from-[#2ecc71] to-[#27ae60] hover:from-[#34d375] hover:to-[#2ecc71] text-[#0f1c2e]"
-                : "bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e]"
-            }`}
-            title={currentEstimateId ? "Update existing estimate file" : "Save as new estimate file"}
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>
-              {isSaving
-                ? "Saving..."
-                : currentEstimateId
-                ? "Update File"
-                : "Save File"}
-            </span>
-          </button>
+          {isViewer ? (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs bg-purple-950/40 text-purple-300 border border-purple-500/40 cursor-not-allowed select-none"
+              title="Viewer Account: Read-Only Mode (cannot save or modify project estimates)"
+            >
+              <Lock className="w-3.5 h-3.5 text-purple-400" />
+              <span>Viewer (Read-Only)</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSaveClick}
+              disabled={isSaving}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 ${
+                currentEstimateId
+                  ? "bg-gradient-to-r from-[#2ecc71] to-[#27ae60] hover:from-[#34d375] hover:to-[#2ecc71] text-[#0f1c2e]"
+                  : "bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] text-[#0f1c2e]"
+              }`}
+              title={currentEstimateId ? "Update existing estimate file" : "Save as new estimate file"}
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>
+                {isSaving
+                  ? "Saving..."
+                  : currentEstimateId
+                  ? "Update File"
+                  : "Save File"}
+              </span>
+            </button>
+          )}
 
           {/* Save as New Copy (when editing) */}
-          {currentEstimateId && onSaveAsCopy && (
+          {!isViewer && currentEstimateId && onSaveAsCopy && (
             <button
               type="button"
               onClick={handleSaveCopyClick}
@@ -398,14 +416,16 @@ export const SaveEstimateBar: React.FC<SaveEstimateBarProps> = ({
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setEstimateToDelete(est)}
-                          className="bg-[#ff4d6d]/15 hover:bg-[#ff4d6d]/30 text-[#ff4d6d] p-1.5 rounded-lg text-xs transition"
-                          title="Delete estimate file"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!isViewer && (
+                          <button
+                            type="button"
+                            onClick={() => setEstimateToDelete(est)}
+                            className="bg-[#ff4d6d]/15 hover:bg-[#ff4d6d]/30 text-[#ff4d6d] p-1.5 rounded-lg text-xs transition"
+                            title="Delete estimate file"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

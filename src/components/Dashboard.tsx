@@ -39,6 +39,8 @@ import {
   LogOut,
   Sparkles,
   Coins,
+  Eye,
+  Lock,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
@@ -86,7 +88,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateProject,
 }) => {
   const { isLight, toggleTheme } = useTheme();
-  const { currentUser, appUser, isAdmin, signInWithGoogle, logout } = useAuth();
+  const { currentUser, appUser, isAdmin, isViewer, isEditor, userRole, signInWithGoogle, logout } = useAuth();
   const [filterType, setFilterType] = useState<string>("all");
   const [fileImportError, setFileImportError] = useState("");
   const [fileViewMode, setFileViewMode] = useState<"cards" | "table">("cards");
@@ -438,24 +440,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <label className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-[#2d4a6a] transition shadow-sm active:scale-95">
-              <Upload className="w-3.5 h-3.5 text-[#00c2c7]" />
-              <span>Import Project</span>
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportFileChange}
-                className="hidden"
-              />
-            </label>
+            {isViewer ? (
+              <div
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-purple-950/50 text-purple-300 border border-purple-500/40 select-none shadow-sm"
+                title="Viewer Account: Read-Only Mode (Project creation and editing are disabled)"
+              >
+                <Eye className="w-3.5 h-3.5 text-purple-400" />
+                <span>Viewer (Read-Only Mode)</span>
+              </div>
+            ) : (
+              <>
+                <label className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-[#2d4a6a] transition shadow-sm active:scale-95">
+                  <Upload className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <span>Import Project</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportFileChange}
+                    className="hidden"
+                  />
+                </label>
 
-            <button
-              onClick={onOpenNewProjectModal}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] hover:to-[#00989d] text-[#0f1c2e] px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg shadow-[#00c2c7]/20 active:scale-95"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Add New Project</span>
-            </button>
+                <button
+                  onClick={onOpenNewProjectModal}
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-[#00c2c7] to-[#00a8ad] hover:from-[#00b2b7] hover:to-[#00989d] text-[#0f1c2e] px-4 py-2 rounded-xl text-xs font-bold transition shadow-lg shadow-[#00c2c7]/20 active:scale-95"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                  <span>Add New Project</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -563,9 +577,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <Shield className="w-3 h-3" />
                     System Administrator (Master Control)
                   </span>
+                ) : isViewer ? (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 shrink-0">
+                    <Eye className="w-3 h-3 text-purple-400" />
+                    Viewer (Read-Only Mode)
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40 shrink-0">
-                    Verified Engineer (Personal Cloud Workspace)
+                    <Edit3 className="w-3 h-3" />
+                    Editor (Personal Cloud Workspace)
                   </span>
                 )}
               </div>
@@ -652,13 +672,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <h3 className="text-lg font-bold text-white tracking-wide">
                   {activeProject.name}
                 </h3>
-                <button
-                  onClick={onOpenEditProjectModal}
-                  className="p-1 text-[#00c2c7] hover:text-white hover:bg-[#00c2c7]/20 border border-[#00c2c7]/30 rounded-lg transition"
-                  title="Edit Project Details"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                </button>
+                {!isViewer && (
+                  <button
+                    onClick={onOpenEditProjectModal}
+                    className="p-1 text-[#00c2c7] hover:text-white hover:bg-[#00c2c7]/20 border border-[#00c2c7]/30 rounded-lg transition"
+                    title="Edit Project Details"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-[#8ba3c1] mt-1.5">
@@ -683,7 +705,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2.5 py-1 rounded-lg border border-[#00c2c7]/40">
                   <Building2 className="w-4 h-4 text-[#00c2c7] shrink-0" />
                   <span className="text-xs font-bold text-white">Storeys:</span>
-                  {onUpdateProject ? (
+                  {onUpdateProject && !isViewer ? (
                     <div className="flex items-center gap-1.5 bg-[#121c2d] px-2 py-0.5 rounded-lg border border-[#2d4a6a] storey-stepper-container">
                       <button
                         type="button"
@@ -717,7 +739,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </button>
                     </div>
                   ) : (
-                    <strong className="text-[#00c2c7] text-xs font-mono">{activeProject.stories || 1}</strong>
+                    <strong className="text-[#00c2c7] text-xs font-mono px-1">{activeProject.stories || 1}</strong>
                   )}
                   {(activeProject.stories || 1) > 1 ? (
                     <span className="bg-[#00c2c7]/20 text-[#00c2c7] text-[10px] px-2 py-0.5 rounded font-mono font-bold border border-[#00c2c7]/30">
@@ -736,7 +758,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Project Actions: Edit, BOQ, Export, Delete */}
             <div className="flex flex-wrap items-center gap-2">
-              {onAddDefaultBuildingList && (
+              {!isViewer && onAddDefaultBuildingList && (
                 <button
                   type="button"
                   onClick={onAddDefaultBuildingList}
@@ -747,14 +769,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span>Auto-Add Elements</span>
                 </button>
               )}
-              <button
-                onClick={onOpenEditProjectModal}
-                className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
-                title="Edit Project Name & Metadata"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-[#00c2c7]" />
-                <span>Edit Project</span>
-              </button>
+              {!isViewer && (
+                <button
+                  onClick={onOpenEditProjectModal}
+                  className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
+                  title="Edit Project Name & Metadata"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <span>Edit Project</span>
+                </button>
+              )}
 
               <button
                 onClick={onOpenReportModal}
@@ -774,13 +798,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span className="hidden sm:inline">Export</span>
               </button>
 
-              <button
-                onClick={() => setProjectToDelete(activeProject)}
-                className="p-2 text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/40 rounded-lg transition active:scale-95"
-                title="Delete Project"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {!isViewer && (
+                <button
+                  onClick={() => setProjectToDelete(activeProject)}
+                  className="p-2 text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/40 rounded-lg transition active:scale-95"
+                  title="Delete Project"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+
+              {isViewer && (
+                <span className="inline-flex items-center gap-1.5 bg-purple-950/40 text-purple-300 border border-purple-500/40 px-2.5 py-1.5 rounded-lg text-xs font-semibold select-none">
+                  <Eye className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Viewer Mode</span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -1496,14 +1529,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setEstimateToEdit(est)}
-                            className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
-                            title="Edit / Rename File"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isViewer && (
+                            <button
+                              type="button"
+                              onClick={() => setEstimateToEdit(est)}
+                              className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
+                              title="Edit / Rename File"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleExportSingleEstimate(est)}
@@ -1512,14 +1547,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setEstimateToDelete(est)}
-                            className="p-1 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/20 rounded transition"
-                            title="Delete File"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isViewer && (
+                            <button
+                              type="button"
+                              onClick={() => setEstimateToDelete(est)}
+                              className="p-1 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/20 rounded transition"
+                              title="Delete File"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1958,14 +1995,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span>Open File</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setEstimateToEdit(est)}
-                      className="p-1.5 text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55] rounded-lg transition"
-                      title="Rename or view all materials details"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
+                    {!isViewer && (
+                      <button
+                        type="button"
+                        onClick={() => setEstimateToEdit(est)}
+                        className="p-1.5 text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55] rounded-lg transition"
+                        title="Rename or view all materials details"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -1976,14 +2015,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <Download className="w-3.5 h-3.5" />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setEstimateToDelete(est)}
-                      className="p-1.5 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/15 rounded-lg transition"
-                      title="Delete estimate file"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {!isViewer && (
+                      <button
+                        type="button"
+                        onClick={() => setEstimateToDelete(est)}
+                        className="p-1.5 text-[#8ba3c1] hover:text-[#ff4d6d] hover:bg-[#ff4d6d]/15 rounded-lg transition"
+                        title="Delete estimate file"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

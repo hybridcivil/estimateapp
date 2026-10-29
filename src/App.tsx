@@ -114,7 +114,7 @@ function MainAppContent() {
       uid: currentUser.uid,
       email: currentUser.email || "",
       displayName: currentUser.displayName || "Civil Engineer",
-      role: isAdmin ? "admin" as const : "engineer" as const,
+      role: isAdmin ? "admin" as const : (appUser?.role || "editor"),
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     } : null);
