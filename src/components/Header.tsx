@@ -53,6 +53,30 @@ export const Header: React.FC<HeaderProps> = ({
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const activeUserEmail = (currentUser?.email || appUser?.email || "").toLowerCase().trim();
+  const activeUserId = currentUser?.uid || appUser?.uid;
+
+  const isAssignedEditor = Boolean(
+    activeProject &&
+    (
+      (activeUserId && activeProject.assignedTo === activeUserId) ||
+      (activeUserEmail && activeProject.assignedToEmail && activeProject.assignedToEmail.toLowerCase() === activeUserEmail) ||
+      (activeUserId && activeProject.assignedUserIds?.includes(activeUserId)) ||
+      (activeUserEmail && activeProject.assignedUserEmails?.some((e) => e.toLowerCase() === activeUserEmail))
+    )
+  );
+
+  const isOwner = Boolean(
+    activeProject &&
+    (
+      (activeUserId && activeProject.ownerId === activeUserId) ||
+      (activeUserEmail && activeProject.ownerEmail && activeProject.ownerEmail.toLowerCase() === activeUserEmail)
+    )
+  );
+
+  const canEditActiveProject =
+    isAdmin || isAssignedEditor || (!isViewer && (isOwner || !activeProject?.ownerId));
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -220,19 +244,25 @@ export const Header: React.FC<HeaderProps> = ({
               {projects.length === 0 ? (
                 <option value="">No Projects</option>
               ) : (
-                projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-[#1a2b42] text-white">
-                    {p.name} ({p.stories || 1} {p.stories === 1 ? "Floor" : "Floors"})
-                  </option>
-                ))
+                projects.map((p) => {
+                  const isAssigned = Boolean(
+                    (activeUserId && p.assignedTo === activeUserId) ||
+                    (activeUserEmail && p.assignedToEmail && p.assignedToEmail.toLowerCase() === activeUserEmail)
+                  );
+                  return (
+                    <option key={p.id} value={p.id} className="bg-[#1a2b42] text-white">
+                      {p.name} {isAssigned ? "✦ (Assigned to You)" : ""} ({p.stories || 1} {p.stories === 1 ? "Floor" : "Floors"})
+                    </option>
+                  );
+                })
               )}
             </select>
 
-            {!isViewer && activeProject && (
+            {canEditActiveProject && activeProject && (
               <button
                 type="button"
                 onClick={onOpenEditProjectModal}
-                className="p-1 text-[#8ba3c1] hover:text-[#00c2c7] transition shrink-0 ml-1"
+                className="p-1 text-[#8ba3c1] hover:text-[#00c2c7] transition shrink-0 ml-1 cursor-pointer"
                 title="Edit Current Project"
               >
                 <Edit3 className="w-3 h-3" />

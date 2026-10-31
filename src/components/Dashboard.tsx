@@ -41,6 +41,8 @@ import {
   Coins,
   Eye,
   Lock,
+  UserCheck,
+  UserPlus,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
@@ -97,6 +99,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const toggleFileExpand = (id: string) => {
     setExpandedFiles((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  // Determine project permissions: Admin, Owner, or explicitly Assigned Editor
+  const activeUserEmail = (currentUser?.email || appUser?.email || "").toLowerCase().trim();
+  const activeUserId = currentUser?.uid || appUser?.uid;
+
+  const isAssignedEditor = Boolean(
+    activeProject &&
+    (
+      (activeUserId && activeProject.assignedTo === activeUserId) ||
+      (activeUserEmail && activeProject.assignedToEmail && activeProject.assignedToEmail.toLowerCase() === activeUserEmail) ||
+      (activeUserId && activeProject.assignedUserIds?.includes(activeUserId)) ||
+      (activeUserEmail && activeProject.assignedUserEmails?.some((e) => e.toLowerCase() === activeUserEmail))
+    )
+  );
+
+  const isOwner = Boolean(
+    activeProject &&
+    (
+      (activeUserId && activeProject.ownerId === activeUserId) ||
+      (activeUserEmail && activeProject.ownerEmail && activeProject.ownerEmail.toLowerCase() === activeUserEmail)
+    )
+  );
+
+  // If Admin or explicitly assigned by Admin, user has full editing rights for this project!
+  const canEditActiveProject =
+    isAdmin || isAssignedEditor || (!isViewer && (isOwner || !activeProject?.ownerId));
 
   // Unified Material Rates state (set once for all items)
   const [rates, setRates] = useState<GlobalMaterialRates>(() => {
@@ -672,7 +700,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <h3 className="text-lg font-bold text-white tracking-wide">
                   {activeProject.name}
                 </h3>
-                {!isViewer && (
+
+                {/* Assignment & Access Badges */}
+                {isAssignedEditor && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2.5 py-0.5 rounded-full font-bold border border-[#00c2c7]/40 shadow-xs">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Assigned to You by Admin (Editor)</span>
+                  </span>
+                )}
+                {!isAssignedEditor && activeProject.assignedTo && (
+                  <span className="inline-flex items-center gap-1.5 text-xs bg-[#00c2c7]/15 text-[#38bdf8] px-2.5 py-0.5 rounded-full font-semibold border border-[#00c2c7]/30">
+                    <UserCheck className="w-3.5 h-3.5 text-[#00c2c7]" />
+                    <span>Assigned Editor: {activeProject.assignedToName || activeProject.assignedToEmail}</span>
+                  </span>
+                )}
+
+                {canEditActiveProject && (
                   <button
                     onClick={onOpenEditProjectModal}
                     className="p-1 text-[#00c2c7] hover:text-white hover:bg-[#00c2c7]/20 border border-[#00c2c7]/30 rounded-lg transition"
@@ -702,10 +745,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     Engineer: <strong className="text-white">{activeProject.engineer}</strong>
                   </span>
                 )}
+                {activeProject.ownerEmail && (
+                  <span className="flex items-center gap-1 font-mono text-[11px]">
+                    <span className="text-[#8ba3c1]">Owner:</span>
+                    <strong className="text-white">{activeProject.ownerEmail}</strong>
+                  </span>
+                )}
                 <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2.5 py-1 rounded-lg border border-[#00c2c7]/40">
                   <Building2 className="w-4 h-4 text-[#00c2c7] shrink-0" />
                   <span className="text-xs font-bold text-white">Storeys:</span>
-                  {onUpdateProject && !isViewer ? (
+                  {onUpdateProject && canEditActiveProject ? (
                     <div className="flex items-center gap-1.5 bg-[#121c2d] px-2 py-0.5 rounded-lg border border-[#2d4a6a] storey-stepper-container">
                       <button
                         type="button"
@@ -758,7 +807,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* Project Actions: Edit, BOQ, Export, Delete */}
             <div className="flex flex-wrap items-center gap-2">
-              {!isViewer && onAddDefaultBuildingList && (
+              {canEditActiveProject && onAddDefaultBuildingList && (
                 <button
                   type="button"
                   onClick={onAddDefaultBuildingList}
@@ -769,7 +818,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span>Auto-Add Elements</span>
                 </button>
               )}
-              {!isViewer && (
+              {canEditActiveProject && (
                 <button
                   onClick={onOpenEditProjectModal}
                   className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95"
@@ -798,7 +847,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span className="hidden sm:inline">Export</span>
               </button>
 
-              {!isViewer && (
+              {canEditActiveProject && (
                 <button
                   onClick={() => setProjectToDelete(activeProject)}
                   className="p-2 text-[#ff4d6d] hover:bg-[#ff4d6d]/15 border border-[#ff4d6d]/40 rounded-lg transition active:scale-95"
@@ -808,10 +857,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               )}
 
-              {isViewer && (
+              {!canEditActiveProject && (
                 <span className="inline-flex items-center gap-1.5 bg-purple-950/40 text-purple-300 border border-purple-500/40 px-2.5 py-1.5 rounded-lg text-xs font-semibold select-none">
                   <Eye className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Viewer Mode</span>
+                  <span>Read-Only Mode</span>
                 </span>
               )}
             </div>
@@ -1529,7 +1578,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
-                          {!isViewer && (
+                          {canEditActiveProject && (
                             <button
                               type="button"
                               onClick={() => setEstimateToEdit(est)}
@@ -1547,7 +1596,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
-                          {!isViewer && (
+                          {canEditActiveProject && (
                             <button
                               type="button"
                               onClick={() => setEstimateToDelete(est)}
@@ -1995,7 +2044,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span>Open File</span>
                     </button>
 
-                    {!isViewer && (
+                    {canEditActiveProject && (
                       <button
                         type="button"
                         onClick={() => setEstimateToEdit(est)}
@@ -2015,7 +2064,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <Download className="w-3.5 h-3.5" />
                     </button>
 
-                    {!isViewer && (
+                    {canEditActiveProject && (
                       <button
                         type="button"
                         onClick={() => setEstimateToDelete(est)}

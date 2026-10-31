@@ -42,8 +42,13 @@ export function getLocalProjects(userId?: string): Project[] {
     if (userRaw) {
       const parsed = JSON.parse(userRaw);
       if (Array.isArray(parsed)) {
-        // Strictly verify projects belong ONLY to this active user
-        return parsed.filter((p: Project) => p.ownerId === activeUid);
+        // Strictly verify projects belong to this active user OR are assigned to them to edit
+        return parsed.filter(
+          (p: Project) =>
+            p.ownerId === activeUid ||
+            p.assignedTo === activeUid ||
+            p.assignedUserIds?.includes(activeUid)
+        );
       }
     }
   } catch (e) {
@@ -56,7 +61,12 @@ export function saveLocalProjects(projects: Project[], userId?: string) {
   const activeUid = userId || getCurrentActiveUserId();
   if (!activeUid) return;
   try {
-    const userProjects = projects.filter((p) => p.ownerId === activeUid);
+    const userProjects = projects.filter(
+      (p) =>
+        p.ownerId === activeUid ||
+        p.assignedTo === activeUid ||
+        p.assignedUserIds?.includes(activeUid)
+    );
     localStorage.setItem(`ashraf_projects_${activeUid}`, JSON.stringify(userProjects));
   } catch (e) {
     console.error("Local storage write error", e);
@@ -178,25 +188,39 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
   // 1. Try reading directly from Firestore
   try {
     const colRef = collection(db, "projects");
-      let q: any = colRef;
-
-      if (user && !isAdminView) {
-        // Regular user: strictly query only projects belonging to this user's UID
-        q = query(colRef, where("ownerId", "==", user.uid));
-      }
-
-    const snapshot = await getDocs(q);
-    if (!snapshot.empty) {
-      const firestoreProjects: Project[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as any;
-        firestoreProjects.push({
+    const docMap = new Map<string, Project>();
+    const addSnapDoc = (docSnap: any) => {
+      const data = docSnap.data() as any;
+      if (!docMap.has(docSnap.id)) {
+        docMap.set(docSnap.id, {
           ...data,
           id: docSnap.id,
           estimates: Array.isArray(data.estimates) ? data.estimates : [],
         });
-      });
+      }
+    };
 
+    if (isAdminView) {
+      const snapshot = await getDocs(colRef);
+      snapshot.forEach(addSnapDoc);
+    } else if (user) {
+      // Regular user: query both owned projects AND projects assigned to this user by admin
+      const qOwned = query(colRef, where("ownerId", "==", user.uid));
+      const qAssigned = query(colRef, where("assignedTo", "==", user.uid));
+      const promises = [getDocs(qOwned), getDocs(qAssigned)];
+
+      if (user.email) {
+        const cleanEmail = user.email.trim().toLowerCase();
+        promises.push(getDocs(query(colRef, where("assignedToEmail", "==", cleanEmail))));
+        promises.push(getDocs(query(colRef, where("ownerEmail", "==", cleanEmail))));
+      }
+
+      const snapshots = await Promise.all(promises);
+      snapshots.forEach((snap) => snap.forEach(addSnapDoc));
+    }
+
+    const firestoreProjects = Array.from(docMap.values());
+    if (firestoreProjects.length > 0) {
       const userLocal = getLocalProjects(user?.uid);
       const mergedProjects = firestoreProjects.map((fProj) => {
         const localMatch = userLocal.find((l) => l.id === fProj.id);
@@ -249,9 +273,12 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     console.warn("Firestore fetch error, falling back to backend/local:", err);
   }
 
-  // 2. Fallback to Express backend (strictly filter by user.uid)
+  // 2. Fallback to Express backend (filter by user.uid and assignedTo)
   try {
-    const backendUrl = (user && !isAdminView) ? `/api/projects?ownerId=${encodeURIComponent(user.uid)}` : "/api/projects";
+    const backendUrl =
+      user && !isAdminView
+        ? `/api/projects?ownerId=${encodeURIComponent(user.uid)}&userEmail=${encodeURIComponent(user.email || "")}`
+        : "/api/projects";
     const res = await fetch(backendUrl);
     if (res.ok) {
       const data = await res.json();
@@ -261,9 +288,20 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
       }));
 
       if (user && !isAdminView) {
-        const userOwned = normalized.filter((p) => p.ownerId === user.uid);
-        saveLocalProjects(userOwned, user.uid);
-        return userOwned;
+        const userProjects = normalized.filter((p) => {
+          const uid = user.uid;
+          const email = user.email?.toLowerCase();
+          return (
+            p.ownerId === uid ||
+            p.assignedTo === uid ||
+            p.assignedUserIds?.includes(uid) ||
+            (email && p.ownerEmail?.toLowerCase() === email) ||
+            (email && p.assignedToEmail?.toLowerCase() === email) ||
+            (email && Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e) => e.toLowerCase() === email))
+          );
+        });
+        saveLocalProjects(userProjects, user.uid);
+        return userProjects;
       } else if (isAdminView) {
         return normalized;
       }
@@ -645,6 +683,194 @@ export async function updateUserRoleInAllStores(
   } catch (err: any) {
     console.error("Failed to update user role:", err);
     return { success: false, error: err.message || "Failed to update role" };
+  }
+}
+
+/**
+ * Assign a project to any user so they can edit it (or transfer ownership)
+ */
+export async function assignProjectToUser(
+  projectId: string,
+  targetUser: AppUser,
+  options?: {
+    transferOwnership?: boolean;
+    assignedBy?: string;
+  }
+): Promise<{ success: boolean; project?: Project; error?: string }> {
+  try {
+    const isTransfer = Boolean(options?.transferOwnership);
+    const now = new Date().toISOString();
+    const assignedBy = options?.assignedBy || "Admin";
+
+    // 1. Fetch current project
+    let currentProj: Project | null = null;
+    try {
+      currentProj = await fetchProject(projectId);
+    } catch {}
+
+    if (!currentProj) {
+      currentProj = findProjectInAnyStorage(projectId);
+    }
+
+    if (!currentProj) {
+      const all = await fetchAllProjectsForAdmin();
+      currentProj = all.find((p) => p.id === projectId) || null;
+    }
+
+    if (!currentProj) {
+      return { success: false, error: "Project not found" };
+    }
+
+    const previousOwnerId = currentProj.ownerId;
+    const previousAssignedId = currentProj.assignedTo;
+    const updatedProj: Project = { ...currentProj };
+
+    if (isTransfer) {
+      updatedProj.ownerId = targetUser.uid;
+      updatedProj.ownerEmail = targetUser.email || undefined;
+      updatedProj.ownerName = targetUser.displayName || (targetUser.email ? targetUser.email.split("@")[0] : "Civil Engineer");
+      if (targetUser.displayName) {
+        updatedProj.engineer = targetUser.displayName;
+      }
+      delete updatedProj.assignedTo;
+      delete updatedProj.assignedToEmail;
+      delete updatedProj.assignedToName;
+      delete updatedProj.assignedUserIds;
+      delete updatedProj.assignedUserEmails;
+      delete updatedProj.assignedAt;
+      delete updatedProj.assignedBy;
+    } else {
+      updatedProj.assignedTo = targetUser.uid;
+      updatedProj.assignedToEmail = targetUser.email || undefined;
+      updatedProj.assignedToName = targetUser.displayName || (targetUser.email ? targetUser.email.split("@")[0] : "Civil Engineer");
+      updatedProj.assignedUserIds = [targetUser.uid];
+      if (targetUser.email) {
+        updatedProj.assignedUserEmails = [targetUser.email];
+      }
+      updatedProj.assignedAt = now;
+      updatedProj.assignedBy = assignedBy;
+    }
+    updatedProj.updatedAt = now;
+
+    // 2. Persist to Firestore
+    try {
+      const cleanData = sanitizeForFirestore(updatedProj);
+      await setDoc(doc(db, "projects", projectId), cleanData, { merge: true });
+    } catch (e) {
+      console.warn("Firestore project assign notice:", e);
+    }
+
+    // 3. Persist to Express backend
+    try {
+      await fetch(`/api/projects/${encodeURIComponent(projectId)}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedTo: targetUser.uid,
+          assignedToEmail: targetUser.email,
+          assignedToName: targetUser.displayName || (targetUser.email ? targetUser.email.split("@")[0] : "Civil Engineer"),
+          transferOwnership: isTransfer,
+          assignedBy,
+        }),
+      });
+    } catch (e) {
+      console.warn("Backend project assign notice:", e);
+    }
+
+    // 4. Save to target user's local projects cache so they see it immediately
+    persistProjectToAllUserStores(updatedProj, targetUser.uid);
+    if (previousOwnerId && previousOwnerId !== targetUser.uid) {
+      persistProjectToAllUserStores(updatedProj, previousOwnerId);
+    }
+    if (previousAssignedId && previousAssignedId !== targetUser.uid) {
+      // Clean up previous assigned user's isolated list
+      try {
+        const uKey = `ashraf_projects_${previousAssignedId}`;
+        const raw = localStorage.getItem(uKey);
+        if (raw) {
+          const list: Project[] = JSON.parse(raw);
+          const filtered = list.filter((p) => p.id !== projectId);
+          localStorage.setItem(uKey, JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+
+    return { success: true, project: updatedProj };
+  } catch (err: any) {
+    console.error("Failed to assign project to user:", err);
+    return { success: false, error: err.message || "Failed to assign project" };
+  }
+}
+
+/**
+ * Remove assignment from a project (reverts to owner only)
+ */
+export async function unassignProjectFromUser(
+  projectId: string
+): Promise<{ success: boolean; project?: Project; error?: string }> {
+  try {
+    let currentProj: Project | null = null;
+    try {
+      currentProj = await fetchProject(projectId);
+    } catch {}
+    if (!currentProj) {
+      currentProj = findProjectInAnyStorage(projectId);
+    }
+    if (!currentProj) {
+      const all = await fetchAllProjectsForAdmin();
+      currentProj = all.find((p) => p.id === projectId) || null;
+    }
+    if (!currentProj) {
+      return { success: false, error: "Project not found" };
+    }
+
+    const previousAssignedId = currentProj.assignedTo;
+    const updatedProj: Project = { ...currentProj };
+    delete updatedProj.assignedTo;
+    delete updatedProj.assignedToEmail;
+    delete updatedProj.assignedToName;
+    delete updatedProj.assignedUserIds;
+    delete updatedProj.assignedUserEmails;
+    delete updatedProj.assignedAt;
+    delete updatedProj.assignedBy;
+    updatedProj.updatedAt = new Date().toISOString();
+
+    // Persist to Firestore
+    try {
+      const cleanData = sanitizeForFirestore(updatedProj);
+      await setDoc(doc(db, "projects", projectId), cleanData);
+    } catch (e) {
+      console.warn("Firestore unassign notice:", e);
+    }
+
+    // Persist to Express backend
+    try {
+      await fetch(`/api/projects/${encodeURIComponent(projectId)}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedTo: null }),
+      });
+    } catch (e) {}
+
+    // Update local storage
+    if (updatedProj.ownerId) {
+      persistProjectToAllUserStores(updatedProj, updatedProj.ownerId);
+    }
+    if (previousAssignedId) {
+      try {
+        const uKey = `ashraf_projects_${previousAssignedId}`;
+        const raw = localStorage.getItem(uKey);
+        if (raw) {
+          const list: Project[] = JSON.parse(raw);
+          const filtered = list.filter((p) => p.id !== projectId);
+          localStorage.setItem(uKey, JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+
+    return { success: true, project: updatedProj };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to unassign" };
   }
 }
 

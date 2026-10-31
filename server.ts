@@ -250,14 +250,25 @@ app.patch("/api/users/:uid/role", (req, res) => {
   }
 });
 
-// List all projects (support filtering by ownerId)
+// List all projects (support filtering by ownerId or userEmail, including assigned projects)
 app.get("/api/projects", (req, res) => {
   try {
     const ownerId = req.query.ownerId as string | undefined;
+    const userEmail = (req.query.userEmail as string | undefined)?.trim().toLowerCase();
     const includeAll = req.query.all === "true";
     let projects = readProjects();
-    if (ownerId) {
-      projects = projects.filter((p) => p.ownerId === ownerId);
+    if (ownerId || userEmail) {
+      projects = projects.filter((p) => {
+        const matchesOwnerId = ownerId && (p.ownerId === ownerId || p.assignedTo === ownerId || p.assignedUserIds?.includes(ownerId));
+        const pOwnerEmail = p.ownerEmail?.trim().toLowerCase();
+        const pAssignedEmail = p.assignedToEmail?.trim().toLowerCase();
+        const matchesEmail = userEmail && (
+          pOwnerEmail === userEmail ||
+          pAssignedEmail === userEmail ||
+          (Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e) => e.trim().toLowerCase() === userEmail))
+        );
+        return matchesOwnerId || matchesEmail;
+      });
     } else if (!includeAll) {
       projects = [];
     }
@@ -281,7 +292,26 @@ app.get("/api/projects", (req, res) => {
 // Create new project
 app.post("/api/projects", (req, res) => {
   try {
-    const { id, name, client, location, engineer, notes, stories, includeDefaultList, ownerId, ownerEmail, ownerName } = req.body;
+    const {
+      id,
+      name,
+      client,
+      location,
+      engineer,
+      notes,
+      stories,
+      includeDefaultList,
+      ownerId,
+      ownerEmail,
+      ownerName,
+      assignedTo,
+      assignedToEmail,
+      assignedToName,
+      assignedUserIds,
+      assignedUserEmails,
+      assignedAt,
+      assignedBy,
+    } = req.body;
     if (!name || !name.trim()) {
       res.status(400).json({ error: "Project name is required" });
       return;
@@ -302,6 +332,13 @@ app.post("/api/projects", (req, res) => {
       ownerId: ownerId || undefined,
       ownerEmail: ownerEmail || undefined,
       ownerName: ownerName || undefined,
+      assignedTo: assignedTo || (existingIdx !== -1 ? projects[existingIdx].assignedTo : undefined),
+      assignedToEmail: assignedToEmail || (existingIdx !== -1 ? projects[existingIdx].assignedToEmail : undefined),
+      assignedToName: assignedToName || (existingIdx !== -1 ? projects[existingIdx].assignedToName : undefined),
+      assignedUserIds: assignedUserIds || (existingIdx !== -1 ? projects[existingIdx].assignedUserIds : undefined),
+      assignedUserEmails: assignedUserEmails || (existingIdx !== -1 ? projects[existingIdx].assignedUserEmails : undefined),
+      assignedAt: assignedAt || (existingIdx !== -1 ? projects[existingIdx].assignedAt : undefined),
+      assignedBy: assignedBy || (existingIdx !== -1 ? projects[existingIdx].assignedBy : undefined),
       notes: notes || "",
       stories: parsedStories,
       createdAt: existingIdx !== -1 ? projects[existingIdx].createdAt : new Date().toISOString(),
@@ -348,7 +385,26 @@ app.put("/api/projects/:id", (req, res) => {
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    const { name, client, location, engineer, notes, stories, rates, estimates } = req.body;
+    const {
+      name,
+      client,
+      location,
+      engineer,
+      notes,
+      stories,
+      rates,
+      estimates,
+      assignedTo,
+      assignedToEmail,
+      assignedToName,
+      assignedUserIds,
+      assignedUserEmails,
+      assignedAt,
+      assignedBy,
+      ownerId,
+      ownerEmail,
+      ownerName,
+    } = req.body;
     if (rates !== undefined) projects[idx].rates = rates;
     if (Array.isArray(estimates)) projects[idx].estimates = estimates;
     if (name) projects[idx].name = name.trim();
@@ -356,6 +412,16 @@ app.put("/api/projects/:id", (req, res) => {
     if (location !== undefined) projects[idx].location = location.trim();
     if (engineer !== undefined) projects[idx].engineer = engineer.trim();
     if (notes !== undefined) projects[idx].notes = notes;
+    if (ownerId !== undefined) projects[idx].ownerId = ownerId;
+    if (ownerEmail !== undefined) projects[idx].ownerEmail = ownerEmail;
+    if (ownerName !== undefined) projects[idx].ownerName = ownerName;
+    if (assignedTo !== undefined) projects[idx].assignedTo = assignedTo;
+    if (assignedToEmail !== undefined) projects[idx].assignedToEmail = assignedToEmail;
+    if (assignedToName !== undefined) projects[idx].assignedToName = assignedToName;
+    if (assignedUserIds !== undefined) projects[idx].assignedUserIds = assignedUserIds;
+    if (assignedUserEmails !== undefined) projects[idx].assignedUserEmails = assignedUserEmails;
+    if (assignedAt !== undefined) projects[idx].assignedAt = assignedAt;
+    if (assignedBy !== undefined) projects[idx].assignedBy = assignedBy;
     if (stories !== undefined) {
       const oldStories = projects[idx].stories || 1;
       const newStories = Math.max(1, parseInt(stories, 10) || 1);
@@ -371,6 +437,65 @@ app.put("/api/projects/:id", (req, res) => {
       }
     }
     projects[idx].updatedAt = new Date().toISOString();
+    writeProjects(projects);
+    res.json(projects[idx]);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Assign project to user (or transfer ownership)
+app.patch("/api/projects/:id/assign", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { assignedTo, assignedToEmail, assignedToName, transferOwnership, assignedBy } = req.body;
+    const projects = readProjects();
+    const idx = projects.findIndex((p) => p.id === id);
+    if (idx === -1) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    if (transferOwnership && assignedTo) {
+      // Transfer project ownership directly to target user
+      projects[idx].ownerId = assignedTo;
+      projects[idx].ownerEmail = assignedToEmail || projects[idx].ownerEmail;
+      projects[idx].ownerName = assignedToName || projects[idx].ownerName;
+      // Also set engineer name if default
+      if (assignedToName) {
+        projects[idx].engineer = assignedToName;
+      }
+      delete projects[idx].assignedTo;
+      delete projects[idx].assignedToEmail;
+      delete projects[idx].assignedToName;
+      delete projects[idx].assignedUserIds;
+      delete projects[idx].assignedUserEmails;
+      delete projects[idx].assignedAt;
+      delete projects[idx].assignedBy;
+    } else if (assignedTo) {
+      // Assign user as project editor
+      projects[idx].assignedTo = assignedTo;
+      projects[idx].assignedToEmail = assignedToEmail || undefined;
+      projects[idx].assignedToName = assignedToName || undefined;
+      projects[idx].assignedUserIds = [assignedTo];
+      if (assignedToEmail) {
+        projects[idx].assignedUserEmails = [assignedToEmail];
+      }
+      projects[idx].assignedAt = now;
+      projects[idx].assignedBy = assignedBy || "Admin";
+    } else {
+      // Unassign editor from project
+      delete projects[idx].assignedTo;
+      delete projects[idx].assignedToEmail;
+      delete projects[idx].assignedToName;
+      delete projects[idx].assignedUserIds;
+      delete projects[idx].assignedUserEmails;
+      delete projects[idx].assignedAt;
+      delete projects[idx].assignedBy;
+    }
+
+    projects[idx].updatedAt = now;
     writeProjects(projects);
     res.json(projects[idx]);
   } catch (err: any) {

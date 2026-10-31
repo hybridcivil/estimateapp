@@ -45,6 +45,38 @@
           "description": "Display name of the project owner",
           "maxLength": 200
         },
+        "assignedTo": {
+          "type": "string",
+          "description": "UID of engineer assigned by admin to edit project",
+          "maxLength": 128
+        },
+        "assignedToEmail": {
+          "type": "string",
+          "description": "Email of engineer assigned by admin to edit project",
+          "maxLength": 200
+        },
+        "assignedToName": {
+          "type": "string",
+          "description": "Name of engineer assigned by admin to edit project",
+          "maxLength": 200
+        },
+        "assignedUserIds": {
+          "type": "array",
+          "description": "Array of user UIDs assigned by admin to edit project"
+        },
+        "assignedUserEmails": {
+          "type": "array",
+          "description": "Array of user emails assigned by admin to edit project"
+        },
+        "assignedAt": {
+          "type": "string",
+          "description": "ISO timestamp when project was assigned by admin"
+        },
+        "assignedBy": {
+          "type": "string",
+          "description": "Email or UID of admin who assigned the project",
+          "maxLength": 200
+        },
         "notes": {
           "type": "string",
           "description": "Project notes or specifications",

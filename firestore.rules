@@ -47,6 +47,13 @@ service cloud.firestore {
         && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
         && (!('ownerEmail' in data) || (data.ownerEmail is string && data.ownerEmail.size() <= 200))
         && (!('ownerName' in data) || (data.ownerName is string && data.ownerName.size() <= 200))
+        && (!('assignedTo' in data) || data.assignedTo == null || (data.assignedTo is string && data.assignedTo.size() <= 128))
+        && (!('assignedToEmail' in data) || data.assignedToEmail == null || (data.assignedToEmail is string && data.assignedToEmail.size() <= 200))
+        && (!('assignedToName' in data) || data.assignedToName == null || (data.assignedToName is string && data.assignedToName.size() <= 200))
+        && (!('assignedUserIds' in data) || data.assignedUserIds is list)
+        && (!('assignedUserEmails' in data) || data.assignedUserEmails is list)
+        && (!('assignedAt' in data) || (data.assignedAt is string && data.assignedAt.size() <= 100))
+        && (!('assignedBy' in data) || (data.assignedBy is string && data.assignedBy.size() <= 200))
         && (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000))
         && (!('stories' in data) || (data.stories is number && data.stories >= 1 && data.stories <= 200))
         && (!('totalCost' in data) || (data.totalCost is number && data.totalCost >= 0))

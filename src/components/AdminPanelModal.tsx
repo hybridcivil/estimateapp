@@ -14,6 +14,11 @@ import {
   RefreshCw,
   Key,
   Globe,
+  UserCheck,
+  UserPlus,
+  UserMinus,
+  UserCog,
+  CheckCircle2,
 } from "lucide-react";
 import { Project, AppUser, UserRole } from "../types";
 import {
@@ -21,6 +26,8 @@ import {
   fetchAllUsersForAdmin,
   deleteProject,
   calculateProjectTotalCost,
+  assignProjectToUser,
+  unassignProjectFromUser,
 } from "../services/api";
 import { BOOTSTRAP_ADMIN_EMAIL, useAuth } from "../context/AuthContext";
 
@@ -47,8 +54,138 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [roleNotice, setRoleNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+
+  // Project Assignment State
+  const [assignModalProject, setAssignModalProject] = useState<Project | null>(null);
+  const [selectedAssigneeUid, setSelectedAssigneeUid] = useState<string>("");
+  const [transferOwnership, setTransferOwnership] = useState<boolean>(false);
+  const [isAssigning, setIsAssigning] = useState<boolean>(false);
+  const [assignNotice, setAssignNotice] = useState<{ text: string; error?: boolean } | null>(null);
+  const [assignModalSearch, setAssignModalSearch] = useState<string>("");
+  const [quickAssignUser, setQuickAssignUser] = useState<AppUser | null>(null);
+  const [quickAssignProjectId, setQuickAssignProjectId] = useState<string>("");
+
+  const handleOpenAssignModal = (project: Project) => {
+    setAssignModalProject(project);
+    setSelectedAssigneeUid(project.assignedTo || "");
+    setTransferOwnership(false);
+    setAssignNotice(null);
+    setAssignModalSearch("");
+  };
+
+  const handleCloseAssignModal = () => {
+    setAssignModalProject(null);
+    setSelectedAssigneeUid("");
+    setAssignNotice(null);
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!assignModalProject || !selectedAssigneeUid) return;
+    const targetUser = allUsers.find((u) => u.uid === selectedAssigneeUid);
+    if (!targetUser) {
+      setAssignNotice({ text: "Please select a registered engineer.", error: true });
+      return;
+    }
+
+    setIsAssigning(true);
+    setAssignNotice(null);
+    try {
+      const assignedByName =
+        currentUser?.displayName || currentUser?.email || appUser?.displayName || "Admin";
+
+      const res = await assignProjectToUser(assignModalProject.id, targetUser, {
+        transferOwnership,
+        assignedBy: assignedByName,
+      });
+
+      if (res.success && res.project) {
+        const updated = res.project;
+        setAllProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setAssignModalProject(updated);
+        const actionLabel = transferOwnership
+          ? `Ownership transferred to ${targetUser.displayName || targetUser.email}`
+          : `Assigned as Editor to ${targetUser.displayName || targetUser.email}`;
+        setAssignNotice({
+          text: `✓ Success! "${updated.name}" is now ${actionLabel}.`,
+        });
+        setTimeout(() => {
+          handleCloseAssignModal();
+        }, 1800);
+      } else {
+        setAssignNotice({ text: res.error || "Failed to assign project", error: true });
+      }
+    } catch (err: any) {
+      setAssignNotice({ text: err.message || "Failed to assign project", error: true });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignProject = async (project: Project) => {
+    setIsAssigning(true);
+    setAssignNotice(null);
+    try {
+      const res = await unassignProjectFromUser(project.id);
+      if (res.success && res.project) {
+        const updated = res.project;
+        setAllProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        if (assignModalProject?.id === project.id) {
+          setAssignModalProject(updated);
+          setSelectedAssigneeUid("");
+        }
+        setAssignNotice({
+          text: `✓ Assignment removed. "${project.name}" is now reverted to Owner-only access.`,
+        });
+        setTimeout(() => {
+          if (assignModalProject?.id === project.id) {
+            handleCloseAssignModal();
+          }
+        }, 1800);
+      } else {
+        setAssignNotice({ text: res.error || "Failed to unassign project", error: true });
+      }
+    } catch (err: any) {
+      setAssignNotice({ text: err.message || "Failed to unassign project", error: true });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleQuickAssignSubmit = async () => {
+    if (!quickAssignUser || !quickAssignProjectId) return;
+    const targetProject = allProjects.find((p) => p.id === quickAssignProjectId);
+    if (!targetProject) return;
+
+    setIsAssigning(true);
+    try {
+      const assignedByName =
+        currentUser?.displayName || currentUser?.email || appUser?.displayName || "Admin";
+
+      const res = await assignProjectToUser(targetProject.id, quickAssignUser, {
+        transferOwnership: false,
+        assignedBy: assignedByName,
+      });
+
+      if (res.success && res.project) {
+        const updated = res.project;
+        setAllProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        setRoleNotice({
+          text: `✓ Assigned "${targetProject.name}" to ${quickAssignUser.displayName || quickAssignUser.email} for editing.`,
+        });
+        setTimeout(() => setRoleNotice(null), 4000);
+        setQuickAssignUser(null);
+        setQuickAssignProjectId("");
+      } else {
+        setRoleNotice({ text: res.error || "Failed to assign project", error: true });
+      }
+    } catch (err: any) {
+      setRoleNotice({ text: err.message || "Failed to assign project", error: true });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const handleRoleChange = async (user: AppUser, newRole: UserRole) => {
     setUpdatingUserId(user.uid);
@@ -126,13 +263,22 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   });
 
   const filteredProjects = allProjects.filter((p) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.ownerEmail && p.ownerEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.engineer && p.engineer.toLowerCase().includes(searchQuery.toLowerCase()));
+      p.name.toLowerCase().includes(q) ||
+      p.client.toLowerCase().includes(q) ||
+      (p.ownerEmail && p.ownerEmail.toLowerCase().includes(q)) ||
+      (p.ownerName && p.ownerName.toLowerCase().includes(q)) ||
+      (p.engineer && p.engineer.toLowerCase().includes(q)) ||
+      (p.assignedToEmail && p.assignedToEmail.toLowerCase().includes(q)) ||
+      (p.assignedToName && p.assignedToName.toLowerCase().includes(q));
 
-    const matchesUser = userFilter === "all" || p.ownerEmail === userFilter || p.ownerId === userFilter;
+    const matchesUser =
+      userFilter === "all" ||
+      p.ownerEmail === userFilter ||
+      p.ownerId === userFilter ||
+      p.assignedTo === userFilter ||
+      p.assignedToEmail === userFilter;
     return matchesSearch && matchesUser;
   });
 
@@ -356,6 +502,27 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           )}
                         </div>
 
+                        {/* Assigned Editor Badge */}
+                        {p.assignedTo ? (
+                          <div className="flex items-center justify-between gap-1.5 mt-1.5 text-[10px] bg-[#0c1f2e] px-2.5 py-1.5 rounded-lg border border-[#00c2c7]/40 shadow-xs">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <UserCheck className="w-3 h-3 text-[#00c2c7] shrink-0" />
+                              <span className="text-[#8ba3c1]">Assigned Editor:</span>
+                              <span className="font-mono text-[#00c2c7] font-bold truncate">
+                                {p.assignedToName || p.assignedToEmail || p.assignedTo}
+                              </span>
+                            </div>
+                            <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-[#00c2c7]/20 text-[#00c2c7] border border-[#00c2c7]/40 shrink-0">
+                              Can Edit
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 mt-1.5 text-[10px] bg-[#0e1624]/60 px-2.5 py-1 rounded-lg border border-[#24374e]/60 text-[#8ba3c1]">
+                            <Users className="w-3 h-3 text-[#8ba3c1]/40 shrink-0" />
+                            <span className="text-[10px] text-[#8ba3c1]/70">Editor: Owner only (not assigned)</span>
+                          </div>
+                        )}
+
                         {/* Meta */}
                         <div className="flex items-center justify-between text-[10px] text-[#8ba3c1] mt-2 font-mono">
                           <span className="flex items-center gap-1">
@@ -369,18 +536,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       </div>
 
                       {/* Action Bar */}
-                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#24374e]">
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#24374e]">
                         <button
-                          onClick={() => {
-                            onSelectProject(p);
-                            onClose();
-                          }}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-[#00c2c7]/20 hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] rounded-lg text-xs font-semibold transition cursor-pointer"
-                          title="Open this user's project in main workspace"
+                          onClick={() => handleOpenAssignModal(p)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-[#17273c] hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] border border-[#00c2c7]/40 rounded-lg text-xs font-semibold transition cursor-pointer"
+                          title="Assign this project to an engineer for editing"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>Inspect & Edit</span>
+                          <UserPlus className="w-3 h-3" />
+                          <span>{p.assignedTo ? "Reassign" : "Assign to Engineer"}</span>
                         </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              onSelectProject(p);
+                              onClose();
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-[#00c2c7]/20 hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] rounded-lg text-xs font-semibold transition cursor-pointer"
+                            title="Open this user's project in main workspace"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Inspect & Edit</span>
+                          </button>
 
                         {deleteConfirmId === p.id ? (
                           <div className="flex items-center gap-1">
@@ -407,6 +584,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -604,8 +782,25 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 </div>
                               )}
                             </td>
-                            <td className="py-2.5 px-4 font-mono font-bold text-white">
-                              {userProjs.length}
+                            <td className="py-2.5 px-4 font-mono text-xs">
+                              {(() => {
+                                const ownedProjs = allProjects.filter(
+                                  (p) => p.ownerId === u.uid || p.ownerEmail === u.email
+                                );
+                                const assignedProjs = allProjects.filter(
+                                  (p) => p.assignedTo === u.uid || p.assignedToEmail === u.email
+                                );
+                                return (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-white">{ownedProjs.length}</span>
+                                    {assignedProjs.length > 0 && (
+                                      <span className="text-[10px] text-[#00c2c7] font-semibold bg-[#00c2c7]/15 px-1.5 py-0.2 rounded border border-[#00c2c7]/30">
+                                        +{assignedProjs.length} assigned
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="py-2.5 px-4 text-[#8ba3c1] font-mono text-[11px]">
                               {u.lastLoginAt
@@ -613,15 +808,28 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 : "Unknown"}
                             </td>
                             <td className="py-2.5 px-4 text-right">
-                              <button
-                                onClick={() => {
-                                  setUserFilter(u.email || u.uid);
-                                  setActiveTab("projects");
-                                }}
-                                className="px-2.5 py-1 bg-[#1a2b42] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] rounded text-[11px] font-semibold transition cursor-pointer"
-                              >
-                                View Projects
-                              </button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setQuickAssignUser(u);
+                                    setQuickAssignProjectId(allProjects[0]?.id || "");
+                                  }}
+                                  className="px-2.5 py-1 bg-[#152a3d] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] border border-[#00c2c7]/40 rounded text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
+                                  title={`Assign a project to ${u.displayName || u.email} for editing`}
+                                >
+                                  <UserPlus className="w-3 h-3" />
+                                  <span>Assign Project</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setUserFilter(u.email || u.uid);
+                                    setActiveTab("projects");
+                                  }}
+                                  className="px-2.5 py-1 bg-[#1a2b42] hover:bg-[#2d4a6a] text-white rounded text-[11px] font-semibold transition cursor-pointer"
+                                >
+                                  View
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -638,7 +846,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         <div className="px-5 py-3 border-t border-[#24374e] bg-[#0e1624] flex items-center justify-between text-xs text-[#8ba3c1]">
           <div className="flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-            <span>Admin privileges allow supervisory oversight of all project files in Firestore.</span>
+            <span>Admin privileges allow supervisory oversight and assigning any project to any user for editing.</span>
           </div>
           <button
             onClick={onClose}
@@ -647,6 +855,293 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
             Close
           </button>
         </div>
+
+        {/* Project Assignment Modal (Admin assigns project to any user) */}
+        {assignModalProject && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs">
+            <div className="relative w-full max-w-lg bg-[#142337] border-2 border-[#00c2c7] rounded-2xl shadow-2xl p-5 text-white flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between pb-3 border-b border-[#24374e]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#00c2c7]/20 border border-[#00c2c7]/40 flex items-center justify-center text-[#00c2c7]">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Assign Project for Editing</h3>
+                    <p className="text-xs text-[#8ba3c1] truncate max-w-xs font-mono">
+                      Project: <span className="text-white font-semibold">{assignModalProject.name}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseAssignModal}
+                  className="p-1.5 text-[#8ba3c1] hover:text-white rounded-lg hover:bg-[#1a2b42]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Status and Current Assignment Info */}
+              <div className="bg-[#0e1624] p-3 rounded-xl border border-[#24374e] space-y-2 text-xs">
+                <div className="flex items-center justify-between text-[#8ba3c1]">
+                  <span>Primary Owner:</span>
+                  <span className="font-mono text-white font-semibold">
+                    {assignModalProject.ownerName || assignModalProject.ownerEmail || assignModalProject.ownerId || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#8ba3c1]">Current Assigned Editor:</span>
+                  {assignModalProject.assignedTo ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[#00c2c7] font-bold bg-[#00c2c7]/15 px-2 py-0.5 rounded border border-[#00c2c7]/30">
+                        {assignModalProject.assignedToName || assignModalProject.assignedToEmail || assignModalProject.assignedTo}
+                      </span>
+                      <button
+                        onClick={() => handleUnassignProject(assignModalProject)}
+                        disabled={isAssigning}
+                        className="px-2 py-0.5 bg-red-950/70 hover:bg-red-800 text-red-300 border border-red-500/40 rounded text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+                        title="Remove assignment and revert to owner only"
+                      >
+                        <UserMinus className="w-3 h-3" />
+                        <span>Revoke</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[#8ba3c1] italic">None (Owner only)</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Feedback Notice */}
+              {assignNotice && (
+                <div
+                  className={`p-2.5 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+                    assignNotice.error
+                      ? "bg-red-950/70 text-red-200 border border-red-500/40"
+                      : "bg-emerald-950/70 text-emerald-200 border border-emerald-500/40"
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{assignNotice.text}</span>
+                </div>
+              )}
+
+              {/* Target Engineer Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white flex items-center justify-between">
+                  <span>Select Registered Engineer to Assign:</span>
+                  <span className="text-[10px] font-normal text-[#8ba3c1]">
+                    {allUsers.length} engineers available
+                  </span>
+                </label>
+
+                {/* Filter search input */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ba3c1]" />
+                  <input
+                    type="text"
+                    placeholder="Search engineer name or email..."
+                    value={assignModalSearch}
+                    onChange={(e) => setAssignModalSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-[#0e1624] border border-[#2d4a6a] rounded-lg text-xs text-white placeholder-[#8ba3c1] outline-none focus:border-[#00c2c7]"
+                  />
+                </div>
+
+                <div className="max-h-40 overflow-y-auto space-y-1 bg-[#0e1624] p-1.5 rounded-xl border border-[#24374e]">
+                  {allUsers
+                    .filter((u) => {
+                      if (!assignModalSearch.trim()) return true;
+                      const q = assignModalSearch.toLowerCase();
+                      return (
+                        (u.displayName || "").toLowerCase().includes(q) ||
+                        (u.email || "").toLowerCase().includes(q) ||
+                        (u.role || "").toLowerCase().includes(q)
+                      );
+                    })
+                    .map((u) => {
+                      const isSelected = selectedAssigneeUid === u.uid;
+                      const isOwner =
+                        assignModalProject.ownerId === u.uid ||
+                        (assignModalProject.ownerEmail && u.email && assignModalProject.ownerEmail.toLowerCase() === u.email.toLowerCase());
+
+                      return (
+                        <div
+                          key={u.uid}
+                          onClick={() => setSelectedAssigneeUid(u.uid)}
+                          className={`p-2 rounded-lg cursor-pointer transition flex items-center justify-between gap-2 border ${
+                            isSelected
+                              ? "bg-[#00c2c7]/20 border-[#00c2c7] text-white"
+                              : "bg-[#152033] hover:bg-[#1a2b42] border-[#24374e] text-[#8ba3c1] hover:text-white"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {u.photoURL ? (
+                              <img src={u.photoURL} alt="" className="w-6 h-6 rounded-full shrink-0" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-[#00c2c7]/20 text-[#00c2c7] text-xs font-bold flex items-center justify-center shrink-0">
+                                {(u.displayName || u.email || "E")[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-white truncate">
+                                {u.displayName || "Civil Engineer"}
+                                {isOwner && (
+                                  <span className="ml-1.5 text-[9px] text-[#f5a623] font-normal">
+                                    (Current Owner)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-[#8ba3c1] font-mono truncate">
+                                {u.email || u.uid}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 flex items-center gap-1.5">
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#1a2b42] text-[#8ba3c1] border border-[#2d4a6a]">
+                              {u.role || "editor"}
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2 className="w-4 h-4 text-[#00c2c7] shrink-0" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Assignment Mode: Editor (Shared) vs Transfer Ownership */}
+              <div className="space-y-2 bg-[#0e1624] p-3 rounded-xl border border-[#24374e]">
+                <div className="text-xs font-bold text-white mb-1">Choose Assignment Action:</div>
+
+                <label className="flex items-start gap-2.5 cursor-pointer text-xs">
+                  <input
+                    type="radio"
+                    name="assignMode"
+                    checked={!transferOwnership}
+                    onChange={() => setTransferOwnership(false)}
+                    className="mt-0.5 accent-[#00c2c7]"
+                  />
+                  <div>
+                    <span className="font-bold text-white">Assign as Project Editor (Shared)</span>
+                    <p className="text-[11px] text-[#8ba3c1] leading-tight mt-0.5">
+                      The assigned engineer gets full editing rights and this project appears in their dashboard. Original owner remains primary owner.
+                    </p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 cursor-pointer text-xs pt-1 border-t border-[#24374e]">
+                  <input
+                    type="radio"
+                    name="assignMode"
+                    checked={transferOwnership}
+                    onChange={() => setTransferOwnership(true)}
+                    className="mt-0.5 accent-amber-400"
+                  />
+                  <div>
+                    <span className="font-bold text-amber-400">Transfer Full Ownership</span>
+                    <p className="text-[11px] text-[#8ba3c1] leading-tight mt-0.5">
+                      Transfers complete ownership of this project to the selected engineer.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#24374e]">
+                <button
+                  type="button"
+                  onClick={handleCloseAssignModal}
+                  disabled={isAssigning}
+                  className="px-4 py-2 bg-[#1a2b42] hover:bg-[#24374e] text-xs font-semibold rounded-xl text-[#8ba3c1] hover:text-white transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignSubmit}
+                  disabled={isAssigning || !selectedAssigneeUid}
+                  className="px-5 py-2 bg-[#00c2c7] hover:bg-[#00a8ad] disabled:opacity-50 text-[#0f1c2e] font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  {isAssigning && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{transferOwnership ? "Transfer Ownership" : "Confirm Assignment"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Assign from Engineers List Modal */}
+        {quickAssignUser && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs">
+            <div className="relative w-full max-w-md bg-[#142337] border-2 border-[#00c2c7] rounded-2xl shadow-2xl p-5 text-white flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between pb-3 border-b border-[#24374e]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#00c2c7]/20 border border-[#00c2c7]/40 flex items-center justify-center text-[#00c2c7]">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Assign Project to Engineer</h3>
+                    <p className="text-xs text-[#00c2c7] font-semibold truncate">
+                      {quickAssignUser.displayName || quickAssignUser.email}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setQuickAssignUser(null)}
+                  className="p-1.5 text-[#8ba3c1] hover:text-white rounded-lg hover:bg-[#1a2b42]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Select Project to Assign for Editing:</label>
+                <select
+                  value={quickAssignProjectId}
+                  onChange={(e) => setQuickAssignProjectId(e.target.value)}
+                  className="w-full p-2.5 bg-[#0e1624] border border-[#2d4a6a] rounded-xl text-xs text-white outline-none cursor-pointer"
+                >
+                  <option value="">-- Choose a Project ({allProjects.length} available) --</option>
+                  {allProjects.map((p) => {
+                    const isAlreadyAssigned =
+                      p.assignedTo === quickAssignUser.uid || p.assignedToEmail === quickAssignUser.email;
+                    const isAlreadyOwner =
+                      p.ownerId === quickAssignUser.uid || p.ownerEmail === quickAssignUser.email;
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (Client: {p.client || "N/A"})
+                        {isAlreadyOwner ? " [Already Owner]" : isAlreadyAssigned ? " [Already Assigned]" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-[11px] text-[#8ba3c1]">
+                  Once assigned, {quickAssignUser.displayName || quickAssignUser.email} will be able to view and edit this project in their own workspace.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#24374e]">
+                <button
+                  type="button"
+                  onClick={() => setQuickAssignUser(null)}
+                  className="px-4 py-2 bg-[#1a2b42] hover:bg-[#24374e] text-xs font-semibold rounded-xl text-[#8ba3c1] hover:text-white transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickAssignSubmit}
+                  disabled={isAssigning || !quickAssignProjectId}
+                  className="px-5 py-2 bg-[#00c2c7] hover:bg-[#00a8ad] disabled:opacity-50 text-[#0f1c2e] font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  {isAssigning && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Assign for Editing</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

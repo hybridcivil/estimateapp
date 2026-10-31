@@ -56,6 +56,13 @@ export interface Project {
   ownerId?: string; // Firebase Auth UID
   ownerEmail?: string;
   ownerName?: string;
+  assignedTo?: string; // UID of user assigned by admin to edit
+  assignedToEmail?: string; // Email of assigned editor
+  assignedToName?: string; // Display name of assigned editor
+  assignedUserIds?: string[]; // Multiple assigned editors UIDs
+  assignedUserEmails?: string[]; // Multiple assigned editors emails
+  assignedAt?: string; // ISO date when assigned by admin
+  assignedBy?: string; // Email or UID of admin who assigned
   notes?: string;
   stories?: number; // Number of storeys/floors (e.g. 1, 3, 5, 10)
   rates?: GlobalMaterialRates; // Unified project-wide material rates
