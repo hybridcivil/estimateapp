@@ -653,8 +653,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">3</td>
           <td class="font-bold">
-            Crushed Stone Aggregate / Picket Chips
-            <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular coarse aggregate</div>
+            Crushed Stone Aggregate
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular coarse aggregate (stone chips)</div>
           </td>
           <td class="text-center">cft</td>
           <td class="text-right font-mono">৳ ${defaultAggRate}</td>
@@ -2278,9 +2278,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">3</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        Crushed Stone Aggregate / Picket Chips
+                        Crushed Stone Aggregate
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          3/4" down-graded angular coarse aggregate
+                          3/4" down-graded angular coarse aggregate (stone chips)
                         </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>

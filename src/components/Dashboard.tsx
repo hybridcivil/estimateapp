@@ -368,6 +368,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   estimates.forEach((e) => {
     const s = e.summary || {};
+    const d = e.data || {};
+    const isBrickKhoa = Boolean(
+      d.baseType === "brick" || d.baseType === "picket" ||
+      (s.brickQty && s.brickQty > 0 && e.type !== "brick" && e.type !== "tiles")
+    );
+
     const cBags = s.multipliedCementBags || s.cementBags || s.totalCementBags || 0;
     totalCementBags += cBags;
 
@@ -375,7 +381,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     totalSandCft += sCft;
 
     const aCft = s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.aggregateVol || s.totalAggCft || 0;
-    totalAggCft += aCft;
+    // Mutual exclusivity: only add to stone aggregate if brick khoa was NOT selected
+    if (!isBrickKhoa) {
+      totalAggCft += aCft;
+    }
 
     const stKg = s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || 0;
     totalSteelKg += stKg;
@@ -1253,13 +1262,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 3. Aggregate */}
             <MaterialRateInput
-              label="Aggregate"
+              label="Stone Aggregate"
               unit="৳ / cft"
               value={rates.aggRate}
               colorBorder="border-[#38bdf8]/40"
               colorText="text-[#38bdf8]"
               colorFocus="border-[#38bdf8]"
-              subtext={`${Math.round(totalAggCft).toLocaleString()} cft = ৳${Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}`}
+              subtext={`${Math.round(totalAggCft).toLocaleString()} cft Stone = ৳${Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}`}
               isLight={isLight}
               onCommit={(val) => handleUpdateSingleRate("aggRate", val)}
             />
@@ -1589,7 +1598,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           <div>
                             <span className="font-bold text-[#38bdf8]">{mat.aggCft}</span>
                             <div className="text-[9px] text-[#8ba3c1]/70">
-                              {mat.aggType === "brick_khoa" ? "Khoa" : "Stone"} · ৳{mat.aggCost.toLocaleString("en-IN")}
+                              {mat.aggType === "brick_khoa" ? (
+                                <span className="text-[#f5a623]">Khoa (Picket)</span>
+                              ) : (
+                                `Stone · ৳${mat.aggCost.toLocaleString("en-IN")}`
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -1708,7 +1721,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       return {
                         cement: acc.cement + m.cementBags,
                         sand: acc.sand + m.sandCft,
-                        agg: acc.agg + m.aggCft,
+                        agg: acc.agg + (m.aggType === "brick_khoa" ? 0 : m.aggCft),
                         steel: acc.steel + m.steelKg,
                         bricks: acc.bricks + m.bricksPcs,
                         tiles: acc.tiles + m.tilesPcs,
@@ -2015,13 +2028,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           {mat.aggCft > 0 && (
                             <div className="bg-[#1a2b42] border border-[#38bdf8]/25 rounded-lg p-1.5">
                               <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">
-                                {mat.aggType === "brick_khoa" ? "Khoa Agg" : "Stone Agg"}
+                                {mat.aggType === "brick_khoa" ? "Khoa (Picket)" : "Stone Agg"}
                               </div>
                               <div className="font-bold text-[#38bdf8] text-[11px]">
                                 {mat.aggCft} cft
                               </div>
                               <div className="text-[8px] text-[#8ba3c1]/70">
-                                ৳ {mat.aggCost.toLocaleString("en-IN")}
+                                {mat.aggType === "brick_khoa" ? (
+                                  <span className="text-[#f5a623]">Picket Applied</span>
+                                ) : (
+                                  `৳ ${mat.aggCost.toLocaleString("en-IN")}`
+                                )}
                               </div>
                             </div>
                           )}

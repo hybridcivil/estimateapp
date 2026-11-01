@@ -533,7 +533,16 @@ export function computeFullProjectBreakdown(
     alloc.cost += cost;
     alloc.cementBags += cBags;
     alloc.sandCft += sCft;
-    alloc.aggCft += aCft;
+    // Brick chips vs Stone chips are mutually exclusive for concrete coarse aggregate:
+    // If brick chips (khoa / picket brick) is selected, coarse aggregate is made of picket bricks (bQty).
+    // Stone aggregate (aggCft) price is NOT added; only add to alloc.aggCft if stone chips were used!
+    const isKhoa = Boolean(
+      d.baseType === "brick" || d.baseType === "picket" ||
+      (s.brickQty && s.brickQty > 0 && est.type !== "brick" && est.type !== "tiles")
+    );
+    if (!isKhoa) {
+      alloc.aggCft += aCft;
+    }
     alloc.steelKg += stKg;
     alloc.bricksPcs += bQty;
     alloc.tilesPcs += tQty;
@@ -1228,11 +1237,15 @@ export function extractItemMaterials(
     (s.multipliedAggCft || s.aggregateVolume || s.aggregateVol || s.aggCft || s.totalAggCft || 0).toFixed(1)
   );
   const isBrickKhoa = Boolean(
-    d.baseType === "brick" ||
+    d.baseType === "brick" || d.baseType === "picket" ||
     (s.brickQty && s.brickQty > 0 && est.type !== "brick" && est.type !== "tiles")
   );
   const aggType: "stone" | "brick_khoa" | "aggregate" = isBrickKhoa ? "brick_khoa" : "stone";
-  const aggCost = overrideRates
+
+  // If brick chips / khoa is selected, coarse aggregate price is ONLY picket brick (stone aggregate price is 0)
+  const aggCost = isBrickKhoa
+    ? 0
+    : overrideRates
     ? Math.round(aggCft * aggRate)
     : (s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(aggCft * aggRate));
 
@@ -1256,13 +1269,17 @@ export function extractItemMaterials(
     });
   }
 
-  // Bricks (pcs)
-  const bricksPcs = Math.round(
+  // Bricks (pcs): If brick khoa is selected, this is picket bricks. If brickwork estimate, this is wall bricks.
+  // If stone chips aggregate is selected for a concrete item, bricks count and cost is strictly 0.
+  const rawBricksPcs = Math.round(
     s.multipliedBricks || s.totalBricks || s.brickQty || 0
   );
-  const brickCost = overrideRates
-    ? Math.round(bricksPcs * brickRate)
-    : (s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate));
+  const bricksPcs = (est.type === "brick" || isBrickKhoa) ? rawBricksPcs : 0;
+  const brickCost = isBrickKhoa
+    ? (overrideRates ? Math.round(bricksPcs * brickRate) : (s.picketCost !== undefined ? Math.round(s.picketCost) : Math.round(bricksPcs * brickRate)))
+    : (est.type === "brick"
+      ? (overrideRates ? Math.round(bricksPcs * brickRate) : (s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate)))
+      : 0);
 
   // Tiles (pcs & boxes & area)
   const tilesPcs = Math.round(
@@ -1404,7 +1421,9 @@ export function extractItemMaterials(
     } else if (est.type === "contractor") {
       calculatedCost = Math.round(est.totalCost || s.grandTotalCost || 0);
     } else {
-      calculatedCost = cementCost + sandCost + aggCost + steelCost + (bricksPcs > 0 && aggType === "brick_khoa" ? brickCost : 0);
+      calculatedCost = isBrickKhoa
+        ? cementCost + sandCost + brickCost + steelCost
+        : cementCost + sandCost + aggCost + steelCost;
     }
   } else {
     calculatedCost = Math.round(est.totalCost || 0);

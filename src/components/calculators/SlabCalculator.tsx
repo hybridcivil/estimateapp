@@ -778,43 +778,116 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
             )}
           </div>
 
-          {/* Material Rates Settings */}
-          <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
-            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates & Base Type</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {/* Material Rates & Base Type Settings */}
+          <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between border-b border-[#2d4a6a] pb-1.5">
+              <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates & Base Aggregate (দর ও খোয়া/পাথর বিকল্প)</span>
+              <span className="text-[10px] text-[#8ba3c1]">
+                {baseType === "picket" ? "Picket Brick Khoa Selected" : "Stone Chips Selected"}
+              </span>
+            </div>
+
+            {/* Base Aggregate Selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-1">
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1 font-semibold">
+                  Coarse Aggregate Type (মোটা দানা বিকল্প)
+                </label>
+                <select
+                  value={baseType}
+                  onChange={(e) => setBaseType(e.target.value as any)}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-bold cursor-pointer"
+                >
+                  <option value="none">Stone Aggregate / Chips (পাথর কুচি)</option>
+                  <option value="picket">Picket Brick / Khoa (ইটের খোয়া / পিকেট ইট)</option>
+                </select>
+              </div>
+
+              {baseType === "picket" ? (
+                <div className="bg-[#00c2c7]/10 border border-[#00c2c7]/30 rounded-lg p-2 text-[11px] text-[#cbd5e1] flex items-center">
+                  <span>
+                    <strong className="text-[#00c2c7]">পিকেট ইট সিলেক্টেড:</strong> শুধুমাত্র পিকেট ইটের দর যোগ হবে, স্টোন চিপস দর যোগ হবে না (০ ৳)।
+                  </span>
+                </div>
+              ) : (
+                <div className="bg-[#38bdf8]/10 border border-[#38bdf8]/30 rounded-lg p-2 text-[11px] text-[#cbd5e1] flex items-center">
+                  <span>
+                    <strong className="text-[#38bdf8]">পাথর কুচি সিলেক্টেড:</strong> শুধুমাত্র স্টোন এগ্রিগেট দর যোগ হবে, পিকেট ইটের দর যোগ হবে না (০ ৳)।
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[#2d4a6a]/60">
+              <div>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag ৳)</label>
                 <NumericInput
                   value={cementRate}
                   onChange={setCementRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
+
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft ৳)</label>
                 <NumericInput
                   value={sandRate}
                   onChange={setSandRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
+
+              {baseType === "picket" ? (
+                <div>
+                  <label className="text-[10px] text-[#f5a623] font-bold block mb-1">
+                    Picket Brick (per pc ৳)
+                  </label>
+                  <NumericInput
+                    value={brickRate}
+                    onChange={setBrickRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#f5a623]/60 rounded text-xs text-white font-bold outline-none focus:border-[#f5a623]"
+                  />
+                  <span className="text-[9px] text-[#8ba3c1] block mt-0.5">পিকেট ইটের দর (Stone ৳0)</span>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] text-[#38bdf8] font-bold block mb-1">
+                    Stone Aggregate (per cft ৳)
+                  </label>
+                  <NumericInput
+                    value={aggRate}
+                    onChange={setAggRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#38bdf8]/60 rounded text-xs text-white font-bold outline-none focus:border-[#38bdf8]"
+                  />
+                  <span className="text-[9px] text-[#8ba3c1] block mt-0.5">পাথর কুচির দর (Brick ৳0)</span>
+                </div>
+              )}
+
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-                <NumericInput
-                  value={aggRate}
-                  onChange={setAggRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar Steel (per kg ৳)</label>
                 <NumericInput
                   value={steelRate}
                   onChange={setSteelRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
             </div>
+
+            {baseType === "picket" && (
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d4a6a]/40 text-xs">
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-0.5">Picket Pcs per cft Khoa</label>
+                  <NumericInput
+                    value={bricksPerCft}
+                    onChange={setBricksPerCft}
+                    className="w-full h-7 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  />
+                </div>
+                <div className="flex items-center text-[10px] text-[#8ba3c1] pt-3">
+                  ১ cft খোয়ার জন্য প্রায় ১০ টি পিকেট ইট প্রয়োজন (১০% ওয়েস্টেজ সহ)।
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Results Summary */}
@@ -854,13 +927,19 @@ export const SlabCalculator: React.FC<SlabCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Aggregate</div>
+                  <div className="text-[9px] text-[#8ba3c1]">
+                    {results.useAggregate ? "Stone Aggregate" : "Picket Brick (Khoa)"}
+                  </div>
                   <div className="text-sm font-bold text-[#f5a623]">
-                    {isMultiplying ? results.multipliedAggCft : results.aggregateVolume} cft
+                    {results.useAggregate
+                      ? `${isMultiplying ? results.multipliedAggCft : results.aggregateVolume} cft`
+                      : `${(isMultiplying ? results.multipliedBricks : results.brickQty).toLocaleString("en-IN")} pcs`}
                   </div>
                   {isMultiplying && (
                     <div className="text-[9px] text-[#8ba3c1]">
-                      ({results.aggregateVolume} cft / floor)
+                      {results.useAggregate
+                        ? `(${results.aggregateVolume} cft / floor)`
+                        : `(${results.brickQty.toLocaleString("en-IN")} pcs / floor)`}
                     </div>
                   )}
                 </div>

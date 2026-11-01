@@ -1380,54 +1380,103 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
             </div>
 
             {/* Base Aggregate Options & Unit Rates */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-[#2d4a6a]/60">
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Base Aggregate</label>
-                <select
-                  value={baseType}
-                  onChange={(e) => setBaseType(e.target.value as any)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white"
-                >
-                  <option value="none">Stone Aggregate</option>
-                  <option value="picket">Picket Brick Chips</option>
-                </select>
+            <div className="space-y-2 pt-2 border-t border-[#2d4a6a]/60">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1 font-semibold">
+                    Coarse Aggregate Type (মোটা দানা বিকল্প)
+                  </label>
+                  <select
+                    value={baseType}
+                    onChange={(e) => setBaseType(e.target.value as any)}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-bold cursor-pointer"
+                  >
+                    <option value="none">Stone Aggregate / Chips (পাথর কুচি)</option>
+                    <option value="picket">Picket Brick / Khoa (ইটের খোয়া / পিকেট ইট)</option>
+                  </select>
+                </div>
+
+                {baseType === "picket" ? (
+                  <div className="bg-[#00c2c7]/10 border border-[#00c2c7]/30 rounded-lg p-2 text-[11px] text-[#cbd5e1] flex items-center">
+                    <span>
+                      <strong className="text-[#00c2c7]">পিকেট ইট সিলেক্টেড:</strong> শুধুমাত্র পিকেট ইটের দর যোগ হবে, স্টোন চিপস দর যোগ হবে না (০ ৳)।
+                    </span>
+                  </div>
+                ) : (
+                  <div className="bg-[#38bdf8]/10 border border-[#38bdf8]/30 rounded-lg p-2 text-[11px] text-[#cbd5e1] flex items-center">
+                    <span>
+                      <strong className="text-[#38bdf8]">পাথর কুচি সিলেক্টেড:</strong> শুধুমাত্র স্টোন এগ্রিগেট দর যোগ হবে, পিকেট ইটের দর যোগ হবে না (০ ৳)।
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
-                <NumericInput
-                  value={cementRate}
-                  onChange={setCementRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[#2d4a6a]/40">
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
+                  <NumericInput
+                    value={cementRate}
+                    onChange={setCementRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
+                  <NumericInput
+                    value={sandRate}
+                    onChange={setSandRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
+                  />
+                </div>
+
+                {baseType === "picket" ? (
+                  <div>
+                    <label className="text-[10px] text-[#f5a623] font-bold block mb-1">Picket Brick (৳/pc)</label>
+                    <NumericInput
+                      value={brickRate}
+                      onChange={setBrickRate}
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#f5a623]/60 rounded text-xs text-white font-mono font-bold"
+                    />
+                    <span className="text-[9px] text-[#8ba3c1] block mt-0.5">পিকেট ইটের দর (Stone ৳0)</span>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] text-[#38bdf8] font-bold block mb-1">Stone Aggregate (৳/cft)</label>
+                    <NumericInput
+                      value={aggRate}
+                      onChange={setAggRate}
+                      className="w-full h-8 px-2 bg-[#243b55] border border-[#38bdf8]/60 rounded text-xs text-white font-mono font-bold"
+                    />
+                    <span className="text-[9px] text-[#8ba3c1] block mt-0.5">পাথর কুচির দর (Brick ৳0)</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Steel (৳/kg)</label>
+                  <NumericInput
+                    value={steelRate}
+                    onChange={setSteelRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono font-bold"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
-                <NumericInput
-                  value={sandRate}
-                  onChange={setSandRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Stone/Khoa (৳/cft)</label>
-                <NumericInput
-                  value={aggRate}
-                  onChange={setAggRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Steel (৳/kg)</label>
-                <NumericInput
-                  value={steelRate}
-                  onChange={setSteelRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono font-bold"
-                />
-              </div>
+              {baseType === "picket" && (
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d4a6a]/40 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#8ba3c1] block mb-0.5">Pcs per cft Khoa</label>
+                    <NumericInput
+                      value={bricksPerCft}
+                      onChange={setBricksPerCft}
+                      className="w-full h-7 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center text-[10px] text-[#8ba3c1] pt-3">
+                    ১ cft খোয়ার জন্য প্রায় ১০ টি পিকেট ইট প্রয়োজন (১০% ওয়েস্টেজ সহ)।
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}

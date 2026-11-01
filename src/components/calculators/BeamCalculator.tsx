@@ -1030,14 +1030,22 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
                 className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
-            <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Aggregate (per cft)</label>
-              <NumericInput
-                value={aggRate}
-                onChange={setAggRate}
-                className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-              />
-            </div>
+            {baseType === "picket" ? (
+              <div className="bg-[#00c2c7]/10 border border-[#00c2c7]/30 rounded p-1.5 text-center flex flex-col justify-center">
+                <span className="text-[9px] text-[#8ba3c1] uppercase font-mono">Stone Aggregate</span>
+                <span className="text-[11px] font-bold text-[#00c2c7]">৳0 (Excluded)</span>
+                <span className="text-[8px] text-[#8ba3c1]">পিকেট ইট সিলেক্টেড</span>
+              </div>
+            ) : (
+              <div>
+                <label className="text-[10px] text-[#38bdf8] font-bold block mb-1">Stone Aggregate (৳/cft)</label>
+                <NumericInput
+                  value={aggRate}
+                  onChange={setAggRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#38bdf8]/60 rounded text-xs text-white outline-none focus:border-[#38bdf8]"
+                />
+              </div>
+            )}
             <div>
               <label className="text-[10px] text-[#8ba3c1] block mb-1">Rebar (per kg)</label>
               <NumericInput

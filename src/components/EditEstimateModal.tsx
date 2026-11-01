@@ -226,13 +226,17 @@ export const EditEstimateModal: React.FC<EditEstimateModalProps> = ({
                       {mat.aggCft > 0 && (
                         <div className="bg-[#1a2b42] border border-[#38bdf8]/30 rounded-lg p-2 text-center">
                           <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">
-                            {mat.aggType === "brick_khoa" ? "Khoa Agg" : "Stone Agg"}
+                            {mat.aggType === "brick_khoa" ? "Khoa (Picket)" : "Stone Agg"}
                           </div>
                           <div className="text-xs font-bold text-[#38bdf8]">
                             {mat.aggCft} cft
                           </div>
                           <div className="text-[9px] text-[#8ba3c1]/80">
-                            ৳ {mat.aggCost.toLocaleString("en-IN")}
+                            {mat.aggType === "brick_khoa" ? (
+                              <span className="text-[#f5a623]">Picket Applied</span>
+                            ) : (
+                              `৳ ${mat.aggCost.toLocaleString("en-IN")}`
+                            )}
                           </div>
                         </div>
                       )}
