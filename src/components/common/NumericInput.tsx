@@ -57,8 +57,6 @@ export const NumericInput: React.FC<NumericInputProps> = ({
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(true);
-    // Select all on focus for fast overtyping
-    e.target.select();
     if (onFocus) onFocus(e);
   };
 

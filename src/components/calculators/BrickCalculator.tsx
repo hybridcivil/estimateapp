@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Project, ProjectEstimateItem, BrickWallItem } from "../../types";
+import React, { useState, useEffect, useMemo } from "react";
+import { Project, ProjectEstimateItem, BrickWallItem, WallOpening } from "../../types";
 import { SaveEstimateBar } from "../SaveEstimateBar";
 import { NumericInput } from "../common/NumericInput";
 import { StoreyMultiplierBar } from "../common/StoreyMultiplierBar";
@@ -10,7 +10,10 @@ import {
   Trash2,
   Edit3,
   Copy,
-  Building2,
+  DoorOpen,
+  AppWindow,
+  CheckCircle2,
+  Info,
 } from "lucide-react";
 
 interface BrickCalculatorProps {
@@ -57,18 +60,36 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
       id: "wall_1",
       nos: 1,
       name: "Outer Perimeter Wall 10\"",
-      length: 30,
-      width: 20,
-      lengthSpans: 2,
-      widthSpans: 2,
+      totalLength: 100,
+      length: 100,
       height: 10,
       wallThickness: 10,
-      windowCount: 4,
-      windowWidth: 4,
-      windowHeight: 4,
-      doorCount: 2,
-      doorWidth: 3,
-      doorHeight: 7,
+      openings: [
+        {
+          id: "op_d1",
+          type: "door",
+          name: "Main Door D1",
+          count: 1,
+          width: 3.5,
+          height: 7,
+        },
+        {
+          id: "op_d2",
+          type: "door",
+          name: "Room Door D2",
+          count: 2,
+          width: 3,
+          height: 7,
+        },
+        {
+          id: "op_w1",
+          type: "window",
+          name: "Bedroom Window W1",
+          count: 4,
+          width: 5,
+          height: 4.5,
+        },
+      ],
       brickLengthIn: 9.5,
       brickWidthIn: 4.5,
       brickHeightIn: 2.75,
@@ -79,24 +100,40 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   ]);
   const [editingWallIndex, setEditingWallIndex] = useState<number | null>(null);
 
-  // Form Inputs
+  // Form Inputs (Simplified: Only Wall Name, Nos, Total Wall Length, Height, Thickness)
   const [wallName, setWallName] = useState("Outer Perimeter Wall 10\"");
   const [wallNos, setWallNos] = useState(1);
-  const [length, setLength] = useState(30);
-  const [width, setWidth] = useState(20);
-  const [lengthSpans, setLengthSpans] = useState(2);
-  const [widthSpans, setWidthSpans] = useState(2);
+  const [totalLength, setTotalLength] = useState(100);
   const [height, setHeight] = useState(10);
   const [wallThickness, setWallThickness] = useState(10); // 10" or 5"
 
-  // Openings
-  const [windowCount, setWindowCount] = useState(4);
-  const [windowWidth, setWindowWidth] = useState(4);
-  const [windowHeight, setWindowHeight] = useState(4);
-
-  const [doorCount, setDoorCount] = useState(2);
-  const [doorWidth, setDoorWidth] = useState(3);
-  const [doorHeight, setDoorHeight] = useState(7);
+  // Openings (Dynamic Doors & Windows Add System)
+  const [openings, setOpenings] = useState<WallOpening[]>([
+    {
+      id: "op_d1",
+      type: "door",
+      name: "Main Door D1",
+      count: 1,
+      width: 3.5,
+      height: 7,
+    },
+    {
+      id: "op_d2",
+      type: "door",
+      name: "Room Door D2",
+      count: 2,
+      width: 3,
+      height: 7,
+    },
+    {
+      id: "op_w1",
+      type: "window",
+      name: "Bedroom Window W1",
+      count: 4,
+      width: 5,
+      height: 4.5,
+    },
+  ]);
 
   // Brick Details
   const [brickLengthIn, setBrickLengthIn] = useState(9.5);
@@ -125,46 +162,158 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   const [successMsg, setSuccessMsg] = useState("");
   const [results, setResults] = useState<any>(null);
 
-  const getCurrentFormWall = (): BrickWallItem => ({
-    id: editingWallIndex !== null ? walls[editingWallIndex]?.id : "wall_" + Date.now(),
-    nos: wallNos > 0 ? wallNos : 1,
-    name: wallName.trim() || `Wall ${walls.length + 1}`,
-    length: length > 0 ? length : 1,
-    width: width >= 0 ? width : 0,
-    lengthSpans: lengthSpans > 0 ? lengthSpans : 1,
-    widthSpans: widthSpans >= 0 ? widthSpans : 0,
-    height: height > 0 ? height : 10,
-    wallThickness: wallThickness > 0 ? wallThickness : 10,
-    windowCount: windowCount >= 0 ? windowCount : 0,
-    windowWidth: windowWidth >= 0 ? windowWidth : 0,
-    windowHeight: windowHeight >= 0 ? windowHeight : 0,
-    doorCount: doorCount >= 0 ? doorCount : 0,
-    doorWidth: doorWidth >= 0 ? doorWidth : 0,
-    doorHeight: doorHeight >= 0 ? doorHeight : 0,
-    brickLengthIn,
-    brickWidthIn,
-    brickHeightIn,
-    brickMix,
-    plasterMix,
-    plasterThicknessMm,
-  });
+  // Live calculations for current active form
+  const formGrossArea = useMemo(() => {
+    const nos = wallNos > 0 ? wallNos : 1;
+    const len = totalLength > 0 ? totalLength : 0;
+    const h = height > 0 ? height : 0;
+    return len * h * nos;
+  }, [wallNos, totalLength, height]);
+
+  const formDeductionBreakdown = useMemo(() => {
+    const nos = wallNos > 0 ? wallNos : 1;
+    let doorArea = 0;
+    let doorCount = 0;
+    let winArea = 0;
+    let winCount = 0;
+
+    openings.forEach((op) => {
+      const c = op.count || 0;
+      const w = op.width || 0;
+      const h = op.height || 0;
+      const area = c * w * h;
+      if (op.type === "door") {
+        doorArea += area;
+        doorCount += c;
+      } else {
+        winArea += area;
+        winCount += c;
+      }
+    });
+
+    const totalDed = (doorArea + winArea) * nos;
+    const netArea = Math.max(0, formGrossArea - totalDed);
+    return {
+      doorArea: doorArea * nos,
+      doorCount: doorCount * nos,
+      winArea: winArea * nos,
+      winCount: winCount * nos,
+      totalDeduction: totalDed,
+      netArea,
+    };
+  }, [openings, formGrossArea, wallNos]);
+
+  // Openings Add System functions
+  const handleAddDoor = (preset?: { name: string; width: number; height: number }) => {
+    const nextNum = openings.filter((o) => o.type === "door").length + 1;
+    const newOpening: WallOpening = {
+      id: "op_door_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+      type: "door",
+      name: preset ? preset.name : `Door D${nextNum}`,
+      count: 1,
+      width: preset ? preset.width : 3.25,
+      height: preset ? preset.height : 7,
+    };
+    setOpenings((prev) => [...prev, newOpening]);
+  };
+
+  const handleAddWindow = (preset?: { name: string; width: number; height: number }) => {
+    const nextNum = openings.filter((o) => o.type === "window").length + 1;
+    const newOpening: WallOpening = {
+      id: "op_win_" + Date.now() + "_" + Math.random().toString(36).slice(2, 5),
+      type: "window",
+      name: preset ? preset.name : `Window W${nextNum}`,
+      count: 1,
+      width: preset ? preset.width : 4.5,
+      height: preset ? preset.height : 4.5,
+    };
+    setOpenings((prev) => [...prev, newOpening]);
+  };
+
+  const handleUpdateOpening = (id: string, updates: Partial<WallOpening>) => {
+    setOpenings((prev) => prev.map((op) => (op.id === id ? { ...op, ...updates } : op)));
+  };
+
+  const handleDeleteOpening = (id: string) => {
+    setOpenings((prev) => prev.filter((op) => op.id !== id));
+  };
+
+  const getCurrentFormWall = (): BrickWallItem => {
+    const doorList = openings.filter((o) => o.type === "door");
+    const winList = openings.filter((o) => o.type !== "door");
+    const totalDoorCount = doorList.reduce((s, o) => s + (o.count || 0), 0);
+    const totalWinCount = winList.reduce((s, o) => s + (o.count || 0), 0);
+
+    return {
+      id: editingWallIndex !== null ? walls[editingWallIndex]?.id : "wall_" + Date.now(),
+      nos: wallNos > 0 ? wallNos : 1,
+      name: wallName.trim() || `Wall ${walls.length + 1}`,
+      totalLength: totalLength > 0 ? totalLength : 1,
+      length: totalLength > 0 ? totalLength : 1, // for full backward compatibility
+      height: height > 0 ? height : 10,
+      wallThickness: wallThickness > 0 ? wallThickness : 10,
+      openings: [...openings],
+      // Summary fields for backward compatibility
+      windowCount: totalWinCount,
+      windowWidth: winList[0]?.width || 4,
+      windowHeight: winList[0]?.height || 4,
+      doorCount: totalDoorCount,
+      doorWidth: doorList[0]?.width || 3.25,
+      doorHeight: doorList[0]?.height || 7,
+      brickLengthIn,
+      brickWidthIn,
+      brickHeightIn,
+      brickMix,
+      plasterMix,
+      plasterThicknessMm,
+    };
+  };
 
   const loadWallIntoForm = (w: BrickWallItem, idx: number) => {
     setEditingWallIndex(idx);
     setWallName(w.name);
-    setWallNos(w.nos);
-    setLength(w.length);
-    setWidth(w.width);
-    setLengthSpans(w.lengthSpans);
-    setWidthSpans(w.widthSpans);
-    setHeight(w.height);
-    setWallThickness(w.wallThickness);
-    setWindowCount(w.windowCount);
-    setWindowWidth(w.windowWidth);
-    setWindowHeight(w.windowHeight);
-    setDoorCount(w.doorCount);
-    setDoorWidth(w.doorWidth);
-    setDoorHeight(w.doorHeight);
+    setWallNos(w.nos || 1);
+
+    // Calculate total length if loading an older estimate that had length + spans
+    const calculatedLen =
+      w.totalLength !== undefined
+        ? w.totalLength
+        : w.lengthSpans
+        ? (w.length || 0) * (w.lengthSpans || 1) + (w.width || 0) * (w.widthSpans || 0)
+        : w.length || 100;
+
+    setTotalLength(calculatedLen > 0 ? calculatedLen : 100);
+    setHeight(w.height || 10);
+    setWallThickness(w.wallThickness || 10);
+
+    // Load openings or rebuild from legacy fields
+    if (w.openings && Array.isArray(w.openings) && w.openings.length > 0) {
+      setOpenings(w.openings);
+    } else {
+      const reconstructed: WallOpening[] = [];
+      if (w.doorCount && w.doorCount > 0) {
+        reconstructed.push({
+          id: "door_legacy_" + Date.now(),
+          type: "door",
+          name: "Doors",
+          count: w.doorCount,
+          width: w.doorWidth || 3.25,
+          height: w.doorHeight || 7,
+        });
+      }
+      if (w.windowCount && w.windowCount > 0) {
+        reconstructed.push({
+          id: "win_legacy_" + Date.now(),
+          type: "window",
+          name: "Windows",
+          count: w.windowCount,
+          width: w.windowWidth || 4.5,
+          height: w.windowHeight || 4.5,
+        });
+      }
+      setOpenings(reconstructed);
+    }
+
     setBrickLengthIn(w.brickLengthIn || 9.5);
     setBrickWidthIn(w.brickWidthIn || 4.5);
     setBrickHeightIn(w.brickHeightIn || 2.75);
@@ -176,8 +325,8 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
   const handleAddNewWall = () => {
     setErrorMsg("");
-    if (length <= 0 || height <= 0) {
-      setErrorMsg("Please enter valid wall length and height.");
+    if (totalLength <= 0 || height <= 0) {
+      setErrorMsg("Please enter valid total wall length and height.");
       return;
     }
     const current = getCurrentFormWall();
@@ -242,20 +391,37 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   };
 
   const resetForm = () => {
-    setWallName("Wall 1");
+    setWallName(`Wall ${walls.length + 1}`);
     setWallNos(1);
-    setLength(30);
-    setWidth(20);
-    setLengthSpans(2);
-    setWidthSpans(2);
+    setTotalLength(100);
     setHeight(10);
     setWallThickness(10);
-    setWindowCount(4);
-    setWindowWidth(4);
-    setWindowHeight(4);
-    setDoorCount(2);
-    setDoorWidth(3);
-    setDoorHeight(7);
+    setOpenings([
+      {
+        id: "op_d1",
+        type: "door",
+        name: "Main Door D1",
+        count: 1,
+        width: 3.5,
+        height: 7,
+      },
+      {
+        id: "op_d2",
+        type: "door",
+        name: "Room Door D2",
+        count: 2,
+        width: 3,
+        height: 7,
+      },
+      {
+        id: "op_w1",
+        type: "window",
+        name: "Bedroom Window W1",
+        count: 4,
+        width: 5,
+        height: 4.5,
+      },
+    ]);
     setEditingWallIndex(null);
     setErrorMsg("");
   };
@@ -286,13 +452,30 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
     list.forEach((w) => {
       const nos = w.nos > 0 ? w.nos : 1;
-      const totalWallLength = (w.length * (w.lengthSpans || 1) + (w.width || 0) * (w.widthSpans || 0)) * nos;
-      const grossArea = totalWallLength * w.height;
-      const windowArea = (w.windowCount || 0) * (w.windowWidth || 0) * (w.windowHeight || 0) * nos;
-      const doorArea = (w.doorCount || 0) * (w.doorWidth || 0) * (w.doorHeight || 0) * nos;
-      const deduction = windowArea + doorArea;
-      const netArea = Math.max(0, grossArea - deduction);
+      // Total running length
+      const wallLen =
+        w.totalLength !== undefined
+          ? w.totalLength
+          : w.lengthSpans
+          ? (w.length || 0) * (w.lengthSpans || 1) + (w.width || 0) * (w.widthSpans || 0)
+          : w.length || 0;
 
+      const grossArea = wallLen * (w.height || 10) * nos;
+
+      let deduction = 0;
+      if (w.openings && Array.isArray(w.openings) && w.openings.length > 0) {
+        deduction =
+          w.openings.reduce(
+            (sum, op) => sum + (op.count || 0) * (op.width || 0) * (op.height || 0),
+            0
+          ) * nos;
+      } else {
+        const windowArea = (w.windowCount || 0) * (w.windowWidth || 0) * (w.windowHeight || 0) * nos;
+        const doorArea = (w.doorCount || 0) * (w.doorWidth || 0) * (w.doorHeight || 0) * nos;
+        deduction = windowArea + doorArea;
+      }
+
+      const netArea = Math.max(0, grossArea - deduction);
       const thicknessFt = (w.wallThickness || 10) / 12;
       const netVol = netArea * thicknessFt;
 
@@ -354,22 +537,22 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
     const multipliedCost = singleFloorTotalCost * effMultiplier;
 
     const calcResult = {
-      totalWallArea: Number(((isMultiplying ? totalNetArea * effMultiplier : totalNetArea)).toFixed(1)),
-      grossArea: Number(((isMultiplying ? totalGrossArea * effMultiplier : totalGrossArea)).toFixed(1)),
-      deductions: Number(((isMultiplying ? totalDeductions * effMultiplier : totalDeductions)).toFixed(1)),
-      totalNetVol: Number(((isMultiplying ? totalNetVol * effMultiplier : totalNetVol)).toFixed(2)),
+      totalWallArea: Number((isMultiplying ? totalNetArea * effMultiplier : totalNetArea).toFixed(1)),
+      grossArea: Number((isMultiplying ? totalGrossArea * effMultiplier : totalGrossArea).toFixed(1)),
+      deductions: Number((isMultiplying ? totalDeductions * effMultiplier : totalDeductions).toFixed(1)),
+      totalNetVol: Number((isMultiplying ? totalNetVol * effMultiplier : totalNetVol).toFixed(2)),
       totalBricks: isMultiplying ? totalBricks * effMultiplier : totalBricks,
       brickQty: isMultiplying ? totalBricks * effMultiplier : totalBricks,
       totalCementBags: isMultiplying ? Math.ceil(totalCementBags * effMultiplier) : totalCementBags,
       cementBags: isMultiplying ? Math.ceil(totalCementBags * effMultiplier) : totalCementBags,
-      totalSandCft: Number(((isMultiplying ? totalSandCft * effMultiplier : totalSandCft)).toFixed(1)),
-      sandCft: Number(((isMultiplying ? totalSandCft * effMultiplier : totalSandCft)).toFixed(1)),
-      brickCementBags: Math.ceil((isMultiplying ? totalBrickCement * effMultiplier : totalBrickCement)),
-      brickSandCft: Number(((isMultiplying ? totalBrickSand * effMultiplier : totalBrickSand)).toFixed(1)),
-      plasterCementBags: Math.ceil((isMultiplying ? totalPlasterCement * effMultiplier : totalPlasterCement)),
-      plasterSandCft: Number(((isMultiplying ? totalPlasterSand * effMultiplier : totalPlasterSand)).toFixed(1)),
-      totalWallsCount: (list.reduce((sum, w) => sum + w.nos, 0)) * effMultiplier,
-      singleFloorWallsCount: list.reduce((sum, w) => sum + w.nos, 0),
+      totalSandCft: Number((isMultiplying ? totalSandCft * effMultiplier : totalSandCft).toFixed(1)),
+      sandCft: Number((isMultiplying ? totalSandCft * effMultiplier : totalSandCft).toFixed(1)),
+      brickCementBags: Math.ceil(isMultiplying ? totalBrickCement * effMultiplier : totalBrickCement),
+      brickSandCft: Number((isMultiplying ? totalBrickSand * effMultiplier : totalBrickSand).toFixed(1)),
+      plasterCementBags: Math.ceil(isMultiplying ? totalPlasterCement * effMultiplier : totalPlasterCement),
+      plasterSandCft: Number((isMultiplying ? totalPlasterSand * effMultiplier : totalPlasterSand).toFixed(1)),
+      totalWallsCount: list.reduce((sum, w) => sum + (w.nos || 1), 0) * effMultiplier,
+      singleFloorWallsCount: list.reduce((sum, w) => sum + (w.nos || 1), 0),
       // Single floor details
       singleFloorBricks: totalBricks,
       singleFloorCementBags: totalCementBags,
@@ -482,7 +665,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-3">
-        <div className="max-w-2xl mx-auto space-y-3">
+        <div className="max-w-3xl mx-auto space-y-3">
           {errorMsg && (
             <div className="bg-[#ff4d6d]/15 border border-[#ff4d6d] text-[#ffb3c1] p-2 rounded-lg text-xs">
               {errorMsg}
@@ -514,50 +697,57 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
               <button
                 type="button"
                 onClick={resetForm}
-                className="text-xs underline hover:text-white"
+                className="text-xs underline hover:text-white cursor-pointer"
               >
-                Cancel / Switch to New
+                Cancel / Switch to New Wall
               </button>
             </div>
           )}
 
-          {/* Wall Form Inputs */}
+          {/* Simplified Wall Form: Only Total Wall Length and Height */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-3">
             <div className="flex items-center justify-between border-b border-[#2d4a6a] pb-2">
               <span className="text-xs font-bold text-[#00c2c7] flex items-center gap-1.5">
                 <BrickWall className="w-3.5 h-3.5" />
-                {editingWallIndex !== null ? "Edit Wall Section" : "Masonry Wall Dimensions & Openings"}
+                {editingWallIndex !== null ? "Edit Wall Section" : "Masonry Wall Dimensions"}
               </span>
-              <span className="text-[10px] text-[#8ba3c1]">Brick & Plaster Quantities</span>
+              <span className="text-[10px] text-[#8ba3c1]">Only Total Length & Height</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="col-span-2">
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Wall Identification</label>
+            {/* Basic Wall Inputs */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div className="col-span-2 sm:col-span-2">
+                <label className="text-[10px] font-semibold text-[#8ba3c1] block mb-1">
+                  Wall Identification (দেয়ালের নাম)
+                </label>
                 <input
                   type="text"
                   value={wallName}
                   onChange={(e) => setWallName(e.target.value)}
-                  placeholder="e.g. 10&quot; Exterior Wall"
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  placeholder="e.g. 10&quot; Perimeter Wall"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Quantity (Nos)</label>
+                <label className="text-[10px] font-semibold text-[#8ba3c1] block mb-1">
+                  Quantity (সংখ্যা)
+                </label>
                 <NumericInput
                   value={wallNos}
                   onChange={setWallNos}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Thickness</label>
+                <label className="text-[10px] font-semibold text-[#8ba3c1] block mb-1">
+                  Thickness (পুরুত্ব)
+                </label>
                 <select
                   value={wallThickness}
                   onChange={(e) => setWallThickness(Number(e.target.value))}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none font-bold text-[#f5a623]"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none font-bold text-[#f5a623] cursor-pointer"
                 >
                   <option value={10}>10 inch (Main Wall)</option>
                   <option value={5}>5 inch (Partition)</option>
@@ -565,119 +755,270 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Length (ft)</label>
+                <label className="text-[10px] font-bold text-[#00c2c7] block mb-1">
+                  Total Wall Length (ft)
+                </label>
                 <NumericInput
-                  value={length}
-                  onChange={setLength}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  value={totalLength}
+                  onChange={setTotalLength}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/60 rounded text-xs text-white font-bold outline-none focus:border-[#00c2c7]"
+                  placeholder="Total length ft"
                 />
+                <span className="text-[9px] text-[#8ba3c1] block mt-0.5">মোট দৈর্ঘ্য (ফিট)</span>
               </div>
 
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Height (ft)</label>
+              <div className="col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-[#00c2c7] block mb-1">
+                  Wall Height (ft)
+                </label>
                 <NumericInput
                   value={height}
                   onChange={setHeight}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/60 rounded text-xs text-white font-bold outline-none focus:border-[#00c2c7]"
+                  placeholder="Height ft"
                 />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Length Spans</label>
-                <NumericInput
-                  value={lengthSpans}
-                  onChange={setLengthSpans}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cross Spans (Width)</label>
-                <NumericInput
-                  value={widthSpans}
-                  onChange={setWidthSpans}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
-                />
+                <span className="text-[9px] text-[#8ba3c1] block mt-0.5">উচ্চতা (ফিট)</span>
               </div>
             </div>
 
-            {/* Openings Deductions */}
-            <div className="border-t border-[#2d4a6a] pt-2 space-y-2">
-              <span className="text-[11px] font-bold text-[#f5a623] block">
-                Openings Deduction (Doors & Windows)
-              </span>
+            {/* Live Gross Area & Net Preview Banner */}
+            <div className="bg-[#1a2b42] border border-[#2d4a6a] rounded-lg p-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[#8ba3c1]">Gross Wall Area:</span>
+                <span className="font-mono font-bold text-white">
+                  {formGrossArea.toFixed(1)} sq.ft
+                </span>
+                <span className="text-[10px] text-[#8ba3c1]">
+                  ({totalLength}' × {height}' × {wallNos} nos)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-[#f5a623]">Deductions:</span>
+                <span className="font-mono font-bold text-[#f5a623]">
+                  -{formDeductionBreakdown.totalDeduction.toFixed(1)} sq.ft
+                </span>
+                <span className="text-[11px] text-[#2ecc71] font-bold border-l border-[#2d4a6a] pl-2">
+                  Net Masonry: {formDeductionBreakdown.netArea.toFixed(1)} sq.ft
+                </span>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-[#1a2b42] p-2 rounded-lg border border-[#2d4a6a]">
-                  <span className="text-[9px] text-[#00c2c7] font-bold block mb-1">Windows</span>
-                  <div className="grid grid-cols-3 gap-1">
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">Count</label>
-                      <NumericInput
-                        value={windowCount}
-                        onChange={setWindowCount}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">W (ft)</label>
-                      <NumericInput
-                        value={windowWidth}
-                        onChange={setWindowWidth}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">H (ft)</label>
-                      <NumericInput
-                        value={windowHeight}
-                        onChange={setWindowHeight}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                  </div>
+            {/* Window and Door Add System */}
+            <div className="border-t border-[#2d4a6a] pt-2.5 space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-[#f5a623] flex items-center gap-1.5">
+                    <DoorOpen className="w-3.5 h-3.5" />
+                    Window & Door Add System (জানালা ও দরজা ডিডাকশন)
+                  </span>
+                  <span className="text-[10px] text-[#8ba3c1] block">
+                    Add custom windows, doors, and vents with custom counts and dimensions to deduct from wall area.
+                  </span>
                 </div>
 
-                <div className="bg-[#1a2b42] p-2 rounded-lg border border-[#2d4a6a]">
-                  <span className="text-[9px] text-[#00c2c7] font-bold block mb-1">Doors</span>
-                  <div className="grid grid-cols-3 gap-1">
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">Count</label>
-                      <NumericInput
-                        value={doorCount}
-                        onChange={setDoorCount}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">W (ft)</label>
-                      <NumericInput
-                        value={doorWidth}
-                        onChange={setDoorWidth}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[9px] text-[#8ba3c1] block">H (ft)</label>
-                      <NumericInput
-                        value={doorHeight}
-                        onChange={setDoorHeight}
-                        className="w-full h-7 px-1 bg-[#243b55] rounded text-xs text-white outline-none"
-                      />
-                    </div>
-                  </div>
+                {/* Add Opening Buttons */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleAddDoor()}
+                    className="h-7 px-2.5 bg-[#2ecc71]/20 hover:bg-[#2ecc71] text-[#2ecc71] hover:text-[#0f1c2e] border border-[#2ecc71]/40 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3 stroke-[2.5]" />
+                    <DoorOpen className="w-3 h-3" />
+                    + Add Door
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddWindow()}
+                    className="h-7 px-2.5 bg-[#00c2c7]/20 hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] border border-[#00c2c7]/40 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3 stroke-[2.5]" />
+                    <AppWindow className="w-3 h-3" />
+                    + Add Window
+                  </button>
                 </div>
               </div>
+
+              {/* Quick Preset Buttons */}
+              <div className="bg-[#101b2b] p-2 rounded-lg border border-[#2d4a6a]/60 space-y-1.5 text-[11px]">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold text-[#2ecc71] uppercase tracking-wide">
+                    Door Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddDoor({ name: "Main Door (3.5'×7')", width: 3.5, height: 7 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#2ecc71]/20 hover:text-[#2ecc71] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Main Door 3.5' × 7'
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddDoor({ name: "Room Door (3'×7')", width: 3, height: 7 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#2ecc71]/20 hover:text-[#2ecc71] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Room Door 3' × 7'
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddDoor({ name: "Toilet Door (2.5'×7')", width: 2.5, height: 7 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#2ecc71]/20 hover:text-[#2ecc71] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Toilet Door 2.5' × 7'
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-[#2d4a6a]/40">
+                  <span className="text-[10px] font-bold text-[#00c2c7] uppercase tracking-wide">
+                    Window Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddWindow({ name: "Master Window (5'×4.5')", width: 5, height: 4.5 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#00c2c7]/20 hover:text-[#00c2c7] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Large Window 5' × 4.5'
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddWindow({ name: "Std Window (4'×4')", width: 4, height: 4 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#00c2c7]/20 hover:text-[#00c2c7] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Std Window 4' × 4'
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddWindow({ name: "Toilet Vent (2'×2')", width: 2, height: 2 })}
+                    className="px-2 py-0.5 bg-[#243b55] hover:bg-[#00c2c7]/20 hover:text-[#00c2c7] text-[#cbd5e1] rounded text-[10px] border border-[#2d4a6a] transition cursor-pointer"
+                  >
+                    + Toilet Vent 2' × 2'
+                  </button>
+                </div>
+              </div>
+
+              {/* Added Openings List */}
+              {openings.length === 0 ? (
+                <div className="border border-dashed border-[#2d4a6a] rounded-lg p-3 text-center text-xs text-[#8ba3c1]">
+                  No doors or windows added. No deductions will be subtracted from this wall.
+                  <div className="mt-1 text-[11px] text-[#00c2c7]">
+                    Click "+ Add Door" or "+ Add Window" above to deduct openings.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-12 gap-1 text-[10px] font-bold text-[#8ba3c1] px-2 py-1 bg-[#1a2b42] rounded">
+                    <div className="col-span-1">Type</div>
+                    <div className="col-span-4">Item Name / Tag</div>
+                    <div className="col-span-2 text-center">Count (Nos)</div>
+                    <div className="col-span-2 text-center">W × H (ft)</div>
+                    <div className="col-span-2 text-right">Deduction (sft)</div>
+                    <div className="col-span-1 text-center">Action</div>
+                  </div>
+
+                  {openings.map((op, opIdx) => {
+                    const isDoor = op.type === "door";
+                    const area = (op.count || 0) * (op.width || 0) * (op.height || 0);
+                    return (
+                      <div
+                        key={op.id || opIdx}
+                        className={`grid grid-cols-12 gap-1 items-center p-1.5 rounded-lg border text-xs transition ${
+                          isDoor
+                            ? "bg-[#142334] border-[#2ecc71]/30 hover:border-[#2ecc71]/60"
+                            : "bg-[#14263a] border-[#00c2c7]/30 hover:border-[#00c2c7]/60"
+                        }`}
+                      >
+                        {/* Type Icon Badge */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          {isDoor ? (
+                            <span
+                              className="px-1.5 py-0.5 bg-[#2ecc71]/20 text-[#2ecc71] rounded font-bold text-[9px] flex items-center gap-0.5"
+                              title="Door"
+                            >
+                              <DoorOpen className="w-2.5 h-2.5" />
+                              D
+                            </span>
+                          ) : (
+                            <span
+                              className="px-1.5 py-0.5 bg-[#00c2c7]/20 text-[#00c2c7] rounded font-bold text-[9px] flex items-center gap-0.5"
+                              title="Window"
+                            >
+                              <AppWindow className="w-2.5 h-2.5" />
+                              W
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Name Input */}
+                        <div className="col-span-4">
+                          <input
+                            type="text"
+                            value={op.name}
+                            onChange={(e) => handleUpdateOpening(op.id, { name: e.target.value })}
+                            placeholder={isDoor ? "Door Name" : "Window Name"}
+                            className="w-full h-7 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
+                          />
+                        </div>
+
+                        {/* Count */}
+                        <div className="col-span-2">
+                          <NumericInput
+                            value={op.count}
+                            onChange={(val) => handleUpdateOpening(op.id, { count: Math.max(0, val) })}
+                            className="w-full h-7 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-center text-white outline-none focus:border-[#00c2c7]"
+                          />
+                        </div>
+
+                        {/* Dimensions: Width and Height */}
+                        <div className="col-span-2 flex items-center gap-1">
+                          <NumericInput
+                            value={op.width}
+                            onChange={(val) => handleUpdateOpening(op.id, { width: Math.max(0, val) })}
+                            className="w-1/2 h-7 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-center text-white outline-none focus:border-[#00c2c7]"
+                            title="Width in feet"
+                          />
+                          <span className="text-[#8ba3c1] text-[10px]">×</span>
+                          <NumericInput
+                            value={op.height}
+                            onChange={(val) => handleUpdateOpening(op.id, { height: Math.max(0, val) })}
+                            className="w-1/2 h-7 px-1 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-center text-white outline-none focus:border-[#00c2c7]"
+                            title="Height in feet"
+                          />
+                        </div>
+
+                        {/* Area Subtotal */}
+                        <div className="col-span-2 text-right font-mono font-bold text-[#f5a623] text-[11px] pr-1">
+                          -{area.toFixed(1)} sft
+                        </div>
+
+                        {/* Delete button */}
+                        <div className="col-span-1 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOpening(op.id)}
+                            className="w-6 h-6 rounded flex items-center justify-center text-[#ff4d6d] hover:bg-[#ff4d6d]/20 transition cursor-pointer"
+                            title="Remove opening"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Mortar & Plaster Mix Ratio */}
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#2d4a6a]">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#2d4a6a]">
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick Mortar Mix</label>
+                <label className="text-[10px] font-semibold text-[#8ba3c1] block mb-1">
+                  Brick Mortar Mix (মশলার অনুপাত)
+                </label>
                 <select
                   value={brickMix}
                   onChange={(e) => setBrickMix(e.target.value)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none cursor-pointer"
                 >
                   <option value="1:4">1:4 (Standard 10" Wall)</option>
                   <option value="1:3">1:3 (High Strength)</option>
@@ -687,11 +1028,13 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
               </div>
 
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Plaster Mix (12mm)</label>
+                <label className="text-[10px] font-semibold text-[#8ba3c1] block mb-1">
+                  Plaster Mix (প্লাস্টার অনুপাত 12mm)
+                </label>
                 <select
                   value={plasterMix}
                   onChange={(e) => setPlasterMix(e.target.value)}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none cursor-pointer"
                 >
                   <option value="1:4">1:4 (Both Sides Plaster)</option>
                   <option value="1:5">1:5 (Standard Plaster)</option>
@@ -705,10 +1048,10 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
               <button
                 type="button"
                 onClick={resetForm}
-                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5"
+                className="flex-1 h-9 border border-[#00c2c7] text-[#00c2c7] hover:bg-[#00c2c7]/10 rounded-lg font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Reset
+                Reset Form
               </button>
               <button
                 type="button"
@@ -724,7 +1067,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
           {/* Walls List Schedule */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg">
             <div className="flex justify-between items-center text-xs font-semibold text-[#00c2c7] mb-2 border-b border-[#2d4a6a] pb-1.5">
-              <span>Added Masonry Walls Schedule</span>
+              <span>Added Masonry Walls Schedule (দেয়াল শিডিউল)</span>
               <span className="bg-[#243b55] px-2 py-0.5 rounded text-white font-mono text-[11px]">
                 {walls.length} section{walls.length !== 1 ? "s" : ""}
               </span>
@@ -732,45 +1075,83 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
             {walls.length === 0 ? (
               <div className="text-center py-6 text-xs text-[#8ba3c1]">
-                No walls in list yet. Enter dimensions and click "+ Add Wall to List".
+                No walls in list yet. Enter total wall length, height and click "+ Add Wall to List".
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {walls.map((w, idx) => {
                   const isBeingEdited = editingWallIndex === idx;
+                  const wallLen =
+                    w.totalLength !== undefined
+                      ? w.totalLength
+                      : w.lengthSpans
+                      ? (w.length || 0) * (w.lengthSpans || 1) + (w.width || 0) * (w.widthSpans || 0)
+                      : w.length || 0;
+                  const grossArea = wallLen * (w.height || 10) * (w.nos || 1);
+
+                  let totalDed = 0;
+                  let dCount = 0;
+                  let wCount = 0;
+                  if (w.openings && Array.isArray(w.openings) && w.openings.length > 0) {
+                    w.openings.forEach((op) => {
+                      const a = (op.count || 0) * (op.width || 0) * (op.height || 0);
+                      totalDed += a;
+                      if (op.type === "door") dCount += op.count || 0;
+                      else wCount += op.count || 0;
+                    });
+                    totalDed = totalDed * (w.nos || 1);
+                  } else {
+                    const winArea = (w.windowCount || 0) * (w.windowWidth || 0) * (w.windowHeight || 0);
+                    const doorArea = (w.doorCount || 0) * (w.doorWidth || 0) * (w.doorHeight || 0);
+                    totalDed = (winArea + doorArea) * (w.nos || 1);
+                    dCount = (w.doorCount || 0) * (w.nos || 1);
+                    wCount = (w.windowCount || 0) * (w.nos || 1);
+                  }
+                  const netArea = Math.max(0, grossArea - totalDed);
+
                   return (
                     <div
                       key={w.id || idx}
-                      className={`border rounded-xl p-2.5 flex items-center justify-between gap-2.5 transition ${
+                      className={`border rounded-xl p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition ${
                         isBeingEdited
                           ? "bg-[#00c2c7]/10 border-[#00c2c7] shadow-sm"
                           : "bg-[#1a2b42] border-[#2d4a6a] hover:border-[#00c2c7]/40"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white truncate">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-white">
                             {w.nos} × {w.name}
                           </span>
-                          <span className="text-[9px] bg-[#f5a623]/20 text-[#f5a623] px-1.5 py-0.2 rounded font-bold">
-                            {w.wallThickness}" Thk
+                          <span className="text-[9px] bg-[#f5a623]/20 text-[#f5a623] px-1.5 py-0.5 rounded font-bold">
+                            {w.wallThickness}" Wall
                           </span>
                           {isBeingEdited && (
-                            <span className="text-[9px] bg-[#00c2c7] text-[#0f1c2e] font-bold px-1.5 py-0.2 rounded">
+                            <span className="text-[9px] bg-[#00c2c7] text-[#0f1c2e] font-bold px-1.5 py-0.5 rounded">
                               Editing
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-[#8ba3c1] truncate mt-0.5">
-                          {w.length}'×{w.height}' · {w.windowCount || 0} Windows, {w.doorCount || 0} Doors · Mortar {w.brickMix} · Plaster {w.plasterMix}
+
+                        <div className="text-[11px] text-[#cbd5e1] mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span>
+                            Length: <strong>{wallLen} ft</strong> · Height: <strong>{w.height} ft</strong>
+                          </span>
+                          <span className="text-[#8ba3c1]">· Gross: {grossArea.toFixed(1)} sft</span>
+                          <span className="text-[#f5a623]">
+                            · Openings: {dCount} Doors, {wCount} Windows (-{totalDed.toFixed(1)} sft)
+                          </span>
+                          <span className="text-[#2ecc71] font-bold">
+                            · Net Area: {netArea.toFixed(1)} sft
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                         <button
                           type="button"
                           onClick={() => loadWallIntoForm(w, idx)}
-                          className={`px-2 py-1 rounded text-xs font-semibold transition flex items-center gap-1 ${
+                          className={`px-2.5 py-1 rounded text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
                             isBeingEdited
                               ? "bg-[#00c2c7] text-[#0f1c2e] font-bold"
                               : "bg-[#243b55] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7]"
@@ -783,7 +1164,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDuplicateWall(idx)}
-                          className="px-2 py-1 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded text-xs font-semibold transition flex items-center gap-1 border border-[#2d4a6a]"
+                          className="px-2.5 py-1 bg-[#243b55] hover:bg-[#2d4a6a] text-[#8ba3c1] hover:text-white rounded text-xs font-semibold transition flex items-center gap-1 border border-[#2d4a6a] cursor-pointer"
                           title="Duplicate wall"
                         >
                           <Copy className="w-3 h-3 text-[#f5a623]" />
@@ -792,7 +1173,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                         <button
                           type="button"
                           onClick={() => deleteWall(idx)}
-                          className="w-7 h-7 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center text-xs font-bold transition"
+                          className="w-7 h-7 bg-[#ff4d6d]/20 hover:bg-[#ff4d6d] text-[#ff4d6d] hover:text-white rounded flex items-center justify-center text-xs font-bold transition cursor-pointer"
                           title="Delete wall"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -807,30 +1188,30 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
           {/* Rates Settings */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
-            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates</span>
+            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates (দর)</span>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick (per piece)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick (প্রতি পিস ৳)</label>
                 <NumericInput
                   value={brickRate}
                   onChange={setBrickRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (প্রতি ব্যাগ ৳)</label>
                 <NumericInput
                   value={cementRate}
                   onChange={setCementRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (প্রতি cft ৳)</label>
                 <NumericInput
                   value={sandRate}
                   onChange={setSandRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
             </div>
@@ -840,7 +1221,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
           {results && (
             <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3 shadow-xl space-y-3">
               <div className="text-xs font-bold text-[#00c2c7] flex items-center justify-between">
-                <span>Material & Cost Summary</span>
+                <span>Material & Cost Summary (হিসাবের সারসংক্ষেপ)</span>
                 <span className="text-[10px] text-[#8ba3c1] font-mono">
                   {results.totalWallsCount} Wall Sections · {results.totalWallArea} sq.ft Net Area
                 </span>
@@ -849,7 +1230,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
               {/* Material Badges */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Bricks Total</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Bricks Total (ইট)</div>
                   <div className="text-sm font-bold text-[#f5a623]">
                     {(isMultiplying ? results.multipliedBricks : results.totalBricks).toLocaleString("en-IN")} pcs
                   </div>
@@ -861,7 +1242,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#00c2c7] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Cement (Mortar+Plaster)</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Cement (সিমেন্ট)</div>
                   <div className="text-sm font-bold text-[#00c2c7]">
                     {isMultiplying ? results.multipliedCementBags : results.totalCementBags} bags
                   </div>
@@ -873,7 +1254,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#2ecc71] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Sand Total</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Sand Total (বালু)</div>
                   <div className="text-sm font-bold text-[#2ecc71]">
                     {isMultiplying ? results.multipliedSandCft : results.totalSandCft} cft
                   </div>

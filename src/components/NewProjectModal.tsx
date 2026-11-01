@@ -205,7 +205,6 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                     type="text"
                     inputMode="numeric"
                     value={stories}
-                    onFocus={(e) => e.target.select()}
                     onChange={(e) => {
                       const raw = e.target.value;
                       if (raw === "") {

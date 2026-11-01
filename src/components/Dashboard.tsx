@@ -72,6 +72,116 @@ interface DashboardProps {
   onUpdateProject?: (id: string, data: any) => Promise<void>;
 }
 
+interface MaterialRateInputProps {
+  label: string;
+  unit: string;
+  value: number;
+  colorBorder: string;
+  colorText: string;
+  colorFocus: string;
+  subtext: string;
+  isLight: boolean;
+  onCommit: (val: number) => void;
+}
+
+const MaterialRateInput: React.FC<MaterialRateInputProps> = ({
+  label,
+  unit,
+  value,
+  colorBorder,
+  colorText,
+  colorFocus,
+  subtext,
+  isLight,
+  onCommit,
+}) => {
+  const [str, setStr] = useState<string>(() => String(value));
+
+  // Sync if value changes externally (e.g. Preset clicked)
+  useEffect(() => {
+    setStr(String(value));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStr(e.target.value);
+  };
+
+  const handleBlur = () => {
+    const parsed = parseFloat(str);
+    if (isNaN(parsed) || parsed <= 0) {
+      setStr(String(value));
+      return;
+    }
+    const finalVal = Math.round(parsed * 100) / 100;
+    setStr(String(finalVal));
+    if (finalVal !== value) {
+      onCommit(finalVal);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 transition border ${
+        isLight
+          ? "bg-slate-50 border-slate-200 shadow-xs hover:border-slate-300 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500/20"
+          : `bg-[#121c2d] ${colorBorder} focus-within:${colorFocus}`
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className={`text-[10px] uppercase font-bold tracking-wide ${
+            isLight ? "text-slate-800" : colorText
+          }`}
+        >
+          {label}
+        </span>
+        <span
+          className={`text-[9px] font-mono ${
+            isLight ? "text-slate-500" : "text-[#8ba3c1]"
+          }`}
+        >
+          {unit}
+        </span>
+      </div>
+      <div className="flex items-center gap-1">
+        <span
+          className={`text-xs font-mono font-semibold ${
+            isLight ? "text-slate-500" : "text-[#8ba3c1]"
+          }`}
+        >
+          ৳
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={str}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+          className={`w-full font-mono font-bold text-xs px-2 py-1 rounded border outline-none transition ${
+            isLight
+              ? "bg-white text-slate-900 border-slate-300 focus:border-teal-600 focus:ring-1 focus:ring-teal-600/20"
+              : `bg-[#1a2b42] text-white border-[#2d4a6a] focus:${colorFocus}`
+          }`}
+        />
+      </div>
+      <div
+        className={`text-[9px] truncate font-mono ${
+          isLight ? "text-slate-600 font-medium" : "text-[#8ba3c1]"
+        }`}
+      >
+        {subtext}
+      </div>
+    </div>
+  );
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({
   projects,
   activeProject,
@@ -188,6 +298,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     } finally {
       setIsApplyingRates(false);
     }
+  };
+
+  const handleUpdateSingleRate = (key: keyof GlobalMaterialRates, val: number) => {
+    const updated = { ...rates, [key]: val };
+    setRates(updated);
+    handleApplyMaterialRates(updated);
   };
 
   // In-app modal confirmations (no window.confirm!)
@@ -939,30 +1055,76 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Unified Project Materials Price Option (Set Once For All Items) */}
       {activeProject && (
-        <div className="bg-[#152033] border border-[#00c2c7]/50 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#2d4a6a] pb-3.5">
+        <div
+          className={`rounded-2xl p-4 sm:p-5 space-y-4 transition-colors ${
+            isLight
+              ? "bg-white border border-slate-300 text-slate-800 shadow-sm"
+              : "bg-[#152033] border border-[#00c2c7]/50 text-white shadow-xl"
+          }`}
+        >
+          <div
+            className={`flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3.5 ${
+              isLight ? "border-slate-200" : "border-[#2d4a6a]"
+            }`}
+          >
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs bg-[#00c2c7]/20 text-[#00c2c7] px-2.5 py-0.5 rounded-full font-bold border border-[#00c2c7]/40 flex items-center gap-1.5">
-                  <Coins className="w-3.5 h-3.5 text-[#00c2c7]" />
+                <span
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-bold border flex items-center gap-1.5 ${
+                    isLight
+                      ? "bg-teal-50 text-teal-800 border-teal-200"
+                      : "bg-[#00c2c7]/20 text-[#00c2c7] border-[#00c2c7]/40"
+                  }`}
+                >
+                  <Coins className={`w-3.5 h-3.5 ${isLight ? "text-teal-700" : "text-[#00c2c7]"}`} />
                   Materials Price Option
                 </span>
-                <span className="text-xs bg-[#2ecc71]/15 text-[#2ecc71] px-2 py-0.5 rounded-md font-mono font-semibold border border-[#2ecc71]/30">
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-md font-mono font-semibold border ${
+                    isLight
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : "bg-[#2ecc71]/15 text-[#2ecc71] border-[#2ecc71]/30"
+                  }`}
+                >
                   Set Once For All Items
                 </span>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white mt-1 flex items-center gap-2">
+              <h3
+                className={`text-base sm:text-lg font-bold mt-1 flex items-center gap-2 ${
+                  isLight ? "text-slate-900" : "text-white"
+                }`}
+              >
                 <span>Unified Material Rates & Price Master</span>
               </h3>
-              <p className="text-xs text-[#8ba3c1] mt-0.5 max-w-2xl">
-                Set material rates once here for this project. When rates are changed, it automatically updates pricing across <strong className="text-white">all {estimates.length} items</strong>, calculation sheets, and BOQ totals below.
+              <p
+                className={`text-xs mt-0.5 max-w-2xl ${
+                  isLight ? "text-slate-600" : "text-[#8ba3c1]"
+                }`}
+              >
+                Set material rates once here for this project. When rates are changed, it automatically updates pricing across{" "}
+                <strong className={isLight ? "text-slate-900" : "text-white"}>
+                  all {estimates.length} items
+                </strong>
+                , calculation sheets, and BOQ totals below.
               </p>
             </div>
 
             {/* Presets and Apply Button */}
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 bg-[#0e1624] border border-[#2d4a6a] rounded-xl p-1 text-[11px]">
-                <span className="text-[#8ba3c1] px-1 font-semibold hidden sm:inline">Presets:</span>
+              <div
+                className={`flex items-center gap-1 rounded-xl p-1 text-[11px] border ${
+                  isLight
+                    ? "bg-slate-100 border-slate-200"
+                    : "bg-[#0e1624] border-[#2d4a6a]"
+                }`}
+              >
+                <span
+                  className={`px-1 font-semibold hidden sm:inline ${
+                    isLight ? "text-slate-600" : "text-[#8ba3c1]"
+                  }`}
+                >
+                  Presets:
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -979,7 +1141,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     setRates(preset);
                     handleApplyMaterialRates(preset);
                   }}
-                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#00c2c7] font-semibold transition cursor-pointer"
+                  className={`px-2 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                    isLight
+                      ? "bg-white hover:bg-slate-200/70 text-slate-800 border border-slate-200 shadow-xs"
+                      : "bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#00c2c7]"
+                  }`}
                   title="PWD / BNBC Standard Rates"
                 >
                   PWD Standard
@@ -1000,7 +1166,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     setRates(preset);
                     handleApplyMaterialRates(preset);
                   }}
-                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#f5a623] font-semibold transition cursor-pointer"
+                  className={`px-2 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                    isLight
+                      ? "bg-white hover:bg-slate-200/70 text-slate-800 border border-slate-200 shadow-xs"
+                      : "bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#f5a623]"
+                  }`}
                   title="Current Market 2025 Rates"
                 >
                   Market 2025
@@ -1021,7 +1191,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     setRates(preset);
                     handleApplyMaterialRates(preset);
                   }}
-                  className="px-2 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#38bdf8] font-semibold transition cursor-pointer"
+                  className={`px-2 py-1 rounded-lg font-semibold transition cursor-pointer ${
+                    isLight
+                      ? "bg-white hover:bg-slate-200/70 text-slate-800 border border-slate-200 shadow-xs"
+                      : "bg-[#1a2b42] hover:bg-[#243b55] text-white hover:text-[#38bdf8]"
+                  }`}
                   title="Dhaka / Metro High-End Rates"
                 >
                   Metro High
@@ -1049,218 +1223,132 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* 8 Material Unit Rates Input Grid */}
+          {/* 8 Material Unit Rates Input Grid (Normal click, smooth cursor & clearable inputs) */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
             {/* 1. Cement */}
-            <div className="bg-[#121c2d] border border-[#f5a623]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f5a623] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#f5a623] tracking-wide">Cement</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / bag</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.cementRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, cementRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f5a623] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                {totalCementBags.toLocaleString()} bags = ৳{Math.round(totalCementBags * rates.cementRate).toLocaleString("en-IN")}
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Cement"
+              unit="৳ / bag"
+              value={rates.cementRate}
+              colorBorder="border-[#f5a623]/40"
+              colorText="text-[#f5a623]"
+              colorFocus="border-[#f5a623]"
+              subtext={`${totalCementBags.toLocaleString()} bags = ৳${Math.round(totalCementBags * rates.cementRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("cementRate", val)}
+            />
 
             {/* 2. Sand */}
-            <div className="bg-[#121c2d] border border-[#f1f5f9]/30 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f1f5f9] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#f1f5f9] tracking-wide">Sand</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / cft</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.sandRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, sandRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f1f5f9] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                {Math.round(totalSandCft).toLocaleString()} cft = ৳{Math.round(totalSandCft * rates.sandRate).toLocaleString("en-IN")}
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Sand"
+              unit="৳ / cft"
+              value={rates.sandRate}
+              colorBorder="border-[#f1f5f9]/30"
+              colorText="text-[#f1f5f9]"
+              colorFocus="border-[#f1f5f9]"
+              subtext={`${Math.round(totalSandCft).toLocaleString()} cft = ৳${Math.round(totalSandCft * rates.sandRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("sandRate", val)}
+            />
 
             {/* 3. Aggregate */}
-            <div className="bg-[#121c2d] border border-[#38bdf8]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#38bdf8] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#38bdf8] tracking-wide">Aggregate</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / cft</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.aggRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, aggRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#38bdf8] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                {Math.round(totalAggCft).toLocaleString()} cft = ৳{Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Aggregate"
+              unit="৳ / cft"
+              value={rates.aggRate}
+              colorBorder="border-[#38bdf8]/40"
+              colorText="text-[#38bdf8]"
+              colorFocus="border-[#38bdf8]"
+              subtext={`${Math.round(totalAggCft).toLocaleString()} cft = ৳${Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("aggRate", val)}
+            />
 
             {/* 4. Rebar Steel */}
-            <div className="bg-[#121c2d] border border-[#00c2c7]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#00c2c7] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#00c2c7] tracking-wide">Steel Rebar</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / kg</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.steelRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, steelRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#00c2c7] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                {Math.round(totalSteelKg).toLocaleString()} kg = ৳{Math.round(totalSteelKg * rates.steelRate).toLocaleString("en-IN")}
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Steel Rebar"
+              unit="৳ / kg"
+              value={rates.steelRate}
+              colorBorder="border-[#00c2c7]/40"
+              colorText="text-[#00c2c7]"
+              colorFocus="border-[#00c2c7]"
+              subtext={`${Math.round(totalSteelKg).toLocaleString()} kg = ৳${Math.round(totalSteelKg * rates.steelRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("steelRate", val)}
+            />
 
             {/* 5. Bricks */}
-            <div className="bg-[#121c2d] border border-[#e67e22]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#e67e22] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#e67e22] tracking-wide">Bricks</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / pc</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.brickRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, brickRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#e67e22] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                {totalBricks.toLocaleString()} pcs = ৳{Math.round(totalBricks * rates.brickRate).toLocaleString("en-IN")}
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Bricks"
+              unit="৳ / pc"
+              value={rates.brickRate}
+              colorBorder="border-[#e67e22]/40"
+              colorText="text-[#e67e22]"
+              colorFocus="border-[#e67e22]"
+              subtext={`${totalBricks.toLocaleString()} pcs = ৳${Math.round(totalBricks * rates.brickRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("brickRate", val)}
+            />
 
             {/* 6. Tiles */}
-            <div className="bg-[#121c2d] border border-[#1abc9c]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#1abc9c] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#1abc9c] tracking-wide">Tiles</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / pc</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.tileRate}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, tileRate: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#1abc9c] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                Floor & wall tile rate
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Tiles"
+              unit="৳ / pc"
+              value={rates.tileRate}
+              colorBorder="border-[#1abc9c]/40"
+              colorText="text-[#1abc9c]"
+              colorFocus="border-[#1abc9c]"
+              subtext="Floor & wall tile rate"
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("tileRate", val)}
+            />
 
             {/* 7. Situ Pile Boring */}
-            <div className="bg-[#121c2d] border border-[#06b6d4]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#06b6d4] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#06b6d4] tracking-wide">Situ Boring</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / rft</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.boringRatePerFt}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, boringRatePerFt: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#06b6d4] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                Bored pile drilling
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Situ Boring"
+              unit="৳ / rft"
+              value={rates.boringRatePerFt}
+              colorBorder="border-[#06b6d4]/40"
+              colorText="text-[#06b6d4]"
+              colorFocus="border-[#06b6d4]"
+              subtext="Bored pile drilling"
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("boringRatePerFt", val)}
+            />
 
             {/* 8. Sand Pile Boring */}
-            <div className="bg-[#121c2d] border border-[#f59e0b]/40 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 focus-within:border-[#f59e0b] transition">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-[#f59e0b] tracking-wide">Sand Pile</span>
-                <span className="text-[9px] text-[#8ba3c1] font-mono">৳ / rft</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-[#8ba3c1] font-mono">৳</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={rates.sandPileCostPerFt}
-                  onChange={(e) => {
-                    const val = Math.max(1, Number(e.target.value) || 0);
-                    setRates((prev) => ({ ...prev, sandPileCostPerFt: val }));
-                  }}
-                  onBlur={() => handleApplyMaterialRates()}
-                  className="w-full bg-[#1a2b42] text-white font-mono font-bold text-xs px-2 py-1 rounded border border-[#2d4a6a] focus:border-[#f59e0b] outline-none"
-                />
-              </div>
-              <div className="text-[9px] text-[#8ba3c1] truncate font-mono">
-                Sand compaction rate
-              </div>
-            </div>
+            <MaterialRateInput
+              label="Sand Pile"
+              unit="৳ / rft"
+              value={rates.sandPileCostPerFt}
+              colorBorder="border-[#f59e0b]/40"
+              colorText="text-[#f59e0b]"
+              colorFocus="border-[#f59e0b]"
+              subtext="Sand compaction rate"
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("sandPileCostPerFt", val)}
+            />
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-[#2d4a6a]/60 text-xs">
-            <div className="text-[#8ba3c1] flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-[#00c2c7]" />
+          <div
+            className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t text-xs ${
+              isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+            }`}
+          >
+            <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
+              <ShieldCheck className={`w-4 h-4 ${isLight ? "text-teal-600" : "text-[#00c2c7]"}`} />
               <span>
-                Foundation elements (<strong>Isolated Footing</strong>, <strong>Situ Pile</strong>, <strong>Sand Pile</strong>) are built once for foundation level (1x multiplier).
+                Foundation elements (<strong>Isolated Footing</strong>, <strong>Situ Pile</strong>,{" "}
+                <strong>Sand Pile</strong>) are built once for foundation level (1x multiplier).
               </span>
             </div>
-            <div className="font-mono text-xs text-[#00c2c7] font-bold">
-              Total Project Valuation: ৳ {estimates.reduce((sum, e) => sum + (e.totalCost || 0), 0).toLocaleString("en-IN")}
+            <div
+              className={`font-mono text-xs font-bold ${
+                isLight ? "text-teal-700" : "text-[#00c2c7]"
+              }`}
+            >
+              Total Project Valuation: ৳{" "}
+              {estimates.reduce((sum, e) => sum + (e.totalCost || 0), 0).toLocaleString("en-IN")}
             </div>
           </div>
         </div>
@@ -1777,7 +1865,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                       {est.type === "contractor" ? (
                         <div className="space-y-1.5">
-                          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 text-[10px]">
                             {/* Civil Construction */}
                             <div className={`p-1.5 rounded-lg border ${
                               isLight ? "bg-white border-teal-200 shadow-xs" : "bg-[#1a2b42] border-[#00c2c7]/30"
@@ -1787,7 +1875,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               }`}>
                                 <span>Civil Works</span>
                                 <span className={isLight ? "text-teal-700 font-bold" : "text-[#00c2c7]"}>
-                                  {est.summary?.totalBuiltupAreaSft ? `${Number(est.summary.totalBuiltupAreaSft).toLocaleString()} sft` : ""}
+                                   {est.summary?.totalBuiltupAreaSft ? `${Number(est.summary.totalBuiltupAreaSft).toLocaleString()} sft` : ""}
                                 </span>
                               </div>
                               <div className={`font-bold text-[11px] font-mono ${
@@ -1797,6 +1885,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
                               </div>
                               <div className={`text-[8px] ${isLight ? "text-slate-500" : "text-[#8ba3c1]/70"}`}>
                                 Ground & Storey RCC/Masonry
+                              </div>
+                            </div>
+
+                            {/* Tiles Fitting Labour */}
+                            <div className={`p-1.5 rounded-lg border ${
+                              isLight ? "bg-white border-emerald-200 shadow-xs" : "bg-[#1a2b42] border-[#10b981]/30"
+                            }`}>
+                              <div className={`text-[8px] uppercase font-mono flex items-center justify-between ${
+                                isLight ? "text-slate-600" : "text-[#8ba3c1]"
+                              }`}>
+                                <span>Tiles Work</span>
+                                <span className={isLight ? "text-emerald-700 font-bold" : "text-[#10b981]"}>৳35/sft</span>
+                              </div>
+                              <div className={`font-bold text-[11px] font-mono ${
+                                isLight ? "text-emerald-800" : "text-[#10b981]"
+                              }`}>
+                                ৳ {Number(est.summary?.tilesTotal || 0).toLocaleString("en-IN")}
+                              </div>
+                              <div className={`text-[8px] ${isLight ? "text-slate-500" : "text-[#8ba3c1]/70"}`}>
+                                Floor & wall tiles fitting
                               </div>
                             </div>
 

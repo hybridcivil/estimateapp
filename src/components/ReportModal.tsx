@@ -3290,7 +3290,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       const isContractor = e.type === "contractor";
                       const contractorSub = isContractor ? (
                         <div className="text-[9px] font-normal text-[#00c2c7] print:text-amber-800">
-                          Contractor Schedule: {e.data?.items?.length || e.summary?.itemsCount || 0} Tasks ({e.summary?.totalBuiltupAreaSft ? `${Number(e.summary.totalBuiltupAreaSft).toLocaleString()} sft` : "All Floors"}) · Civil, Electrical, Plumbing, Painting
+                          Contractor Schedule: {e.data?.items?.length || e.summary?.itemsCount || 0} Tasks ({e.summary?.totalBuiltupAreaSft ? `${Number(e.summary.totalBuiltupAreaSft).toLocaleString()} sft` : "All Floors"}) · Civil, Tiles, Electrical, Plumbing, Painting
                         </div>
                       ) : null;
                       return (

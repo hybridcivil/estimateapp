@@ -925,12 +925,19 @@ export function computeFullProjectBreakdown(
       if (wallList.length > 0) {
         wallList.forEach((w, idx) => {
           const ded: string[] = [];
-          if (w.doorCount) ded.push(`${w.doorCount} Doors (${w.doorWidth}'×${w.doorHeight}')`);
-          if (w.windowCount) ded.push(`${w.windowCount} Windows (${w.windowWidth}'×${w.windowHeight}')`);
+          if (w.openings && Array.isArray(w.openings) && w.openings.length > 0) {
+            w.openings.forEach((op: any) => {
+              ded.push(`${op.count} ${op.name || (op.type === "door" ? "Door" : "Window")} (${op.width}'×${op.height}')`);
+            });
+          } else {
+            if (w.doorCount) ded.push(`${w.doorCount} Doors (${w.doorWidth}'×${w.doorHeight}')`);
+            if (w.windowCount) ded.push(`${w.windowCount} Windows (${w.windowWidth}'×${w.windowHeight}')`);
+          }
+          const wallLen = w.totalLength !== undefined ? w.totalLength : (w.length || 100);
           bricks.push({
             sl: bricks.length + 1,
             name: w.name || `Wall Panel ${idx + 1}`,
-            dimensions: `${w.length || 40}' × ${w.height || 10}' (${w.wallThickness || 5}" thk)`,
+            dimensions: `${wallLen}' × ${w.height || 10}' (${w.wallThickness || 10}" thk)`,
             deductions: ded.length > 0 ? ded.join(", ") : "None",
             multiplier: mult,
             bricksPcs: bQty,

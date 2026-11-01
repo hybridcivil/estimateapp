@@ -169,28 +169,39 @@ export interface StairItem {
   distSpacingIn: number;
 }
 
+export interface WallOpening {
+  id: string;
+  type: "window" | "door" | "opening";
+  name: string;
+  count: number;
+  width: number;
+  height: number;
+}
+
 export interface BrickWallItem {
   id?: string;
   nos: number;
   name: string;
+  totalLength?: number;
   length: number;
-  width: number;
-  lengthSpans: number;
-  widthSpans: number;
   height: number;
   wallThickness: number; // 10 or 5 inches
-  windowCount: number;
-  windowWidth: number;
-  windowHeight: number;
-  doorCount: number;
-  doorWidth: number;
-  doorHeight: number;
-  brickLengthIn: number;
-  brickWidthIn: number;
-  brickHeightIn: number;
-  brickMix: string;
-  plasterMix: string;
-  plasterThicknessMm: number;
+  openings?: WallOpening[];
+  width?: number;
+  lengthSpans?: number;
+  widthSpans?: number;
+  windowCount?: number;
+  windowWidth?: number;
+  windowHeight?: number;
+  doorCount?: number;
+  doorWidth?: number;
+  doorHeight?: number;
+  brickLengthIn?: number;
+  brickWidthIn?: number;
+  brickHeightIn?: number;
+  brickMix?: string;
+  plasterMix?: string;
+  plasterThicknessMm?: number;
 }
 
 export interface TileRoomItem {
@@ -381,6 +392,7 @@ export interface SituPileResults {
 
 export type ContractorCategory =
   | "civil_floor"
+  | "tiles"
   | "electrical"
   | "plumbing"
   | "painting"
@@ -400,12 +412,14 @@ export interface ContractorRateItem {
 
 export interface ContractorSummary {
   civilFloorTotal: number;
+  tilesTotal: number;
   electricalTotal: number;
   plumbingTotal: number;
   paintingTotal: number;
   customTotal: number;
   grandTotalCost: number;
   totalBuiltupAreaSft: number;
+  totalTilesAreaSft?: number;
   totalPaintingWallAreaSft: number;
   itemsCount: number;
 }

@@ -86,15 +86,103 @@ export const BUILDING_ELEMENTS: BuildingElementMeta[] = [
     type: "contractor",
     name: "Contractor & Labour",
     category: "structural",
-    unitDescription: "Civil Floor, Electrical, Plumbing & Painting Labour Rates",
+    unitDescription: "Civil Floor, Tiles Work, Electrical, Plumbing & Painting Labour Rates",
     defaultTitle: "Contractor & Labour Rate Schedule",
     accent: "#f59e0b",
   },
 ];
 
+export interface TilesEstimateAreaInfo {
+  totalArea: number;
+  grossTileArea: number;
+  floorOnlyArea: number;
+  skirtingArea: number;
+  roomsCount: number;
+  multiplier: number;
+  estimateName: string;
+}
+
+/**
+ * Extracts the accurate tiles work area from a project's tiles estimate (type === "tiles").
+ * Accurately reads gross tile area (floor + skirting + wall tiles) or net floor tile area.
+ */
+export function extractTilesEstimateArea(
+  tileEst?: ProjectEstimateItem | null
+): TilesEstimateAreaInfo | null {
+  if (!tileEst || tileEst.type !== "tiles") return null;
+  const sum = tileEst.summary || {};
+  const d = tileEst.data || {};
+  const mult =
+    sum.multiplier ||
+    d.multiplier ||
+    (sum.isMultiplying || d.isMultiplying ? 1 : 1);
+
+  let grossTileArea = 0;
+  let floorOnlyArea = 0;
+  let skirtingArea = 0;
+  let roomsCount = 0;
+
+  if (typeof sum.totalGrossTileArea === "number" && sum.totalGrossTileArea > 0) {
+    grossTileArea = sum.totalGrossTileArea;
+  } else if (typeof sum.multipliedTileArea === "number" && sum.multipliedTileArea > 0) {
+    grossTileArea = sum.multipliedTileArea;
+  }
+
+  if (typeof sum.totalFloorArea === "number" && sum.totalFloorArea > 0) {
+    floorOnlyArea = sum.totalFloorArea;
+  }
+
+  if (typeof sum.totalSkirtingArea === "number" && sum.totalSkirtingArea > 0) {
+    skirtingArea = sum.totalSkirtingArea;
+  }
+
+  // Check rooms in data
+  if (Array.isArray(d.rooms) && d.rooms.length > 0) {
+    roomsCount = d.rooms.reduce((s: number, r: any) => s + (r.nos > 0 ? r.nos : 1), 0);
+    if (!grossTileArea || !floorOnlyArea) {
+      let rFloor = 0;
+      let rSkirting = 0;
+      for (const r of d.rooms) {
+        const nos = r.nos > 0 ? r.nos : 1;
+        const fa = (r.length || 0) * (r.width || 0) * nos;
+        rFloor += fa;
+        if (r.includeSkirting) {
+          const sHt = (r.skirtingHeight || 4) / 12;
+          rSkirting += 2 * ((r.length || 0) + (r.width || 0)) * nos * sHt;
+        }
+      }
+      const effMult = d.isMultiplying || sum.isMultiplying ? Math.max(1, mult) : 1;
+      floorOnlyArea = Number((rFloor * effMult).toFixed(1));
+      skirtingArea = Number((rSkirting * effMult).toFixed(1));
+      grossTileArea = Number(((rFloor + rSkirting) * effMult).toFixed(1));
+    }
+  }
+
+  // Fallback to tiles count if area not set directly
+  if (!grossTileArea && typeof sum.tiles === "number" && sum.tiles > 0) {
+    grossTileArea = sum.tiles;
+    floorOnlyArea = sum.tiles;
+  }
+
+  const primaryArea = grossTileArea > 0 ? grossTileArea : floorOnlyArea;
+  if (primaryArea <= 0) return null;
+
+  return {
+    totalArea: Number(primaryArea.toFixed(1)),
+    grossTileArea: Number(grossTileArea.toFixed(1)),
+    floorOnlyArea: Number(floorOnlyArea.toFixed(1)),
+    skirtingArea: Number(skirtingArea.toFixed(1)),
+    roomsCount: roomsCount || (sum.totalRoomsCount || 1),
+    multiplier: mult,
+    estimateName: tileEst.name || "Floor & Wall Tiles Estimate",
+  };
+}
+
 export function generateDefaultContractorItems(
   stories: number = 1,
-  defaultFloorArea: number = 1500
+  defaultFloorArea: number = 1500,
+  tilesWorkArea?: number,
+  tilesEstimateName?: string
 ): ContractorRateItem[] {
   const items: ContractorRateItem[] = [];
   const s = Math.max(1, stories);
@@ -160,6 +248,26 @@ export function generateDefaultContractorItems(
   }
 
   const totalBuiltupArea = defaultFloorArea * s;
+  const tileQty =
+    tilesWorkArea !== undefined && tilesWorkArea > 0
+      ? Math.round(tilesWorkArea)
+      : totalBuiltupArea;
+
+  // Tiles Fitting Labour: ৳35/sft
+  items.push({
+    id: "item_tiles",
+    category: "tiles",
+    workType: "Tiles work & fitting labour (টাইলস মিস্ত্রি ও ফিটিং মজুরি - ফ্লোর ও ওয়াল)",
+    unit: "sft",
+    rate: 35,
+    quantity: tileQty,
+    notes: tilesEstimateName
+      ? `Area from ${tilesEstimateName} (${tileQty.toLocaleString()} sft takeoff)`
+      : tilesWorkArea
+      ? `Area according to Tiles Estimate (${tileQty.toLocaleString()} sft)`
+      : "Floor tiles, wall tiles, bathroom/kitchen wall tiles, skirting & mortar laying labour",
+    totalCost: Math.round(35 * tileQty),
+  });
 
   // Electrical Installation Labour: ৳20/sft
   items.push({
@@ -206,6 +314,7 @@ export function generateDefaultContractorItems(
  * - Expands or trims civil floor items for floors 0 to s-1.
  * - Preserves custom rates configured by the user for ground floor, 1st floor, 2nd floor, etc.
  * - Dynamically computes height allowance (+৳10/sft per floor) for new higher floors.
+ * - Scales tiles work area according to tiles estimate area if provided, or builtup area.
  * - Multiplies electrical & plumbing total builtup area by floorArea * s.
  * - Multiplies painting wall & ceiling area by Math.round(floorArea * s * wallAreaMultiplier).
  * - Preserves any additional custom items added by the user.
@@ -215,10 +324,12 @@ export function rescaleContractorItems(
   existingItems: ContractorRateItem[] = [],
   targetStories: number,
   floorArea: number = 1500,
-  wallMult: number = 3.5
+  wallMult: number = 3.5,
+  targetTilesArea?: number
 ): {
   items: ContractorRateItem[];
   civilFloorTotal: number;
+  tilesTotal: number;
   electricalTotal: number;
   plumbingTotal: number;
   paintingTotal: number;
@@ -240,6 +351,9 @@ export function rescaleContractorItems(
   const existing2f = items.find((i) => i.category === "civil_floor" && i.floorNumber === 2);
   const f2Rate = existing2f?.rate || 310;
 
+  const existingTl = items.find((i) => i.category === "tiles");
+  const tlRate = existingTl?.rate ?? 35;
+
   const existingEl = items.find((i) => i.category === "electrical");
   const elRate = existingEl?.rate ?? 20;
 
@@ -253,6 +367,7 @@ export function rescaleContractorItems(
   const customItems = items.filter(
     (i) =>
       i.category !== "civil_floor" &&
+      i.category !== "tiles" &&
       i.category !== "electrical" &&
       i.category !== "plumbing" &&
       i.category !== "painting"
@@ -341,6 +456,27 @@ export function rescaleContractorItems(
     totalCost: Math.round(plRate * totalBuiltupArea),
   };
 
+  const tlQuantity =
+    targetTilesArea !== undefined && targetTilesArea > 0
+      ? Math.round(targetTilesArea)
+      : totalBuiltupArea;
+
+  const tlItem: ContractorRateItem = {
+    id: existingTl?.id || "item_tiles",
+    category: "tiles",
+    workType:
+      existingTl?.workType || "Tiles work & fitting labour (টাইলস মিস্ত্রি ও ফিটিং মজুরি - ফ্লোর ও ওয়াল)",
+    unit: existingTl?.unit || "sft",
+    rate: tlRate,
+    quantity: tlQuantity,
+    notes:
+      targetTilesArea
+        ? `Area according to Tiles Estimate (${tlQuantity.toLocaleString()} sft)`
+        : existingTl?.notes ||
+          "Floor tiles, wall tiles, bathroom/kitchen wall tiles, skirting & mortar laying labour",
+    totalCost: Math.round(tlRate * tlQuantity),
+  };
+
   const ptItem: ContractorRateItem = {
     id: existingPt?.id || "item_painting",
     category: "painting",
@@ -355,19 +491,21 @@ export function rescaleContractorItems(
     totalCost: Math.round(ptRate * wallArea),
   };
 
-  const updatedItems: ContractorRateItem[] = [...newCivilItems, elItem, plItem, ptItem, ...customItems];
+  const updatedItems: ContractorRateItem[] = [...newCivilItems, tlItem, elItem, plItem, ptItem, ...customItems];
 
   const civilFloorTotal = newCivilItems.reduce((sum, it) => sum + it.totalCost, 0);
+  const tilesTotal = tlItem.totalCost;
   const electricalTotal = elItem.totalCost;
   const plumbingTotal = plItem.totalCost;
   const paintingTotal = ptItem.totalCost;
   const customTotal = customItems.reduce((sum, it) => sum + (Number(it.totalCost) || 0), 0);
   const grandTotalCost =
-    civilFloorTotal + electricalTotal + plumbingTotal + paintingTotal + customTotal;
+    civilFloorTotal + tilesTotal + electricalTotal + plumbingTotal + paintingTotal + customTotal;
 
   return {
     items: updatedItems,
     civilFloorTotal,
+    tilesTotal,
     electricalTotal,
     plumbingTotal,
     paintingTotal,
@@ -684,6 +822,10 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
       tiles: 480 * s,
       cementBags: 18 * s,
       sandCft: 65 * s,
+      totalFloorArea: 1200 * s,
+      totalSkirtingArea: 160 * s,
+      totalGrossTileArea: 1468.8 * s,
+      multipliedTileArea: 1468.8 * s,
       totalCost: tileTotalCost,
       multiplier: s,
       isMultiplying: s > 1,
@@ -738,12 +880,14 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           id: "wall_1",
           nos: 1,
           name: "Perimeter 10\" Wall & 5\" Partition",
-          length: 40,
-          width: 30,
-          lengthSpans: 2,
-          widthSpans: 2,
+          totalLength: 140,
+          length: 140,
           height: 10,
           wallThickness: 10,
+          openings: [
+            { id: "op_d1", type: "door", name: "Main & Room Doors", count: 4, width: 3.25, height: 7 },
+            { id: "op_w1", type: "window", name: "Standard Windows", count: 6, width: 4, height: 4.5 },
+          ],
           windowCount: 6,
           windowWidth: 4,
           windowHeight: 4.5,
@@ -762,11 +906,20 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     },
   };
 
-  // 8. CONTRACTOR & LABOUR SCHEDULE
-  const contractorItems = generateDefaultContractorItems(s, 1500);
+  // 8. CONTRACTOR & LABOUR SCHEDULE (tiles area calculated according to tiles estimate)
+  const tileInfo = extractTilesEstimateArea(tileItem);
+  const contractorItems = generateDefaultContractorItems(
+    s,
+    1500,
+    tileInfo?.totalArea,
+    tileItem.name
+  );
   const contractorGrandTotal = contractorItems.reduce((sum, item) => sum + item.totalCost, 0);
   const contractorCivilTotal = contractorItems
     .filter((i) => i.category === "civil_floor")
+    .reduce((sum, item) => sum + item.totalCost, 0);
+  const contractorTlTotal = contractorItems
+    .filter((i) => i.category === "tiles")
     .reduce((sum, item) => sum + item.totalCost, 0);
   const contractorElTotal = contractorItems
     .filter((i) => i.category === "electrical")
@@ -786,6 +939,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     totalCost: contractorGrandTotal,
     summary: {
       civilFloorTotal: contractorCivilTotal,
+      tilesTotal: contractorTlTotal,
       electricalTotal: contractorElTotal,
       plumbingTotal: contractorPlTotal,
       paintingTotal: contractorPtTotal,
@@ -896,7 +1050,28 @@ export function rescaleEstimatesForStories(
       const wallMult = Number(d.wallAreaMultiplier) || 3.5;
       const existingItems: ContractorRateItem[] = Array.isArray(d.items) ? d.items : [];
 
-      const rescaled = rescaleContractorItems(existingItems, s, floorArea, wallMult);
+      // Find if project has a tiles estimate to sync tiles area
+      const existingTileEst = estimates.find((e) => e.type === "tiles");
+      let scaledTilesArea: number | undefined = undefined;
+      if (existingTileEst) {
+        const tileInfo = extractTilesEstimateArea(existingTileEst);
+        if (tileInfo) {
+          const oldMult =
+            existingTileEst.summary?.multiplier ||
+            existingTileEst.data?.multiplier ||
+            (oldS > 1 ? oldS : 1);
+          const ratio = s / (oldMult || 1);
+          scaledTilesArea = Number((tileInfo.totalArea * ratio).toFixed(1));
+        }
+      }
+
+      const rescaled = rescaleContractorItems(
+        existingItems,
+        s,
+        floorArea,
+        wallMult,
+        scaledTilesArea
+      );
 
       let updatedName = est.name;
       const storeyRegex = /\(\s*\d+\s*(?:Floors?|Storeys?)\s*(?:[×x]\s*Multiplied|Schedule|Covered)?\s*\)/i;
@@ -916,6 +1091,7 @@ export function rescaleEstimatesForStories(
         summary: {
           ...prevSummary,
           civilFloorTotal: rescaled.civilFloorTotal,
+          tilesTotal: rescaled.tilesTotal,
           electricalTotal: rescaled.electricalTotal,
           plumbingTotal: rescaled.plumbingTotal,
           paintingTotal: rescaled.paintingTotal,

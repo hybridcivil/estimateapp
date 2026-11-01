@@ -12,12 +12,15 @@ import { NumericInput } from "../common/NumericInput";
 import {
   generateDefaultContractorItems,
   rescaleContractorItems,
+  extractTilesEstimateArea,
+  TilesEstimateAreaInfo,
 } from "../../utils/buildingSchedule";
 import {
   HardHat,
   Zap,
   Wrench,
   Paintbrush,
+  Grid3X3,
   Plus,
   Trash2,
   Building2,
@@ -29,6 +32,7 @@ import {
   Coins,
   ArrowRight,
   Info,
+  Link2,
 } from "lucide-react";
 
 interface ContractorCalculatorProps {
@@ -57,10 +61,26 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
   const [estimateName, setEstimateName] = useState("Contractor & Labour Rate Schedule");
   const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
 
+  // Detect project's Floor & Wall Tiles Estimate
+  const tilesEstimate = React.useMemo(() => {
+    return activeProject?.estimates?.find((e) => e.type === "tiles") || null;
+  }, [activeProject?.estimates]);
+
+  const tilesEstInfo = React.useMemo(() => {
+    return extractTilesEstimateArea(tilesEstimate);
+  }, [tilesEstimate]);
+
   const projectStories = Math.max(1, activeProject?.stories || 3);
-  const [items, setItems] = useState<ContractorRateItem[]>(() =>
-    generateDefaultContractorItems(projectStories, 1500)
-  );
+  const [items, setItems] = useState<ContractorRateItem[]>(() => {
+    const initTileEst = activeProject?.estimates?.find((e) => e.type === "tiles");
+    const initTileInfo = extractTilesEstimateArea(initTileEst);
+    return generateDefaultContractorItems(
+      projectStories,
+      1500,
+      initTileInfo?.totalArea,
+      initTileInfo?.estimateName
+    );
+  });
 
   // Quick Batch Inputs
   const [batchFloorArea, setBatchFloorArea] = useState<number>(1500);
@@ -115,6 +135,42 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  // 1-Click Sync tiles work area from the Project's Tiles Estimate
+  const handleSyncTilesFromEstimate = (customArea?: number) => {
+    const targetArea = customArea || tilesEstInfo?.totalArea;
+    if (!targetArea || targetArea <= 0) return;
+    const roundedQty = Math.round(targetArea);
+
+    setItems((prev) => {
+      const hasTileItem = prev.some((i) => i.category === "tiles");
+      if (!hasTileItem) {
+        const newItem: ContractorRateItem = {
+          id: "item_tiles_" + Date.now(),
+          category: "tiles",
+          workType: "Tiles work & fitting labour (টাইলস মিস্ত্রি ও ফিটিং মজুরি - ফ্লোর ও ওয়াল)",
+          unit: "sft",
+          rate: 35,
+          quantity: roundedQty,
+          notes: `Area from ${tilesEstInfo?.estimateName || "Tiles Estimate"} (${roundedQty.toLocaleString()} sft takeoff)`,
+          totalCost: Math.round(35 * roundedQty),
+        };
+        return [...prev, newItem];
+      }
+
+      return prev.map((item) => {
+        if (item.category === "tiles") {
+          return {
+            ...item,
+            quantity: roundedQty,
+            totalCost: Math.round(item.rate * roundedQty),
+            notes: `Area from ${tilesEstInfo?.estimateName || "Tiles Estimate"} (${roundedQty.toLocaleString()} sft takeoff)`,
+          };
+        }
+        return item;
+      });
+    });
+  };
+
   // Add Floor Item
   const handleAddFloorItem = () => {
     const currentCivilFloors = items.filter((i) => i.category === "civil_floor");
@@ -143,7 +199,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
     setItems((prev) => [...prev, newItem]);
   };
 
-  // Batch apply floor area
+  // Batch apply floor area (Civil, Electrical, Plumbing, Painting & Tiles from Estimate)
   const handleApplyBatchFloorArea = () => {
     if (batchFloorArea <= 0) return;
     setItems((prev) => {
@@ -158,12 +214,24 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
         return item;
       });
 
-      // Also update electrical and plumbing total builtup area
+      // Update electrical and plumbing total builtup area
       const civilFloorsCount = updated.filter((i) => i.category === "civil_floor").length || 1;
       const totalBuiltup = batchFloorArea * civilFloorsCount;
       const paintingArea = Math.round(totalBuiltup * wallAreaMultiplier);
 
       return updated.map((item) => {
+        if (item.category === "tiles") {
+          // If a tiles estimate exists, use its accurate area; otherwise use totalBuiltup
+          const tileQty = tilesEstInfo?.totalArea ? Math.round(tilesEstInfo.totalArea) : totalBuiltup;
+          return {
+            ...item,
+            quantity: tileQty,
+            totalCost: Math.round(item.rate * tileQty),
+            notes: tilesEstInfo
+              ? `Area from ${tilesEstInfo.estimateName} (${tileQty.toLocaleString()} sft takeoff)`
+              : item.notes,
+          };
+        }
         if (item.category === "electrical" || item.category === "plumbing") {
           return {
             ...item,
@@ -213,7 +281,8 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
       items,
       projectStories,
       batchFloorArea || 1500,
-      wallAreaMultiplier || 3.5
+      wallAreaMultiplier || 3.5,
+      tilesEstInfo?.totalArea
     );
     setItems(rescaled.items);
     const storeyRegex = /\(\s*\d+\s*(?:Floors?|Storeys?)\s*(?:[×x]\s*Multiplied|Schedule|Covered)?\s*\)/i;
@@ -229,25 +298,37 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
     }
   };
 
-  // Reset to proposed default rates
+  // Reset to proposed default rates (linking tiles estimate if present)
   const handleResetToProposedRates = () => {
-    setItems(generateDefaultContractorItems(projectStories, batchFloorArea || 1500));
+    setItems(
+      generateDefaultContractorItems(
+        projectStories,
+        batchFloorArea || 1500,
+        tilesEstInfo?.totalArea,
+        tilesEstInfo?.estimateName
+      )
+    );
   };
 
   // Compute Summary
   const summary: ContractorSummary = React.useMemo(() => {
     let civilFloorTotal = 0;
+    let tilesTotal = 0;
     let electricalTotal = 0;
     let plumbingTotal = 0;
     let paintingTotal = 0;
     let customTotal = 0;
     let totalBuiltupAreaSft = 0;
+    let totalTilesAreaSft = 0;
     let totalPaintingWallAreaSft = 0;
 
     for (const item of items) {
       if (item.category === "civil_floor") {
         civilFloorTotal += item.totalCost;
         totalBuiltupAreaSft += item.quantity;
+      } else if (item.category === "tiles") {
+        tilesTotal += item.totalCost;
+        totalTilesAreaSft += item.quantity;
       } else if (item.category === "electrical") {
         electricalTotal += item.totalCost;
       } else if (item.category === "plumbing") {
@@ -261,16 +342,18 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
     }
 
     const grandTotalCost =
-      civilFloorTotal + electricalTotal + plumbingTotal + paintingTotal + customTotal;
+      civilFloorTotal + tilesTotal + electricalTotal + plumbingTotal + paintingTotal + customTotal;
 
     return {
       civilFloorTotal,
+      tilesTotal,
       electricalTotal,
       plumbingTotal,
       paintingTotal,
       customTotal,
       grandTotalCost,
       totalBuiltupAreaSft,
+      totalTilesAreaSft,
       totalPaintingWallAreaSft,
       itemsCount: items.length,
     };
@@ -300,6 +383,12 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
           label: "Civil Floor (সিভিল নির্মাণ)",
           color: "bg-[#00c2c7]/15 text-[#00c2c7] border-[#00c2c7]/30",
           icon: Building2,
+        };
+      case "tiles":
+        return {
+          label: "Tiles Work (টাইলস ফিটিং)",
+          color: "bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30",
+          icon: Grid3X3,
         };
       case "electrical":
         return {
@@ -398,7 +487,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                   Building Contractor & Labour Rate Calculator
                 </h2>
                 <p className={`text-xs max-w-2xl mt-1 ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
-                  সিভিল কনস্ট্রাকশন (গ্রাউন্ড ও ঊর্ধ্বমুখী তলা), ইলেকট্রিক্যাল, প্লাম্বিং এবং পেইন্টিং লেবার
+                  সিভিল কনস্ট্রাকশন (গ্রাউন্ড ও ঊর্ধ্বমুখী তলা), টাইলস ফিটিং, ইলেকট্রিক্যাল, প্লাম্বিং এবং পেইন্টিং লেবার
                   রেট দিয়ে স্বয়ংক্রিয় প্রজেক্ট কন্ট্রাক্টর বাজেট তৈরি করুন।
                 </p>
               </div>
@@ -449,7 +538,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
             </div>
 
             {/* Quick Reference Chips of Proposed Rates */}
-            <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-4 pt-3 border-t ${
+            <div className={`grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mt-4 pt-3 border-t ${
               isLight ? "border-slate-200" : "border-[#24374e]"
             }`}>
               <div className={`p-2 rounded-xl border ${
@@ -469,6 +558,12 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
               }`}>
                 <div className={`text-[9px] truncate ${isLight ? "text-slate-500 font-medium" : "text-[#8ba3c1]"}`}>2nd Floor Civil</div>
                 <div className={`text-xs font-bold font-mono ${isLight ? "text-emerald-700" : "text-[#2ecc71]"}`}>৳ 310 / sft</div>
+              </div>
+              <div className={`p-2 rounded-xl border ${
+                isLight ? "bg-white border-slate-200 shadow-sm" : "bg-[#0e1624]/90 border-[#24374e]"
+              }`}>
+                <div className={`text-[9px] truncate ${isLight ? "text-slate-500 font-medium" : "text-[#8ba3c1]"}`}>Tiles Fitting Labour</div>
+                <div className={`text-xs font-bold font-mono ${isLight ? "text-emerald-700" : "text-[#10b981]"}`}>৳ 35 / sft</div>
               </div>
               <div className={`p-2 rounded-xl border ${
                 isLight ? "bg-white border-slate-200 shadow-sm" : "bg-[#0e1624]/90 border-[#24374e]"
@@ -502,7 +597,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
             <div className={`flex items-center gap-2 text-xs ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
               <Sparkles className={`w-4 h-4 shrink-0 ${isLight ? "text-teal-600" : "text-[#00c2c7]"}`} />
               <span>
-                <strong className={isLight ? "text-slate-900" : "text-white"}>Quick Area Auto-Fill:</strong> Set standard floor area to instantly calculate all floor civil works, electrical, plumbing and wall painting.
+                <strong className={isLight ? "text-slate-900" : "text-white"}>Quick Area Auto-Fill:</strong> Set standard floor area to instantly calculate all floor civil works, tiles fitting, electrical, plumbing and wall painting.
               </span>
             </div>
 
@@ -556,6 +651,22 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                 />
                 <span className={`text-[10px] ${isLight ? "text-purple-600 font-mono font-bold" : "text-[#5d7a9e]"}`}>×</span>
               </div>
+
+              {tilesEstInfo && (
+                <button
+                  type="button"
+                  onClick={() => handleSyncTilesFromEstimate()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition active:scale-95 shadow-sm cursor-pointer ${
+                    isLight
+                      ? "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20"
+                      : "bg-[#10b981] hover:bg-[#059669] text-white shadow-[#10b981]/20"
+                  }`}
+                  title={`Apply exact tiles area (${tilesEstInfo.totalArea.toLocaleString()} sft) according to ${tilesEstInfo.estimateName}`}
+                >
+                  <Grid3X3 className="w-3.5 h-3.5" />
+                  <span>Sync Tiles Area ({tilesEstInfo.totalArea.toLocaleString()} sft)</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -705,6 +816,34 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                               {item.notes}
                             </div>
                           )}
+                          {item.category === "tiles" && tilesEstInfo && (
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              {Math.round(item.quantity) === Math.round(tilesEstInfo.totalArea) ? (
+                                <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-mono font-medium ${
+                                  isLight
+                                    ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
+                                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                }`}>
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  Area according to Tiles Estimate: {tilesEstInfo.totalArea.toLocaleString()} sft
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSyncTilesFromEstimate()}
+                                  className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-semibold border transition cursor-pointer active:scale-95 ${
+                                    isLight
+                                      ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs"
+                                      : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40"
+                                  }`}
+                                  title={`Click to set tiles work area to ${tilesEstInfo.totalArea.toLocaleString()} sft from ${tilesEstInfo.estimateName}`}
+                                >
+                                  <Grid3X3 className="w-3 h-3 shrink-0" />
+                                  <span>Use Tiles Estimate Area ({tilesEstInfo.totalArea.toLocaleString()} sft)</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Category Badge */}
@@ -776,6 +915,16 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                               {item.unit}
                             </span>
                           </div>
+                          {item.category === "tiles" && tilesEstInfo && Math.round(item.quantity) !== Math.round(tilesEstInfo.totalArea) && (
+                            <button
+                              type="button"
+                              onClick={() => handleSyncTilesFromEstimate()}
+                              className="block text-[9px] text-emerald-600 hover:text-emerald-700 underline font-mono text-right mt-0.5 cursor-pointer ml-auto"
+                              title={`Set to ${tilesEstInfo.totalArea} sft from Tiles Estimate`}
+                            >
+                              Sync {tilesEstInfo.totalArea} sft
+                            </button>
+                          )}
                         </td>
 
                         {/* Total Cost */}
@@ -912,6 +1061,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
                     }`}
                   >
                     <option value="civil_floor">Civil Construction</option>
+                    <option value="tiles">Tiles Work (টাইলস ফিটিং)</option>
                     <option value="electrical">Electrical</option>
                     <option value="plumbing">Plumbing</option>
                     <option value="painting">Painting</option>
@@ -1014,7 +1164,7 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
           )}
 
           {/* Comprehensive Category Cost Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             {/* Civil Total */}
             <div
               className={`rounded-2xl p-3.5 flex flex-col justify-between transition-colors ${
@@ -1051,6 +1201,45 @@ export const ContractorCalculator: React.FC<ContractorCalculatorProps> = ({
               </div>
               <div className={`text-[10px] mt-1 ${isLight ? "text-slate-500 font-medium" : "text-[#5d7a9e]"}`}>
                 Ground + All Storey Civil Works
+              </div>
+            </div>
+
+            {/* Tiles Total */}
+            <div
+              className={`rounded-2xl p-3.5 flex flex-col justify-between transition-colors ${
+                isLight
+                  ? "bg-white border border-emerald-200 shadow-sm"
+                  : "bg-[#121c2d] border border-[#10b981]/40 shadow-md"
+              }`}
+            >
+              <div
+                className={`flex items-center justify-between text-xs mb-2 ${
+                  isLight ? "text-slate-600" : "text-[#8ba3c1]"
+                }`}
+              >
+                <span className={`flex items-center gap-1.5 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <Grid3X3 className={`w-4 h-4 ${isLight ? "text-emerald-600" : "text-[#10b981]"}`} />
+                  Tiles Fitting Labour
+                </span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                    isLight
+                      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                      : "bg-[#10b981]/15 text-[#10b981] border-[#10b981]/30"
+                  }`}
+                >
+                  ৳35 / sft
+                </span>
+              </div>
+              <div
+                className={`text-xl font-black font-mono ${
+                  isLight ? "text-emerald-700" : "text-[#10b981]"
+                }`}
+              >
+                ৳ {(summary.tilesTotal || 0).toLocaleString("en-IN")}
+              </div>
+              <div className={`text-[10px] mt-1 ${isLight ? "text-slate-500 font-medium" : "text-[#5d7a9e]"}`}>
+                Floor, wall & bath tiles laying
               </div>
             </div>
 

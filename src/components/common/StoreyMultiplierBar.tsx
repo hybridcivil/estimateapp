@@ -95,7 +95,6 @@ export const StoreyMultiplierBar: React.FC<StoreyMultiplierBarProps> = ({
               type="text"
               inputMode="numeric"
               value={localMultiplierStr}
-              onFocus={(e) => e.target.select()}
               onChange={(e) => {
                 const raw = e.target.value;
                 if (raw === "") {
