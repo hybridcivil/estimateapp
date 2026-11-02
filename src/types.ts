@@ -9,8 +9,31 @@ export type EstimateType =
   | "stair"
   | "brick"
   | "tiles"
+  | "paint"
   | "contractor"
   | "structural";
+
+export interface PaintAreaItem {
+  id?: string;
+  name: string;
+  nos: number;
+  category: "interior" | "exterior" | "ceiling" | "general";
+  paintType: "plastic_emulsion" | "weather_coat" | "distemper" | "enamel" | "luxury_silk";
+  calcMode: "room" | "direct";
+  length: number;
+  width: number;
+  height: number;
+  directArea?: number;
+  includeCeiling: boolean;
+  deductionArea: number;
+  paintCoats: number;
+  applyPrimer: boolean;
+  applyPutty: boolean;
+  paintRate?: number;
+  primerRate?: number;
+  puttyRate?: number;
+  labourRate?: number;
+}
 
 export interface ProjectEstimateItem {
   id: string;

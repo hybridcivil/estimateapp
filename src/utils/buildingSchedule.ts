@@ -963,6 +963,95 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     },
   };
 
+  // 9. PAINT & WALL FINISHING ESTIMATE (Plastic Emulsion, Weathercoat, Putty & Primer)
+  const paintAreaPerFloor = 5250;
+  const paintLitersPerFloor = 40;
+  const primerLitersPerFloor = 35;
+  const puttyKgPerFloor = 290;
+  const paintCostPerFloor = Math.round(paintLitersPerFloor * 480 + primerLitersPerFloor * 220 + puttyKgPerFloor * 45 + paintAreaPerFloor * 14);
+  const paintTotalCost = paintCostPerFloor * s;
+
+  const paintItem: ProjectEstimateItem = {
+    id: "est_paint_init_" + Date.now(),
+    type: "paint",
+    name: "Painting & Wall Finishing Estimate",
+    date: now,
+    totalCost: paintTotalCost,
+    summary: {
+      totalSurfaceArea: paintAreaPerFloor * s,
+      paintLiters: paintLitersPerFloor * s,
+      primerLiters: primerLitersPerFloor * s,
+      puttyKg: puttyKgPerFloor * s,
+      paintDrums: Math.ceil((paintLitersPerFloor * s) / 18.2),
+      puttyBags: Math.ceil((puttyKgPerFloor * s) / 20),
+      paintCost: paintLitersPerFloor * 480 * s,
+      primerCost: primerLitersPerFloor * 220 * s,
+      puttyCost: puttyKgPerFloor * 45 * s,
+      labourCost: paintAreaPerFloor * 14 * s,
+      totalCost: paintTotalCost,
+      singleFloorTotalCost: paintCostPerFloor,
+      multiplier: s,
+      isMultiplying: s > 1,
+      itemsCount: 3,
+    },
+    data: {
+      multiplier: s,
+      isMultiplying: s > 1,
+      rates: { paintRate: 480, primerRate: 220, puttyRate: 45, labourRate: 14 },
+      items: [
+        {
+          id: "p_1",
+          name: "Interior Living & Bed Walls (Plastic Emulsion)",
+          nos: 1,
+          category: "interior",
+          paintType: "plastic_emulsion",
+          calcMode: "room",
+          length: 22,
+          width: 16,
+          height: 10,
+          includeCeiling: true,
+          deductionArea: 80,
+          paintCoats: 2,
+          applyPrimer: true,
+          applyPutty: true,
+        },
+        {
+          id: "p_2",
+          name: "Bedrooms & Corridors",
+          nos: 2,
+          category: "interior",
+          paintType: "plastic_emulsion",
+          calcMode: "room",
+          length: 14,
+          width: 12,
+          height: 10,
+          includeCeiling: true,
+          deductionArea: 60,
+          paintCoats: 2,
+          applyPrimer: true,
+          applyPutty: true,
+        },
+        {
+          id: "p_3",
+          name: "Exterior Building Facade (Weathercoat)",
+          nos: 1,
+          category: "exterior",
+          paintType: "weather_coat",
+          calcMode: "direct",
+          length: 0,
+          width: 0,
+          height: 0,
+          directArea: 1850,
+          includeCeiling: false,
+          deductionArea: 100,
+          paintCoats: 2,
+          applyPrimer: true,
+          applyPutty: false,
+        },
+      ],
+    },
+  };
+
   return [
     gradeBeamItem,
     floorBeamItem,
@@ -972,6 +1061,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     stairItem,
     tileItem,
     brickItem,
+    paintItem,
     contractorItem,
   ];
 }
@@ -1181,6 +1271,43 @@ export function rescaleEstimatesForStories(
       updatedSummary.multipliedBricks = updatedSummary.totalBricks;
       updatedSummary.cementBags = Math.ceil(baseCement * s);
       updatedSummary.sandCft = Number((baseSand * s).toFixed(1));
+      updatedSummary.totalCost = Math.round(baseCost * s);
+    } else if (est.type === "paint") {
+      // Paintwork specific scaling
+      const baseArea =
+        prevSummary.singleFloorSurfaceArea ||
+        (prevSummary.totalSurfaceArea ? prevSummary.totalSurfaceArea / currentMult : 5250);
+      const basePaintLiters =
+        prevSummary.singleFloorPaintLiters ||
+        (prevSummary.paintLiters ? prevSummary.paintLiters / currentMult : 40);
+      const basePrimerLiters =
+        prevSummary.singleFloorPrimerLiters ||
+        (prevSummary.primerLiters ? prevSummary.primerLiters / currentMult : 35);
+      const basePuttyKg =
+        prevSummary.singleFloorPuttyKg ||
+        (prevSummary.puttyKg ? prevSummary.puttyKg / currentMult : 290);
+      const baseCost =
+        prevSummary.singleFloorTotalCost ||
+        (est.totalCost ? est.totalCost / currentMult : 96250);
+
+      updatedSummary.totalSurfaceArea = Math.round(baseArea * s);
+      updatedSummary.paintLiters = Number((basePaintLiters * s).toFixed(1));
+      updatedSummary.primerLiters = Number((basePrimerLiters * s).toFixed(1));
+      updatedSummary.puttyKg = Math.round(basePuttyKg * s);
+      updatedSummary.paintDrums = Math.ceil(updatedSummary.paintLiters / 18.2);
+      updatedSummary.puttyBags = Math.ceil(updatedSummary.puttyKg / 20);
+      if (typeof prevSummary.paintCost === "number") {
+        updatedSummary.paintCost = Math.round((prevSummary.paintCost / currentMult) * s);
+      }
+      if (typeof prevSummary.primerCost === "number") {
+        updatedSummary.primerCost = Math.round((prevSummary.primerCost / currentMult) * s);
+      }
+      if (typeof prevSummary.puttyCost === "number") {
+        updatedSummary.puttyCost = Math.round((prevSummary.puttyCost / currentMult) * s);
+      }
+      if (typeof prevSummary.labourCost === "number") {
+        updatedSummary.labourCost = Math.round((prevSummary.labourCost / currentMult) * s);
+      }
       updatedSummary.totalCost = Math.round(baseCost * s);
     } else {
       // General scaling for beam, column, slab, stair, tile, etc.

@@ -27,6 +27,7 @@ import { SlabCalculator } from "./components/calculators/SlabCalculator";
 import { StairCalculator } from "./components/calculators/StairCalculator";
 import { BrickCalculator } from "./components/calculators/BrickCalculator";
 import { TileCalculator } from "./components/calculators/TileCalculator";
+import { PaintCalculator } from "./components/calculators/PaintCalculator";
 import { ContractorCalculator } from "./components/calculators/ContractorCalculator";
 import { StructuralCalculator } from "./components/calculators/StructuralCalculator";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -650,6 +651,16 @@ function MainAppContent() {
 
             {activeTab === "tiles" && (
               <TileCalculator
+                activeProject={activeProject}
+                loadedEstimate={loadedEstimate}
+                onClearLoadedEstimate={() => setLoadedEstimate(null)}
+                onSaveEstimate={handleSaveEstimate}
+                onDeleteEstimate={handleDeleteEstimate}
+              />
+            )}
+
+            {activeTab === "paint" && (
+              <PaintCalculator
                 activeProject={activeProject}
                 loadedEstimate={loadedEstimate}
                 onClearLoadedEstimate={() => setLoadedEstimate(null)}

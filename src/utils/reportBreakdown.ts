@@ -458,6 +458,21 @@ export function computeFullProjectBreakdown(
       tilesPcs: 0,
       cost: 0,
     },
+    paint: {
+      key: "paint",
+      label: "Painting & Wall Finishing",
+      category: "finishing",
+      count: 0,
+      unit: "sq.ft",
+      concreteVolCft: 0,
+      cementBags: 0,
+      sandCft: 0,
+      aggCft: 0,
+      steelKg: 0,
+      bricksPcs: 0,
+      tilesPcs: 0,
+      cost: 0,
+    },
     contractor: {
       key: "contractor",
       label: "Contractor & Construction Labour Schedule",
@@ -1005,6 +1020,12 @@ export function computeFullProjectBreakdown(
       }
     }
 
+    else if (est.type === "paint") {
+      const area = s.totalSurfaceArea || 0;
+      alloc.count += area;
+      alloc.unit = "sq.ft";
+    }
+
     if (est.type === "contractor") {
       const itemsList = est.data?.items || est.summary?.items || [];
       if (Array.isArray(itemsList)) {
@@ -1404,6 +1425,19 @@ export function extractItemMaterials(
     itemsList.forEach((it: any) => {
       specs.push(`• ${it.workType}: ৳${it.rate}/${it.unit} × ${Number(it.quantity).toLocaleString()} ${it.unit} = ৳${Number(it.totalCost).toLocaleString("en-IN")}`);
     });
+  } else if (est.type === "paint") {
+    const area = s.totalSurfaceArea || 0;
+    const paintLiters = s.paintLiters || 0;
+    const primerLiters = s.primerLiters || 0;
+    const puttyKg = s.puttyKg || 0;
+    const paintDrums = s.paintDrums || Math.ceil(paintLiters / 18.2);
+    const puttyBags = s.puttyBags || Math.ceil(puttyKg / 20);
+    specs.push(`Painting & Finishing (${Number(area).toLocaleString()} sq.ft · ${mult} floor multiplier)`);
+    if (paintLiters > 0) specs.push(`Topcoat Paint: ${paintLiters} L (~${paintDrums} Drums of 18.2L)`);
+    if (primerLiters > 0) specs.push(`Wall Primer / Sealer: ${primerLiters} L`);
+    if (puttyKg > 0) specs.push(`Wall Putty: ${puttyKg} kg (~${puttyBags} Bags of 20kg)`);
+    if (s.paintCost) specs.push(`Paint Materials: ৳ ${Number(s.paintCost + (s.primerCost || 0) + (s.puttyCost || 0)).toLocaleString("en-IN")}`);
+    if (s.labourCost) specs.push(`Application Labour: ৳ ${Number(s.labourCost).toLocaleString("en-IN")}`);
   }
 
   // Calculate totalCost based on overridden material rates if provided, otherwise preserve saved totalCost
@@ -1420,6 +1454,8 @@ export function extractItemMaterials(
       calculatedCost = tilesCost + cementCost + sandCost + labourCost;
     } else if (est.type === "contractor") {
       calculatedCost = Math.round(est.totalCost || s.grandTotalCost || 0);
+    } else if (est.type === "paint") {
+      calculatedCost = Math.round(est.totalCost || s.totalCost || 0);
     } else {
       calculatedCost = isBrickKhoa
         ? cementCost + sandCost + brickCost + steelCost
