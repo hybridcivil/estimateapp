@@ -126,11 +126,10 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
   const [applyPrimer, setApplyPrimer] = useState(true);
   const [applyPutty, setApplyPutty] = useState(true);
 
-  // Material & Labour Unit Rates
+  // Material Unit Rates
   const [paintRate, setPaintRate] = useState(480); // ৳ per liter
   const [primerRate, setPrimerRate] = useState(220); // ৳ per liter
   const [puttyRate, setPuttyRate] = useState(45); // ৳ per kg
-  const [labourRate, setLabourRate] = useState(14); // ৳ per sqft
 
   // Coverage specifications (sq.ft covered per unit)
   // Plastic Emulsion: ~130 sqft/L for 2 coats
@@ -238,7 +237,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
     paintRate,
     primerRate,
     puttyRate,
-    labourRate,
   });
 
   const loadItemIntoForm = (it: PaintAreaItem, idx: number) => {
@@ -260,7 +258,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
     if (it.paintRate) setPaintRate(it.paintRate);
     if (it.primerRate) setPrimerRate(it.primerRate);
     if (it.puttyRate) setPuttyRate(it.puttyRate);
-    if (it.labourRate) setLabourRate(it.labourRate);
     setErrorMsg("");
   };
 
@@ -375,7 +372,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
       paintRate,
       primerRate,
       puttyRate,
-      labourRate,
     };
     const nextList = [...items, newItem];
     setItems(nextList);
@@ -402,7 +398,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
     let totalPaintCost = 0;
     let totalPrimerCost = 0;
     let totalPuttyCost = 0;
-    let totalLabourCost = 0;
 
     list.forEach((it) => {
       const q = it.nos > 0 ? it.nos : 1;
@@ -454,20 +449,16 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
       const itemPaintRate = it.paintRate || paintRate;
       const itemPrimerRate = it.primerRate || primerRate;
       const itemPuttyRate = it.puttyRate || puttyRate;
-      const itemLabourRate = it.labourRate || labourRate;
 
       totalPaintCost += pLiters * itemPaintRate;
       totalPrimerCost += primLiters * itemPrimerRate;
       totalPuttyCost += putKg * itemPuttyRate;
-      totalLabourCost += netArea * itemLabourRate;
     });
 
     const singleFloorPaintCost = Math.round(totalPaintCost);
     const singleFloorPrimerCost = Math.round(totalPrimerCost);
     const singleFloorPuttyCost = Math.round(totalPuttyCost);
-    const singleFloorLabourCost = Math.round(totalLabourCost);
-    const singleFloorMaterialCost = singleFloorPaintCost + singleFloorPrimerCost + singleFloorPuttyCost;
-    const singleFloorTotalCost = singleFloorMaterialCost + singleFloorLabourCost;
+    const singleFloorTotalCost = singleFloorPaintCost + singleFloorPrimerCost + singleFloorPuttyCost;
 
     // Apply Storey Multiplier
     const effMultiplier = isMultiplying ? Math.max(1, multiplier) : 1;
@@ -502,13 +493,11 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
       singleFloorPaintCost,
       singleFloorPrimerCost,
       singleFloorPuttyCost,
-      singleFloorLabourCost,
       singleFloorTotalCost,
       // Total cost
       paintCost: isMultiplying ? Math.round(singleFloorPaintCost * effMultiplier) : singleFloorPaintCost,
       primerCost: isMultiplying ? Math.round(singleFloorPrimerCost * effMultiplier) : singleFloorPrimerCost,
       puttyCost: isMultiplying ? Math.round(singleFloorPuttyCost * effMultiplier) : singleFloorPuttyCost,
-      labourCost: isMultiplying ? Math.round(singleFloorLabourCost * effMultiplier) : singleFloorLabourCost,
       totalCost: multipliedCost,
       multiplier: effMultiplier,
       isMultiplying,
@@ -521,7 +510,7 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
 
   useEffect(() => {
     calculate(items);
-  }, [multiplier, isMultiplying, paintRate, primerRate, puttyRate, labourRate, coveragePaint, coveragePrimer, coveragePutty]);
+  }, [multiplier, isMultiplying, paintRate, primerRate, puttyRate, coveragePaint, coveragePrimer, coveragePutty]);
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentItems = [...items];
@@ -542,7 +531,7 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
       summary: boq,
       data: {
         items: currentItems,
-        rates: { paintRate, primerRate, puttyRate, labourRate },
+        rates: { paintRate, primerRate, puttyRate },
         coverage: { coveragePaint, coveragePrimer, coveragePutty },
         multiplier,
         isMultiplying,
@@ -561,7 +550,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
       if (est.data.rates.paintRate) setPaintRate(est.data.rates.paintRate);
       if (est.data.rates.primerRate) setPrimerRate(est.data.rates.primerRate);
       if (est.data.rates.puttyRate) setPuttyRate(est.data.rates.puttyRate);
-      if (est.data.rates.labourRate) setLabourRate(est.data.rates.labourRate);
     }
     if (est.data?.coverage) {
       if (est.data.coverage.coveragePaint) setCoveragePaint(est.data.coverage.coveragePaint);
@@ -609,7 +597,7 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
             items,
             multiplier,
             isMultiplying,
-            rates: { paintRate, primerRate, puttyRate, labourRate },
+            rates: { paintRate, primerRate, puttyRate },
           },
         })}
         onImportPayload={(payload) => {
@@ -1055,8 +1043,8 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
 
           {/* Unit Rates and Coverage Settings */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
-            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates & Coverage (দর ও কভারেজ)</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates & Coverage (পেইন্ট ও উপকরণের দর)</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <label className="text-[10px] text-[#8ba3c1] block mb-1">Paint Rate (৳ / Liter)</label>
                 <NumericInput
@@ -1083,15 +1071,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
                   className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
                 />
               </div>
-
-              <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Painting Labour (৳ / sqft)</label>
-                <NumericInput
-                  value={labourRate}
-                  onChange={setLabourRate}
-                  className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
-                />
-              </div>
             </div>
           </div>
 
@@ -1106,7 +1085,7 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
               </div>
 
               {/* Material Badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="bg-[#1a2b42] border border-[#38bdf8] rounded-lg p-2 text-center">
                   <div className="text-[9px] text-[#8ba3c1]">Paint Total (রঙ)</div>
                   <div className="text-sm font-bold text-[#38bdf8]">
@@ -1136,16 +1115,6 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
                     (~{results.puttyBags} Bags · 20kg)
                   </div>
                 </div>
-
-                <div className="bg-[#1a2b42] border border-[#2ecc71] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Painting Labour (মজুরি)</div>
-                  <div className="text-sm font-bold text-[#2ecc71]">
-                    ৳ {results.labourCost.toLocaleString("en-IN")}
-                  </div>
-                  <div className="text-[9px] text-[#8ba3c1]">
-                    (@ ৳{labourRate}/sqft)
-                  </div>
-                </div>
               </div>
 
               {/* Cost Breakdown Pills */}
@@ -1169,8 +1138,8 @@ export const PaintCalculator: React.FC<PaintCalculatorProps> = ({
                 <div>
                   <div className="text-[10px] text-[#8ba3c1] uppercase font-bold tracking-wider">
                     {isMultiplying
-                      ? `Full Building Paintwork Budget (×${multiplier} Storeys)`
-                      : "Typical Floor Paintwork Budget"}
+                      ? `Full Building Paint Materials Budget (×${multiplier} Storeys)`
+                      : "Typical Floor Paint Materials Budget"}
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-[#2ecc71]">
                     ৳ {Math.round(results.totalCost).toLocaleString("en-IN")}

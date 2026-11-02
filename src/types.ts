@@ -32,7 +32,6 @@ export interface PaintAreaItem {
   paintRate?: number;
   primerRate?: number;
   puttyRate?: number;
-  labourRate?: number;
 }
 
 export interface ProjectEstimateItem {

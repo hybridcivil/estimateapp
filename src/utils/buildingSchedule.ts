@@ -968,7 +968,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
   const paintLitersPerFloor = 40;
   const primerLitersPerFloor = 35;
   const puttyKgPerFloor = 290;
-  const paintCostPerFloor = Math.round(paintLitersPerFloor * 480 + primerLitersPerFloor * 220 + puttyKgPerFloor * 45 + paintAreaPerFloor * 14);
+  const paintCostPerFloor = Math.round(paintLitersPerFloor * 480 + primerLitersPerFloor * 220 + puttyKgPerFloor * 45);
   const paintTotalCost = paintCostPerFloor * s;
 
   const paintItem: ProjectEstimateItem = {
@@ -987,7 +987,6 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
       paintCost: paintLitersPerFloor * 480 * s,
       primerCost: primerLitersPerFloor * 220 * s,
       puttyCost: puttyKgPerFloor * 45 * s,
-      labourCost: paintAreaPerFloor * 14 * s,
       totalCost: paintTotalCost,
       singleFloorTotalCost: paintCostPerFloor,
       multiplier: s,
@@ -997,7 +996,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
     data: {
       multiplier: s,
       isMultiplying: s > 1,
-      rates: { paintRate: 480, primerRate: 220, puttyRate: 45, labourRate: 14 },
+      rates: { paintRate: 480, primerRate: 220, puttyRate: 45 },
       items: [
         {
           id: "p_1",
@@ -1288,7 +1287,7 @@ export function rescaleEstimatesForStories(
         (prevSummary.puttyKg ? prevSummary.puttyKg / currentMult : 290);
       const baseCost =
         prevSummary.singleFloorTotalCost ||
-        (est.totalCost ? est.totalCost / currentMult : 96250);
+        (est.totalCost ? est.totalCost / currentMult : 40000);
 
       updatedSummary.totalSurfaceArea = Math.round(baseArea * s);
       updatedSummary.paintLiters = Number((basePaintLiters * s).toFixed(1));
@@ -1304,9 +1303,6 @@ export function rescaleEstimatesForStories(
       }
       if (typeof prevSummary.puttyCost === "number") {
         updatedSummary.puttyCost = Math.round((prevSummary.puttyCost / currentMult) * s);
-      }
-      if (typeof prevSummary.labourCost === "number") {
-        updatedSummary.labourCost = Math.round((prevSummary.labourCost / currentMult) * s);
       }
       updatedSummary.totalCost = Math.round(baseCost * s);
     } else {

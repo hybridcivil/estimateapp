@@ -1437,7 +1437,6 @@ export function extractItemMaterials(
     if (primerLiters > 0) specs.push(`Wall Primer / Sealer: ${primerLiters} L`);
     if (puttyKg > 0) specs.push(`Wall Putty: ${puttyKg} kg (~${puttyBags} Bags of 20kg)`);
     if (s.paintCost) specs.push(`Paint Materials: ৳ ${Number(s.paintCost + (s.primerCost || 0) + (s.puttyCost || 0)).toLocaleString("en-IN")}`);
-    if (s.labourCost) specs.push(`Application Labour: ৳ ${Number(s.labourCost).toLocaleString("en-IN")}`);
   }
 
   // Calculate totalCost based on overridden material rates if provided, otherwise preserve saved totalCost
