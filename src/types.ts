@@ -53,6 +53,8 @@ export interface GlobalMaterialRates {
   tileRate: number;
   boringRatePerFt: number;
   sandPileCostPerFt: number;
+  grillRatePerSft: number; // MS Square Bar Grill (৳/sft)
+  aluminiumGlassRatePerSft: number; // Aluminium Frame with Glass (৳/sft)
 }
 
 export type UserRole = "admin" | "editor" | "viewer" | "engineer";

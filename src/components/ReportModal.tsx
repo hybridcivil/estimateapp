@@ -235,6 +235,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   let defaultSteelRate = pRates.steelRate || 95;
   let defaultBrickRate = pRates.brickRate || 15;
   let defaultTileRate = pRates.tileRate || 180;
+  let defaultGrillRate = pRates.grillRatePerSft || 180;
+  let defaultAluminiumGlassRate = pRates.aluminiumGlassRatePerSft || 450;
 
   estimates.forEach((e) => {
     const r = e.data?.rates || {};
@@ -244,6 +246,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     if (r.steelRate) defaultSteelRate = r.steelRate;
     if (r.brickRate) defaultBrickRate = r.brickRate;
     if (e.data?.tilePrice || r.tileRate) defaultTileRate = e.data?.tilePrice || r.tileRate;
+    if (r.grillRatePerSft) defaultGrillRate = r.grillRatePerSft;
+    if (r.aluminiumGlassRatePerSft) defaultAluminiumGlassRate = r.aluminiumGlassRatePerSft;
   });
 
   const effectiveRates = {
@@ -253,6 +257,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     steelRate: defaultSteelRate,
     brickRate: defaultBrickRate,
     tileRate: defaultTileRate,
+    grillRatePerSft: defaultGrillRate,
+    aluminiumGlassRatePerSft: defaultAluminiumGlassRate,
   };
 
   // Compute the comprehensive project breakdown with effective project rates

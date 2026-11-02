@@ -248,6 +248,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         tileRate: DEFAULT_MATERIAL_RATES.tileRate,
         boringRatePerFt: DEFAULT_MATERIAL_RATES.boringRatePerFt,
         sandPileCostPerFt: DEFAULT_MATERIAL_RATES.sandPileCostPerFt,
+        grillRatePerSft: DEFAULT_MATERIAL_RATES.grillRatePerSft,
+        aluminiumGlassRatePerSft: DEFAULT_MATERIAL_RATES.aluminiumGlassRatePerSft,
       }
     );
   });
@@ -266,6 +268,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         tileRate: activeProject.rates.tileRate ?? DEFAULT_MATERIAL_RATES.tileRate,
         boringRatePerFt: activeProject.rates.boringRatePerFt ?? DEFAULT_MATERIAL_RATES.boringRatePerFt,
         sandPileCostPerFt: activeProject.rates.sandPileCostPerFt ?? DEFAULT_MATERIAL_RATES.sandPileCostPerFt,
+        grillRatePerSft: activeProject.rates.grillRatePerSft ?? DEFAULT_MATERIAL_RATES.grillRatePerSft,
+        aluminiumGlassRatePerSft: activeProject.rates.aluminiumGlassRatePerSft ?? DEFAULT_MATERIAL_RATES.aluminiumGlassRatePerSft,
       });
     }
   }, [activeProject?.id, activeProject?.rates]);
@@ -365,6 +369,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   let totalAggCft = 0;
   let totalSteelKg = 0;
   let totalBricks = 0;
+  let totalWindowAreaSft = 0;
 
   estimates.forEach((e) => {
     const s = e.summary || {};
@@ -391,6 +396,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     const brk = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
     totalBricks += brk;
+
+    // Track total window openings area for Square Bar Grill & Aluminium Frame with Glass
+    if (e.type === "brick") {
+      const mult = Math.max(1, s.multiplier || d.multiplier || 1);
+      if (typeof s.totalWindowArea === "number" && s.totalWindowArea > 0) {
+        totalWindowAreaSft += s.totalWindowArea;
+      } else {
+        const wallsList = Array.isArray(d.walls) ? d.walls : [];
+        let singleFloorWin = 0;
+        wallsList.forEach((w: any) => {
+          const nos = w.nos > 0 ? w.nos : 1;
+          if (w.openings && Array.isArray(w.openings)) {
+            w.openings.forEach((op: any) => {
+              if (op.type === "window") {
+                singleFloorWin += (op.count || 0) * (op.width || 0) * (op.height || 0) * nos;
+              }
+            });
+          } else if (w.windowCount) {
+            singleFloorWin += (w.windowCount || 0) * (w.windowWidth || 0) * (w.windowHeight || 0) * nos;
+          }
+        });
+        totalWindowAreaSft += singleFloorWin * mult;
+      }
+    }
   });
 
   const handleExportSingleEstimate = (est: ProjectEstimateItem) => {
@@ -1146,6 +1175,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       tileRate: 180,
                       boringRatePerFt: 180,
                       sandPileCostPerFt: 120,
+                      grillRatePerSft: 180,
+                      aluminiumGlassRatePerSft: 420,
                     };
                     setRates(preset);
                     handleApplyMaterialRates(preset);
@@ -1171,6 +1202,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       tileRate: 195,
                       boringRatePerFt: 200,
                       sandPileCostPerFt: 130,
+                      grillRatePerSft: 195,
+                      aluminiumGlassRatePerSft: 460,
                     };
                     setRates(preset);
                     handleApplyMaterialRates(preset);
@@ -1196,6 +1229,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       tileRate: 220,
                       boringRatePerFt: 220,
                       sandPileCostPerFt: 140,
+                      grillRatePerSft: 220,
+                      aluminiumGlassRatePerSft: 520,
                     };
                     setRates(preset);
                     handleApplyMaterialRates(preset);
@@ -1232,8 +1267,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* 8 Material Unit Rates Input Grid (Normal click, smooth cursor & clearable inputs) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          {/* 10 Material Unit Rates Input Grid (Normal click, smooth cursor & clearable inputs) */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
             {/* 1. Cement */}
             <MaterialRateInput
               label="Cement"
@@ -1262,7 +1297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             {/* 3. Aggregate */}
             <MaterialRateInput
-              label="Stone Aggregate"
+              label="Stone Agg."
               unit="৳ / cft"
               value={rates.aggRate}
               colorBorder="border-[#38bdf8]/40"
@@ -1307,7 +1342,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               colorBorder="border-[#1abc9c]/40"
               colorText="text-[#1abc9c]"
               colorFocus="border-[#1abc9c]"
-              subtext="Floor & wall tile rate"
+              subtext="Floor & wall tile"
               isLight={isLight}
               onCommit={(val) => handleUpdateSingleRate("tileRate", val)}
             />
@@ -1333,9 +1368,43 @@ export const Dashboard: React.FC<DashboardProps> = ({
               colorBorder="border-[#f59e0b]/40"
               colorText="text-[#f59e0b]"
               colorFocus="border-[#f59e0b]"
-              subtext="Sand compaction rate"
+              subtext="Sand compaction"
               isLight={isLight}
               onCommit={(val) => handleUpdateSingleRate("sandPileCostPerFt", val)}
+            />
+
+            {/* 9. Square Bar Grill */}
+            <MaterialRateInput
+              label="Square Grill"
+              unit="৳ / sft"
+              value={rates.grillRatePerSft}
+              colorBorder="border-[#ec4899]/40"
+              colorText="text-[#ec4899]"
+              colorFocus="border-[#ec4899]"
+              subtext={
+                totalWindowAreaSft > 0
+                  ? `${Math.round(totalWindowAreaSft).toLocaleString()} sft = ৳${Math.round(totalWindowAreaSft * rates.grillRatePerSft).toLocaleString("en-IN")}`
+                  : "MS security grill"
+              }
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("grillRatePerSft", val)}
+            />
+
+            {/* 10. Aluminium Frame with Glass */}
+            <MaterialRateInput
+              label="Alum + Glass"
+              unit="৳ / sft"
+              value={rates.aluminiumGlassRatePerSft}
+              colorBorder="border-[#818cf8]/40"
+              colorText="text-[#818cf8]"
+              colorFocus="border-[#818cf8]"
+              subtext={
+                totalWindowAreaSft > 0
+                  ? `${Math.round(totalWindowAreaSft).toLocaleString()} sft = ৳${Math.round(totalWindowAreaSft * rates.aluminiumGlassRatePerSft).toLocaleString("en-IN")}`
+                  : "Window glass frame"
+              }
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("aluminiumGlassRatePerSft", val)}
             />
           </div>
 

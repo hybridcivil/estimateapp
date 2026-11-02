@@ -297,6 +297,8 @@ export const DEFAULT_MATERIAL_RATES = {
   tileRate: 180,
   boringRatePerFt: 180,
   sandPileCostPerFt: 120,
+  grillRatePerSft: 180,
+  aluminiumGlassRatePerSft: 450,
 };
 
 export function computeFullProjectBreakdown(
@@ -1193,6 +1195,8 @@ export interface ItemMaterialsReport {
     tileRate: number;
     boringRatePerFt?: number;
     sandPileCostPerFt?: number;
+    grillRatePerSft?: number;
+    aluminiumGlassRatePerSft?: number;
   };
   specifications: string[];
 }
@@ -1236,6 +1240,8 @@ export function extractItemMaterials(
   const tileRate = Number(overrideRates?.tileRate ?? savedRates.tileRate ?? d.tileRate ?? s.tileRate ?? DEFAULT_MATERIAL_RATES.tileRate);
   const boringRatePerFt = Number(overrideRates?.boringRatePerFt ?? savedRates.boringRatePerFt ?? d.constructionCostPerFoot ?? s.constructionCostPerFoot ?? DEFAULT_MATERIAL_RATES.boringRatePerFt);
   const sandPileCostPerFt = Number(overrideRates?.sandPileCostPerFt ?? savedRates.sandPileCostPerFt ?? d.costPerFoot ?? s.costPerFoot ?? DEFAULT_MATERIAL_RATES.sandPileCostPerFt);
+  const grillRatePerSft = Number(overrideRates?.grillRatePerSft ?? savedRates.grillRatePerSft ?? d.grillRatePerSft ?? s.grillRatePerSft ?? DEFAULT_MATERIAL_RATES.grillRatePerSft);
+  const aluminiumGlassRatePerSft = Number(overrideRates?.aluminiumGlassRatePerSft ?? savedRates.aluminiumGlassRatePerSft ?? d.aluminiumGlassRatePerSft ?? s.aluminiumGlassRatePerSft ?? DEFAULT_MATERIAL_RATES.aluminiumGlassRatePerSft);
 
   // Cement (bags)
   const cementBags = Math.round(
@@ -1502,6 +1508,8 @@ export function extractItemMaterials(
       tileRate,
       boringRatePerFt,
       sandPileCostPerFt,
+      grillRatePerSft,
+      aluminiumGlassRatePerSft,
     },
     specifications: specs,
   };

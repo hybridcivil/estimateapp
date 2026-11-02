@@ -149,12 +149,16 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   const [brickRate, setBrickRate] = useState(() => activeProject?.rates?.brickRate || 15);
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
   const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [grillRate, setGrillRate] = useState(() => activeProject?.rates?.grillRatePerSft || 180);
+  const [aluminiumRate, setAluminiumRate] = useState(() => activeProject?.rates?.aluminiumGlassRatePerSft || 450);
 
   useEffect(() => {
     if (activeProject?.rates) {
       if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.grillRatePerSft) setGrillRate(activeProject.rates.grillRatePerSft);
+      if (activeProject.rates.aluminiumGlassRatePerSft) setAluminiumRate(activeProject.rates.aluminiumGlassRatePerSft);
     }
   }, [activeProject?.rates]);
 
@@ -449,6 +453,8 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
     let totalBrickSand = 0;
     let totalPlasterCement = 0;
     let totalPlasterSand = 0;
+    let totalWindowArea = 0;
+    let totalDoorArea = 0;
 
     list.forEach((w) => {
       const nos = w.nos > 0 ? w.nos : 1;
@@ -464,15 +470,18 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
       let deduction = 0;
       if (w.openings && Array.isArray(w.openings) && w.openings.length > 0) {
-        deduction =
-          w.openings.reduce(
-            (sum, op) => sum + (op.count || 0) * (op.width || 0) * (op.height || 0),
-            0
-          ) * nos;
+        w.openings.forEach((op) => {
+          const a = (op.count || 0) * (op.width || 0) * (op.height || 0) * nos;
+          deduction += a;
+          if (op.type === "window") totalWindowArea += a;
+          else if (op.type === "door") totalDoorArea += a;
+        });
       } else {
         const windowArea = (w.windowCount || 0) * (w.windowWidth || 0) * (w.windowHeight || 0) * nos;
         const doorArea = (w.doorCount || 0) * (w.doorWidth || 0) * (w.doorHeight || 0) * nos;
         deduction = windowArea + doorArea;
+        totalWindowArea += windowArea;
+        totalDoorArea += doorArea;
       }
 
       const netArea = Math.max(0, grossArea - deduction);
@@ -569,6 +578,13 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
       multipliedBricks: totalBricks * effMultiplier,
       multipliedCementBags: Math.ceil(totalCementBags * effMultiplier),
       multipliedSandCft: Number((totalSandCft * effMultiplier).toFixed(1)),
+      // Window & Door Openings with Grill & Aluminium costing
+      totalWindowArea: Number((isMultiplying ? totalWindowArea * effMultiplier : totalWindowArea).toFixed(1)),
+      totalDoorArea: Number((isMultiplying ? totalDoorArea * effMultiplier : totalDoorArea).toFixed(1)),
+      singleFloorWindowArea: Number(totalWindowArea.toFixed(1)),
+      singleFloorDoorArea: Number(totalDoorArea.toFixed(1)),
+      grillCost: Math.round(Number(isMultiplying ? totalWindowArea * effMultiplier : totalWindowArea) * grillRate),
+      aluminiumGlassCost: Math.round(Number(isMultiplying ? totalWindowArea * effMultiplier : totalWindowArea) * aluminiumRate),
     };
 
     setResults(calcResult);
@@ -577,7 +593,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
   useEffect(() => {
     calculate(walls);
-  }, [multiplier, isMultiplying, brickRate, cementRate, sandRate]);
+  }, [multiplier, isMultiplying, brickRate, cementRate, sandRate, grillRate, aluminiumRate]);
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentWalls = [...walls];
@@ -598,7 +614,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
       summary: boq,
       data: {
         walls: currentWalls,
-        rates: { brickRate, cementRate, sandRate },
+        rates: { brickRate, cementRate, sandRate, grillRate, aluminiumRate },
         multiplier,
         isMultiplying,
       },
@@ -616,6 +632,8 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
       setBrickRate(est.data.rates.brickRate || 15);
       setCementRate(est.data.rates.cementRate || 550);
       setSandRate(est.data.rates.sandRate || 45);
+      if (est.data.rates.grillRate) setGrillRate(est.data.rates.grillRate);
+      if (est.data.rates.aluminiumRate) setAluminiumRate(est.data.rates.aluminiumRate);
     }
     if (est.data?.multiplier) {
       setMultiplier(est.data.multiplier);
@@ -654,7 +672,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
         getCurrentPayload={() => ({
           totalCost: results?.totalCost || 0,
           summary: results || {},
-          data: { walls, multiplier, isMultiplying, rates: { brickRate, cementRate, sandRate } },
+          data: { walls, multiplier, isMultiplying, rates: { brickRate, cementRate, sandRate, grillRate, aluminiumRate } },
         })}
         onImportPayload={(payload) => {
           if (payload.data?.walls) {
@@ -1188,8 +1206,8 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
 
           {/* Rates Settings */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
-            <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates (দর)</span>
-            <div className="grid grid-cols-3 gap-2">
+            <span className="text-xs font-semibold text-[#00c2c7] block">Material & Fitting Rates (দর ও রেট)</span>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <div>
                 <label className="text-[10px] text-[#8ba3c1] block mb-1">Brick (প্রতি পিস ৳)</label>
                 <NumericInput
@@ -1212,6 +1230,22 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                   value={sandRate}
                   onChange={setSandRate}
                   className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none focus:border-[#00c2c7]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#ec4899] font-semibold block mb-1">Square Bar Grill (৳/sft)</label>
+                <NumericInput
+                  value={grillRate}
+                  onChange={setGrillRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#ec4899]/40 rounded text-xs text-white outline-none focus:border-[#ec4899]"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#818cf8] font-semibold block mb-1">Alum + Glass (৳/sft)</label>
+                <NumericInput
+                  value={aluminiumRate}
+                  onChange={setAluminiumRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#818cf8]/40 rounded text-xs text-white outline-none focus:border-[#818cf8]"
                 />
               </div>
             </div>
@@ -1265,6 +1299,40 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Window Fixtures & Fittings Takeoff (Square Bar Grill & Aluminium Frame with Glass) */}
+              {results.totalWindowArea > 0 && (
+                <div className="bg-[#1a2b42] border border-[#818cf8]/40 rounded-xl p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-white">
+                    <span className="flex items-center gap-1.5 text-[#818cf8]">
+                      <span>🪟 Window Fixtures Takeoff (জানালা গ্রিল ও গ্লাস)</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-[#cbd5e1]">
+                      Total Window Area: <strong>{results.totalWindowArea} sq.ft</strong>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-[#121c2d] p-2 rounded-lg border border-[#ec4899]/30">
+                      <div className="text-[9px] text-[#ec4899] font-bold">Square Bar Grill (এমএস গ্রিল)</div>
+                      <div className="font-mono font-bold text-white mt-0.5">
+                        ৳ {results.grillCost.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[9px] text-[#8ba3c1]">
+                        {results.totalWindowArea} sft @ ৳{grillRate}/sft
+                      </div>
+                    </div>
+                    <div className="bg-[#121c2d] p-2 rounded-lg border border-[#818cf8]/30">
+                      <div className="text-[9px] text-[#818cf8] font-bold">Aluminium Frame + Glass (গ্লাস ফ্রেম)</div>
+                      <div className="font-mono font-bold text-white mt-0.5">
+                        ৳ {results.aluminiumGlassCost.toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[9px] text-[#8ba3c1]">
+                        {results.totalWindowArea} sft @ ৳{aluminiumRate}/sft
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Total Cost Display with Multiplier Breakdown */}
               <div className="bg-gradient-to-r from-[#1a3a2a] to-[#0f2a1e] border border-[#2ecc71] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-lg">
