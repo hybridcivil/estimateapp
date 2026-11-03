@@ -12,6 +12,10 @@ export interface ComponentMaterialAllocation {
   localSandCft: number;
   sylhetSandCft: number;
   aggCft: number;
+  stoneAggCft: number;
+  picketAggCft: number;
+  picketBricksPcs: number;
+  brickworkBricksPcs: number;
   steelKg: number;
   bricksPcs: number;
   tilesPcs: number;
@@ -208,6 +212,13 @@ export interface FullProjectBreakdown {
     sylhetSandCost: number;
     totalSandCost: number;
     aggCft: number;
+    stoneAggCft: number;
+    stoneAggCost: number;
+    picketAggCft: number;
+    picketBricksPcs: number;
+    picketAggCost: number;
+    brickworkBricksPcs: number;
+    brickworkCost: number;
     steelKg: number;
     steelTons: number;
     bricksPcs: number;
@@ -332,212 +343,42 @@ export function computeFullProjectBreakdown(
 
   const rawSteelByDia: Record<number, number> = {};
 
+  const createDefaultAllocation = (key: string, label: string, category: "structural" | "finishing" | "other", unit: string): ComponentMaterialAllocation => ({
+    key,
+    label,
+    category,
+    count: 0,
+    unit,
+    concreteVolCft: 0,
+    cementBags: 0,
+    sandCft: 0,
+    localSandCft: 0,
+    sylhetSandCft: 0,
+    aggCft: 0,
+    stoneAggCft: 0,
+    picketAggCft: 0,
+    picketBricksPcs: 0,
+    brickworkBricksPcs: 0,
+    steelKg: 0,
+    bricksPcs: 0,
+    tilesPcs: 0,
+    cost: 0,
+  });
+
   // Component allocations matrix
   const allocationMap: Record<string, ComponentMaterialAllocation> = {
-    footing: {
-      key: "footing",
-      label: "Foundation Isolated Footings",
-      category: "structural",
-      count: 0,
-      unit: "Nos",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    situ_pile: {
-      key: "situ_pile",
-      label: "Cast-in-Situ Bored Piles",
-      category: "structural",
-      count: 0,
-      unit: "Piles",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    sand_pile: {
-      key: "sand_pile",
-      label: "Sand Compaction Piles (SCP)",
-      category: "structural",
-      count: 0,
-      unit: "Piles",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    column: {
-      key: "column",
-      label: "Building RCC Columns",
-      category: "structural",
-      count: 0,
-      unit: "Nos",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    beam: {
-      key: "beam",
-      label: "Structural RCC Beams",
-      category: "structural",
-      count: 0,
-      unit: "Nos",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    slab: {
-      key: "slab",
-      label: "Floor RCC Slabs",
-      category: "structural",
-      count: 0,
-      unit: "sq.ft",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    stair: {
-      key: "stair",
-      label: "Staircase RCC Flights",
-      category: "structural",
-      count: 0,
-      unit: "Flights",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    brick: {
-      key: "brick",
-      label: "Burnt Clay Brickwork & Plaster",
-      category: "finishing",
-      count: 0,
-      unit: "Pcs",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    tiles: {
-      key: "tiles",
-      label: "Ceramic & Vitrified Floor Tiles",
-      category: "finishing",
-      count: 0,
-      unit: "Pcs",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    paint: {
-      key: "paint",
-      label: "Painting & Wall Finishing",
-      category: "finishing",
-      count: 0,
-      unit: "sq.ft",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    contractor: {
-      key: "contractor",
-      label: "Contractor & Construction Labour Schedule",
-      category: "other",
-      count: 0,
-      unit: "Items",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
-    other: {
-      key: "other",
-      label: "Other Structural Takeoffs",
-      category: "other",
-      count: 0,
-      unit: "Job",
-      concreteVolCft: 0,
-      cementBags: 0,
-      sandCft: 0,
-      localSandCft: 0,
-      sylhetSandCft: 0,
-      aggCft: 0,
-      steelKg: 0,
-      bricksPcs: 0,
-      tilesPcs: 0,
-      cost: 0,
-    },
+    footing: createDefaultAllocation("footing", "Foundation Isolated Footings", "structural", "Nos"),
+    situ_pile: createDefaultAllocation("situ_pile", "Cast-in-Situ Bored Piles", "structural", "Piles"),
+    sand_pile: createDefaultAllocation("sand_pile", "Sand Compaction Piles (SCP)", "structural", "Piles"),
+    column: createDefaultAllocation("column", "Building RCC Columns", "structural", "Nos"),
+    beam: createDefaultAllocation("beam", "Structural RCC Beams", "structural", "Nos"),
+    slab: createDefaultAllocation("slab", "Floor RCC Slabs", "structural", "sq.ft"),
+    stair: createDefaultAllocation("stair", "Staircase RCC Flights", "structural", "Flights"),
+    brick: createDefaultAllocation("brick", "Burnt Clay Brickwork & Plaster", "finishing", "Pcs"),
+    tiles: createDefaultAllocation("tiles", "Ceramic & Vitrified Floor Tiles", "finishing", "Pcs"),
+    paint: createDefaultAllocation("paint", "Painting & Wall Finishing", "finishing", "sq.ft"),
+    contractor: createDefaultAllocation("contractor", "Contractor & Construction Labour Schedule", "other", "Items"),
+    other: createDefaultAllocation("other", "Other Structural Takeoffs", "other", "Job"),
   };
 
   estimates.forEach((est) => {
@@ -592,16 +433,23 @@ export function computeFullProjectBreakdown(
     alloc.sandCft += sCft;
     alloc.localSandCft += localSandPortion;
     alloc.sylhetSandCft += sylhetSandPortion;
-    // Brick chips vs Stone chips are mutually exclusive for concrete coarse aggregate:
-    // If brick chips (khoa / picket brick) is selected, coarse aggregate is made of picket bricks (bQty).
-    // Stone aggregate (aggCft) price is NOT added; only add to alloc.aggCft if stone chips were used!
+
+    // Separate Coarse Stone Aggregate, Picket Aggregate (brick khoa), and Brick for Brickwork:
     const isKhoa = Boolean(
       d.baseType === "brick" || d.baseType === "picket" ||
       (s.brickQty && s.brickQty > 0 && est.type !== "brick" && est.type !== "tiles")
     );
-    if (!isKhoa) {
+    if (est.type === "brick") {
+      alloc.brickworkBricksPcs += bQty;
+    } else if (isKhoa) {
+      alloc.picketAggCft += aCft;
+      alloc.picketBricksPcs += bQty;
+      alloc.aggCft += aCft;
+    } else if (est.type !== "tiles" && est.type !== "sand_pile" && est.type !== "contractor" && est.type !== "paint") {
+      alloc.stoneAggCft += aCft;
       alloc.aggCft += aCft;
     }
+
     alloc.steelKg += stKg;
     alloc.bricksPcs += bQty;
     alloc.tilesPcs += tQty;
@@ -1102,6 +950,10 @@ export function computeFullProjectBreakdown(
   let totalSand = 0;
   let totalLocalSand = 0;
   let totalSylhetSand = 0;
+  let totalStoneAggCft = 0;
+  let totalPicketAggCft = 0;
+  let totalPicketBricksPcs = 0;
+  let totalBrickworkBricksPcs = 0;
   let totalAgg = 0;
   let totalSteel = 0;
   let totalBricks = 0;
@@ -1114,9 +966,13 @@ export function computeFullProjectBreakdown(
     totalSand += a.sandCft;
     totalLocalSand += a.localSandCft;
     totalSylhetSand += a.sylhetSandCft;
-    totalAgg += a.aggCft;
+    totalStoneAggCft += a.stoneAggCft;
+    totalPicketAggCft += a.picketAggCft;
+    totalPicketBricksPcs += a.picketBricksPcs;
+    totalBrickworkBricksPcs += a.brickworkBricksPcs;
+    totalAgg += (a.stoneAggCft + a.picketAggCft);
     totalSteel += a.steelKg;
-    totalBricks += a.bricksPcs;
+    totalBricks += (a.brickworkBricksPcs + a.picketBricksPcs);
     totalTiles += a.tilesPcs;
     totalCost += a.cost;
   });
@@ -1162,12 +1018,17 @@ export function computeFullProjectBreakdown(
   const totalSylhetSandCost = Math.round(totalSylhetSand * sylhetSandRate);
   const totalSandCost = totalLocalSandCost + totalSylhetSandCost;
 
+  const stoneAggCost = Math.round(totalStoneAggCft * defaultRates.aggRate);
+  const picketAggCost = Math.round(totalPicketBricksPcs * defaultRates.brickRate);
+  const brickworkCost = Math.round(totalBrickworkBricksPcs * defaultRates.brickRate);
+
   const rawMaterialsCost =
     totalCement * defaultRates.cementRate +
     totalSandCost +
-    totalAgg * defaultRates.aggRate +
+    stoneAggCost +
+    picketAggCost +
     totalSteel * defaultRates.steelRate +
-    totalBricks * defaultRates.brickRate +
+    brickworkCost +
     totalTiles * defaultRates.tileRate;
 
   // Contractor & labour schedule total
@@ -1200,6 +1061,13 @@ export function computeFullProjectBreakdown(
       sylhetSandCost: totalSylhetSandCost,
       totalSandCost,
       aggCft: Number(totalAgg.toFixed(1)),
+      stoneAggCft: Number(totalStoneAggCft.toFixed(1)),
+      stoneAggCost,
+      picketAggCft: Number(totalPicketAggCft.toFixed(1)),
+      picketBricksPcs: totalPicketBricksPcs,
+      picketAggCost,
+      brickworkBricksPcs: totalBrickworkBricksPcs,
+      brickworkCost,
       steelKg: Math.round(totalSteel),
       steelTons: Number((totalSteel / 1000).toFixed(3)),
       bricksPcs: totalBricks,
@@ -1226,6 +1094,13 @@ export interface ItemMaterialsReport {
   aggCft: number;
   aggCost: number;
   aggType: "stone" | "brick_khoa" | "aggregate";
+  stoneAggCft: number;
+  stoneAggCost: number;
+  picketAggCft: number;
+  picketBricksPcs: number;
+  picketAggCost: number;
+  brickworkBricksPcs: number;
+  brickworkCost: number;
   steelKg: number;
   steelCost: number;
   steelBreakdown: Record<string, number>;
@@ -1338,44 +1213,31 @@ export function extractItemMaterials(
   );
   const aggType: "stone" | "brick_khoa" | "aggregate" = isBrickKhoa ? "brick_khoa" : "stone";
 
-  // If brick chips / khoa is selected, coarse aggregate price is ONLY picket brick (stone aggregate price is 0)
-  const aggCost = isBrickKhoa
-    ? 0
-    : overrideRates
-    ? Math.round(aggCft * aggRate)
-    : (s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(aggCft * aggRate));
-
-  // Rebar Steel (kg)
-  const steelKg = Math.round(
-    s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || s.steelKg || s.totalSteelWeight || 0
-  );
-  const steelCost = overrideRates
-    ? Math.round(steelKg * steelRate)
-    : (s.steelCost !== undefined ? Math.round(s.steelCost) : Math.round(steelKg * steelRate));
-
-  // Steel breakdown map
-  const steelBreakdown: Record<string, number> = {};
-  if (s.steelBreakdown && typeof s.steelBreakdown === "object") {
-    Object.entries(s.steelBreakdown).forEach(([dia, w]) => {
-      const numDia = Number(dia);
-      const numW = typeof w === "number" ? w : Number(w);
-      if (!isNaN(numDia) && numDia > 0 && !isNaN(numW) && numW > 0) {
-        steelBreakdown[dia] = Math.round(numW);
-      }
-    });
-  }
-
   // Bricks (pcs): If brick khoa is selected, this is picket bricks. If brickwork estimate, this is wall bricks.
   // If stone chips aggregate is selected for a concrete item, bricks count and cost is strictly 0.
   const rawBricksPcs = Math.round(
     s.multipliedBricks || s.totalBricks || s.brickQty || 0
   );
-  const bricksPcs = (est.type === "brick" || isBrickKhoa) ? rawBricksPcs : 0;
-  const brickCost = isBrickKhoa
-    ? (overrideRates ? Math.round(bricksPcs * brickRate) : (s.picketCost !== undefined ? Math.round(s.picketCost) : Math.round(bricksPcs * brickRate)))
-    : (est.type === "brick"
-      ? (overrideRates ? Math.round(bricksPcs * brickRate) : (s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(bricksPcs * brickRate)))
-      : 0);
+
+  const stoneAggCft = (!isBrickKhoa && isCasting) ? aggCft : 0;
+  const stoneAggCost = stoneAggCft > 0
+    ? (overrideRates ? Math.round(stoneAggCft * aggRate) : (s.aggCost !== undefined ? Math.round(s.aggCost) : Math.round(stoneAggCft * aggRate)))
+    : 0;
+
+  const picketAggCft = isBrickKhoa ? aggCft : 0;
+  const picketBricksPcs = isBrickKhoa ? rawBricksPcs : 0;
+  const picketAggCost = isBrickKhoa
+    ? (overrideRates ? Math.round(picketBricksPcs * brickRate) : (s.picketCost !== undefined ? Math.round(s.picketCost) : Math.round(picketBricksPcs * brickRate)))
+    : 0;
+
+  const brickworkBricksPcs = est.type === "brick" ? rawBricksPcs : 0;
+  const brickworkCost = est.type === "brick"
+    ? (overrideRates ? Math.round(brickworkBricksPcs * brickRate) : (s.brickCost !== undefined ? Math.round(s.brickCost) : Math.round(brickworkBricksPcs * brickRate)))
+    : 0;
+
+  const bricksPcs = isBrickKhoa ? picketBricksPcs : (est.type === "brick" ? brickworkBricksPcs : 0);
+  const brickCost = picketAggCost + brickworkCost;
+  const aggCost = stoneAggCost;
 
   // Tiles (pcs & boxes & area)
   const tilesPcs = Math.round(
