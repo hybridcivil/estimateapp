@@ -54,6 +54,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
   const [constructionCostPerFoot, setConstructionCostPerFoot] = useState<number>(() => activeProject?.rates?.boringRatePerFt || 200);
   const [cementCost, setCementCost] = useState<number>(() => activeProject?.rates?.cementRate || 550);
   const [sandCost, setSandCost] = useState<number>(() => activeProject?.rates?.sandRate || 45);
+  const [localSandCost, setLocalSandCost] = useState<number>(() => activeProject?.rates?.localSandRate || 45);
+  const [sylhetSandCost, setSylhetSandCost] = useState<number>(() => activeProject?.rates?.sylhetSandRate || 110);
   const [aggregateCost, setAggregateCost] = useState<number>(() => activeProject?.rates?.aggRate || 120);
   const [steelCost, setSteelCost] = useState<number>(() => activeProject?.rates?.steelRate || 95);
 
@@ -62,6 +64,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
       if (activeProject.rates.boringRatePerFt) setConstructionCostPerFoot(activeProject.rates.boringRatePerFt);
       if (activeProject.rates.cementRate) setCementCost(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandCost(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setLocalSandCost(activeProject.rates.localSandRate);
+      if (activeProject.rates.sylhetSandRate) setSylhetSandCost(activeProject.rates.sylhetSandRate);
       if (activeProject.rates.aggRate) setAggregateCost(activeProject.rates.aggRate);
       if (activeProject.rates.steelRate) setSteelCost(activeProject.rates.steelRate);
     }
@@ -82,6 +86,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
     footRate = constructionCostPerFoot,
     cCost = cementCost,
     sCost = sandCost,
+    lCost = localSandCost,
+    sylCost = sylhetSandCost,
     aCost = aggregateCost,
     stCost = steelCost
   ) => {
@@ -135,7 +141,14 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
     // Cost calculations
     const constructionCost = Math.round(length * footRate * nos);
     const cementCostTotal = Math.round(totalCementBags * cCost);
-    const sandCostTotal = Math.round(totalSandVolume * sCost);
+
+    // Sand split: 1/3 Local Sand and 2/3 Sylhet Sand for casting
+    const localSandVolume = Number((totalSandVolume * (1 / 3)).toFixed(1));
+    const sylhetSandVolume = Number((totalSandVolume * (2 / 3)).toFixed(1));
+    const localSandCostTotal = Math.round(localSandVolume * lCost);
+    const sylhetSandCostTotal = Math.round(sylhetSandVolume * sylCost);
+    const sandCostTotal = localSandCostTotal + sylhetSandCostTotal;
+
     const aggregateCostTotal = Math.round(totalAggregateVolume * aCost);
     const steelCostTotal = Math.round(totalSteelWeight * stCost);
     const totalCost = constructionCost + cementCostTotal + sandCostTotal + aggregateCostTotal + steelCostTotal;
@@ -149,6 +162,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
       totalCementBags,
       sandVolumePerPile: Number(sandVolumePerPile.toFixed(2)),
       totalSandVolume,
+      localSandVolume,
+      sylhetSandVolume,
       aggregateVolumePerPile: Number(aggregateVolumePerPile.toFixed(2)),
       totalAggregateVolume,
       mainBarWeightPerPile: Number(mainBarWeightPerPile.toFixed(1)),
@@ -159,6 +174,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
       constructionCost,
       cementCostTotal,
       sandCostTotal,
+      localSandCostTotal,
+      sylhetSandCostTotal,
       aggregateCostTotal,
       steelCostTotal,
       totalCost,
@@ -180,6 +197,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
     constructionCostPerFoot,
     cementCost,
     sandCost,
+    localSandCost,
+    sylhetSandCost,
     aggregateCost,
     steelCost,
   ]);
@@ -203,6 +222,12 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
     if (d.constructionCostPerFoot !== undefined) setConstructionCostPerFoot(d.constructionCostPerFoot);
     if (d.cementCost !== undefined) setCementCost(d.cementCost);
     if (d.sandCost !== undefined) setSandCost(d.sandCost);
+    if (d.rates?.localSandRate !== undefined || d.localSandCost !== undefined) {
+      setLocalSandCost(d.rates?.localSandRate ?? d.localSandCost);
+    }
+    if (d.rates?.sylhetSandRate !== undefined || d.sylhetSandCost !== undefined) {
+      setSylhetSandCost(d.rates?.sylhetSandRate ?? d.sylhetSandCost);
+    }
     if (d.aggregateCost !== undefined) setAggregateCost(d.aggregateCost);
     if (d.steelCost !== undefined) setSteelCost(d.steelCost);
 
@@ -218,6 +243,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
       d.constructionCostPerFoot || constructionCostPerFoot,
       d.cementCost || cementCost,
       d.sandCost || sandCost,
+      d.rates?.localSandRate ?? d.localSandCost ?? localSandCost,
+      d.rates?.sylhetSandRate ?? d.sylhetSandCost ?? sylhetSandCost,
       d.aggregateCost || aggregateCost,
       d.steelCost || steelCost
     );
@@ -244,6 +271,8 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
     setConstructionCostPerFoot(200);
     setCementCost(550);
     setSandCost(45);
+    setLocalSandCost(45);
+    setSylhetSandCost(110);
     setAggregateCost(120);
     setSteelCost(95);
     if (onClearLoadedEstimate) onClearLoadedEstimate();
@@ -265,6 +294,11 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
         pileDiameter,
         cementBags: results.totalCementBags,
         sandCft: results.totalSandVolume,
+        localSandCft: results.localSandVolume,
+        sylhetSandCft: results.sylhetSandVolume,
+        localSandCost: results.localSandCostTotal,
+        sylhetSandCost: results.sylhetSandCostTotal,
+        totalSandCost: results.sandCostTotal,
         aggCft: results.totalAggregateVolume,
         totalSteelKg: results.totalSteelWeight,
         wetVolCft: results.totalWetVolume,
@@ -290,12 +324,16 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
           constructionCostPerFoot,
           cementRate: cementCost,
           sandRate: sandCost,
+          localSandRate: localSandCost,
+          sylhetSandRate: sylhetSandCost,
           aggRate: aggregateCost,
           steelRate: steelCost,
         },
         constructionCostPerFoot,
         cementCost,
         sandCost,
+        localSandCost,
+        sylhetSandCost,
         aggregateCost,
         steelCost,
       },
@@ -589,12 +627,23 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
-                      Sand (TK/CFT)
+                    <label className="block text-[11px] font-bold text-[#00c2c7] mb-1">
+                      Sylhet Sand (৳/cft · 2/3)
                     </label>
                     <NumericInput
-                      value={sandCost}
-                      onChange={(v) => setSandCost(Math.max(0, v))}
+                      value={sylhetSandCost}
+                      onChange={(v) => setSylhetSandCost(Math.max(0, v))}
+                      className="w-full bg-[#1a2b42] border border-[#00c2c7]/40 focus:border-[#00c2c7] rounded-xl px-3 py-2 text-xs font-mono text-white outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#f1f5f9] mb-1">
+                      Local Sand (৳/cft · 1/3)
+                    </label>
+                    <NumericInput
+                      value={localSandCost}
+                      onChange={(v) => setLocalSandCost(Math.max(0, v))}
                       className="w-full bg-[#1a2b42] border border-[#2d4a6a] focus:border-[#00c2c7] rounded-xl px-3 py-2 text-xs font-mono text-white outline-none"
                     />
                   </div>
@@ -717,8 +766,11 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-[#8ba3c1]">Sand Volume:</span>
-                        <span className="font-mono font-bold text-white">{results.totalSandVolume} CFT</span>
+                        <span className="text-[#8ba3c1]">Sand Volume (1/3 Local + 2/3 Sylhet):</span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-white block">{results.totalSandVolume} CFT</span>
+                          <span className="text-[9px] text-[#8ba3c1]">Sylhet: {results.sylhetSandVolume} cft · Local: {results.localSandVolume} cft</span>
+                        </div>
                       </div>
 
                       <div className="flex justify-between items-center">
@@ -755,8 +807,11 @@ export const SituPileCalculator: React.FC<SituPileCalculatorProps> = ({
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-[#8ba3c1]">Sand Cost ({sandCost} ৳/cft):</span>
-                        <span className="font-mono font-bold text-white">৳ {results.sandCostTotal.toLocaleString("en-IN")}</span>
+                        <span className="text-[#8ba3c1]">Sand Cost (Sylhet ৳{sylhetSandCost} + Local ৳{localSandCost}):</span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-white block">৳ {results.sandCostTotal.toLocaleString("en-IN")}</span>
+                          <span className="text-[9px] text-[#8ba3c1]">Sylhet: ৳{results.sylhetSandCostTotal?.toLocaleString("en-IN")} · Local: ৳{results.localSandCostTotal?.toLocaleString("en-IN")}</span>
+                        </div>
                       </div>
 
                       <div className="flex justify-between items-center">

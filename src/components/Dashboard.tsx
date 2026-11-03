@@ -242,6 +242,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       activeProject?.rates || {
         cementRate: DEFAULT_MATERIAL_RATES.cementRate,
         sandRate: DEFAULT_MATERIAL_RATES.sandRate,
+        localSandRate: DEFAULT_MATERIAL_RATES.localSandRate,
+        sylhetSandRate: DEFAULT_MATERIAL_RATES.sylhetSandRate,
         aggRate: DEFAULT_MATERIAL_RATES.aggRate,
         steelRate: DEFAULT_MATERIAL_RATES.steelRate,
         brickRate: DEFAULT_MATERIAL_RATES.brickRate,
@@ -262,6 +264,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       setRates({
         cementRate: activeProject.rates.cementRate ?? DEFAULT_MATERIAL_RATES.cementRate,
         sandRate: activeProject.rates.sandRate ?? DEFAULT_MATERIAL_RATES.sandRate,
+        localSandRate: activeProject.rates.localSandRate ?? DEFAULT_MATERIAL_RATES.localSandRate,
+        sylhetSandRate: activeProject.rates.sylhetSandRate ?? DEFAULT_MATERIAL_RATES.sylhetSandRate,
         aggRate: activeProject.rates.aggRate ?? DEFAULT_MATERIAL_RATES.aggRate,
         steelRate: activeProject.rates.steelRate ?? DEFAULT_MATERIAL_RATES.steelRate,
         brickRate: activeProject.rates.brickRate ?? DEFAULT_MATERIAL_RATES.brickRate,
@@ -366,6 +370,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Consolidated material sums
   let totalCementBags = 0;
   let totalSandCft = 0;
+  let totalLocalSandCft = 0;
+  let totalSylhetSandCft = 0;
   let totalAggCft = 0;
   let totalSteelKg = 0;
   let totalBricks = 0;
@@ -384,6 +390,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     const sCft = s.multipliedSandCft || s.sandCft || s.sandVolume || s.sandVol || s.totalSand || s.totalSandCft || 0;
     totalSandCft += sCft;
+
+    // Sand split: 1/3 local + 2/3 sylhet for casting; 100% local for brick, tiles, and sand pile
+    const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(e.type);
+    const localPortion = isCasting ? sCft * (1 / 3) : sCft;
+    const sylhetPortion = isCasting ? sCft * (2 / 3) : 0;
+    totalLocalSandCft += localPortion;
+    totalSylhetSandCft += sylhetPortion;
 
     const aCft = s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.aggregateVol || s.totalAggCft || 0;
     // Mutual exclusivity: only add to stone aggregate if brick khoa was NOT selected
@@ -1029,7 +1042,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
               <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
                 <div className="text-[10px] text-[#8ba3c1]">Total Cement</div>
                 <div className="text-base font-bold text-[#f5a623] mt-0.5">
@@ -1038,12 +1051,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="text-[9px] text-[#8ba3c1]">~{(totalCementBags * 50).toLocaleString()} kg</div>
               </div>
 
-              <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
-                <div className="text-[10px] text-[#8ba3c1]">Total Sand</div>
-                <div className="text-base font-bold text-[#f5a623] mt-0.5">
-                  {Math.round(totalSandCft).toLocaleString()} cft
+              <div className="bg-[#1a2b42] border border-[#00c2c7] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-[#8ba3c1]">Sylhet Sand (সিলেট)</div>
+                <div className="text-base font-bold text-[#00c2c7] mt-0.5">
+                  {Math.round(totalSylhetSandCft).toLocaleString()} cft
                 </div>
-                <div className="text-[9px] text-[#8ba3c1]">Fine & Coarse</div>
+                <div className="text-[9px] text-[#8ba3c1]">2/3 Casting @ ৳{rates.sylhetSandRate}</div>
+              </div>
+
+              <div className="bg-[#1a2b42] border border-[#f1f5f9]/40 rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-[#8ba3c1]">Local Sand (লোকাল)</div>
+                <div className="text-base font-bold text-[#f1f5f9] mt-0.5">
+                  {Math.round(totalLocalSandCft).toLocaleString()} cft
+                </div>
+                <div className="text-[9px] text-[#8ba3c1]">Brick + 1/3 Cast @ ৳{rates.localSandRate}</div>
               </div>
 
               <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
@@ -1169,6 +1190,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     const preset: GlobalMaterialRates = {
                       cementRate: 550,
                       sandRate: 45,
+                      localSandRate: 45,
+                      sylhetSandRate: 110,
                       aggRate: 120,
                       steelRate: 95,
                       brickRate: 15,
@@ -1195,7 +1218,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => {
                     const preset: GlobalMaterialRates = {
                       cementRate: 580,
-                      sandRate: 52,
+                      sandRate: 50,
+                      localSandRate: 50,
+                      sylhetSandRate: 120,
                       aggRate: 135,
                       steelRate: 98,
                       brickRate: 16,
@@ -1222,7 +1247,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => {
                     const preset: GlobalMaterialRates = {
                       cementRate: 620,
-                      sandRate: 60,
+                      sandRate: 55,
+                      localSandRate: 55,
+                      sylhetSandRate: 135,
                       aggRate: 150,
                       steelRate: 105,
                       brickRate: 18,
@@ -1267,8 +1294,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* 10 Material Unit Rates Input Grid (Normal click, smooth cursor & clearable inputs) */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2.5">
+          {/* 11 Material Unit Rates Input Grid (Normal click, smooth cursor & clearable inputs) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2.5">
             {/* 1. Cement */}
             <MaterialRateInput
               label="Cement"
@@ -1282,20 +1309,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("cementRate", val)}
             />
 
-            {/* 2. Sand */}
+            {/* 2. Sylhet Sand (সিলেট বালু FM 2.2-2.5) */}
             <MaterialRateInput
-              label="Sand"
+              label="Sylhet Sand"
               unit="৳ / cft"
-              value={rates.sandRate}
-              colorBorder="border-[#f1f5f9]/30"
-              colorText="text-[#f1f5f9]"
-              colorFocus="border-[#f1f5f9]"
-              subtext={`${Math.round(totalSandCft).toLocaleString()} cft = ৳${Math.round(totalSandCft * rates.sandRate).toLocaleString("en-IN")}`}
+              value={rates.sylhetSandRate}
+              colorBorder="border-[#00c2c7]/40"
+              colorText="text-[#00c2c7]"
+              colorFocus="border-[#00c2c7]"
+              subtext={`${Math.round(totalSylhetSandCft).toLocaleString()} cft = ৳${Math.round(totalSylhetSandCft * rates.sylhetSandRate).toLocaleString("en-IN")}`}
               isLight={isLight}
-              onCommit={(val) => handleUpdateSingleRate("sandRate", val)}
+              onCommit={(val) => handleUpdateSingleRate("sylhetSandRate", val)}
             />
 
-            {/* 3. Aggregate */}
+            {/* 3. Local Sand (লোকাল বালু FM 1.2-1.5) */}
+            <MaterialRateInput
+              label="Local Sand"
+              unit="৳ / cft"
+              value={rates.localSandRate}
+              colorBorder="border-[#f1f5f9]/40"
+              colorText="text-[#f1f5f9]"
+              colorFocus="border-[#f1f5f9]"
+              subtext={`${Math.round(totalLocalSandCft).toLocaleString()} cft = ৳${Math.round(totalLocalSandCft * rates.localSandRate).toLocaleString("en-IN")}`}
+              isLight={isLight}
+              onCommit={(val) => handleUpdateSingleRate("localSandRate", val)}
+            />
+
+            {/* 4. Aggregate */}
             <MaterialRateInput
               label="Stone Agg."
               unit="৳ / cft"
@@ -1308,7 +1348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("aggRate", val)}
             />
 
-            {/* 4. Rebar Steel */}
+            {/* 5. Rebar Steel */}
             <MaterialRateInput
               label="Steel Rebar"
               unit="৳ / kg"
@@ -1321,7 +1361,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("steelRate", val)}
             />
 
-            {/* 5. Bricks */}
+            {/* 6. Bricks */}
             <MaterialRateInput
               label="Bricks"
               unit="৳ / pc"
@@ -1334,7 +1374,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("brickRate", val)}
             />
 
-            {/* 6. Tiles */}
+            {/* 7. Tiles */}
             <MaterialRateInput
               label="Tiles"
               unit="৳ / pc"
@@ -1347,7 +1387,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("tileRate", val)}
             />
 
-            {/* 7. Situ Pile Boring */}
+            {/* 8. Situ Pile Boring */}
             <MaterialRateInput
               label="Situ Boring"
               unit="৳ / rft"
@@ -1360,7 +1400,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("boringRatePerFt", val)}
             />
 
-            {/* 8. Sand Pile Boring */}
+            {/* 9. Sand Pile Boring */}
             <MaterialRateInput
               label="Sand Pile"
               unit="৳ / rft"
@@ -1373,7 +1413,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("sandPileCostPerFt", val)}
             />
 
-            {/* 9. Square Bar Grill */}
+            {/* 10. Square Bar Grill */}
             <MaterialRateInput
               label="Square Grill"
               unit="৳ / sft"
@@ -1390,7 +1430,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onCommit={(val) => handleUpdateSingleRate("grillRatePerSft", val)}
             />
 
-            {/* 10. Aluminium Frame with Glass */}
+            {/* 11. Aluminium Frame with Glass */}
             <MaterialRateInput
               label="Alum + Glass"
               unit="৳ / sft"

@@ -111,6 +111,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
   // Material Rates
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
   const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [localSandRate, setLocalSandRate] = useState(() => activeProject?.rates?.localSandRate || 45);
+  const [sylhetSandRate, setSylhetSandRate] = useState(() => activeProject?.rates?.sylhetSandRate || 110);
   const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
   const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
 
@@ -118,6 +120,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
     if (activeProject?.rates) {
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setLocalSandRate(activeProject.rates.localSandRate);
+      if (activeProject.rates.sylhetSandRate) setSylhetSandRate(activeProject.rates.sylhetSandRate);
       if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
       if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
       if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
@@ -523,7 +527,12 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
 
     const useAggregate = !isPicket;
     const cementCost = cementBags * cementRate;
-    const sandCost = sandCft * sandRate;
+    // Sand split: 1/3 Local Sand and 2/3 Sylhet Sand for casting
+    const localSandPortionCft = Number((sandCft * (1 / 3)).toFixed(1));
+    const sylhetSandPortionCft = Number((sandCft * (2 / 3)).toFixed(1));
+    const localSandCost = Math.round(localSandPortionCft * localSandRate);
+    const sylhetSandCost = Math.round(sylhetSandPortionCft * sylhetSandRate);
+    const sandCost = localSandCost + sylhetSandCost;
     const aggCost = useAggregate ? aggCft * aggRate : 0;
     const steelCost = grandSteelKg * steelRate;
     const totalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
@@ -534,6 +543,10 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       // General quantities
       cementBags,
       sandCft: Number(sandCft.toFixed(1)),
+      localSandCft: localSandPortionCft,
+      sylhetSandCft: sylhetSandPortionCft,
+      localSandCost,
+      sylhetSandCost,
       aggCft: Number(aggCft.toFixed(1)),
       brickQty,
       useAggregate,
@@ -628,7 +641,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       summary: boq,
       data: {
         columns: currentCols,
-        rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
+        rates: { cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
         colMode,
         multiplier: colMode === "short" ? 1 : (isMultiplying ? Math.max(1, multiplier) : 1),
@@ -684,6 +697,8 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
+        if (est.data.rates.localSandRate) setLocalSandRate(est.data.rates.localSandRate);
+        if (est.data.rates.sylhetSandRate) setSylhetSandRate(est.data.rates.sylhetSandRate);
         setAggRate(est.data.rates.aggRate || 120);
         setSteelRate(est.data.rates.steelRate || 95);
         if (est.data.rates.brickRate) setBrickRate(est.data.rates.brickRate);
@@ -1411,7 +1426,7 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[#2d4a6a]/40">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-[#2d4a6a]/40">
                 <div>
                   <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (৳/bag)</label>
                   <NumericInput
@@ -1422,10 +1437,19 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (৳/cft)</label>
+                  <label className="text-[10px] text-[#00c2c7] font-bold block mb-1">Sylhet Sand (৳/cft · 2/3)</label>
                   <NumericInput
-                    value={sandRate}
-                    onChange={setSandRate}
+                    value={sylhetSandRate}
+                    onChange={setSylhetSandRate}
+                    className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/40 rounded text-xs text-white font-mono font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (৳/cft · 1/3)</label>
+                  <NumericInput
+                    value={localSandRate}
+                    onChange={setLocalSandRate}
                     className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white font-mono"
                   />
                 </div>
@@ -1820,9 +1844,12 @@ export const ColumnCalculator: React.FC<ColumnCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f1f5f9]/20 rounded-xl p-2.5 text-center">
-                  <div className="text-[9px] text-[#8ba3c1] font-medium">Total Sand</div>
+                  <div className="text-[9px] text-[#8ba3c1] font-medium">Sand (1/3 Local + 2/3 Sylhet)</div>
                   <div className="text-base font-bold text-[#f1f5f9] font-mono mt-0.5">
                     {results.sandCft} cft
+                  </div>
+                  <div className="text-[8px] text-[#8ba3c1] mt-0.5">
+                    Sylhet: {results.sylhetSandCft} cft · Local: {results.localSandCft} cft
                   </div>
                   <div className="text-[9px] text-[#8ba3c1]/70">৳ {results.sandCost.toLocaleString("en-IN")}</div>
                 </div>

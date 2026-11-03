@@ -46,7 +46,9 @@ export interface ProjectEstimateItem {
 
 export interface GlobalMaterialRates {
   cementRate: number;
-  sandRate: number;
+  sandRate?: number; // legacy fallback
+  localSandRate: number; // Local sand for brickwork, plaster & 1/3 casting (৳45/cft)
+  sylhetSandRate: number; // Sylhet sand for 2/3 casting (৳110/cft)
   aggRate: number;
   steelRate: number;
   brickRate: number;
@@ -382,6 +384,8 @@ export interface SituPileInputs {
   constructionCostPerFoot: number; // TK/ft
   cementCost: number; // TK/bag
   sandCost: number; // TK/cft
+  localSandCost?: number; // TK/cft
+  sylhetSandCost?: number; // TK/cft
   aggregateCost: number; // TK/cft
   steelCost: number; // TK/kg
   clearCoverIn?: number;
@@ -397,6 +401,8 @@ export interface SituPileResults {
   totalCementBags: number;
   sandVolumePerPile: number;
   totalSandVolume: number;
+  localSandVolume?: number;
+  sylhetSandVolume?: number;
   aggregateVolumePerPile: number;
   totalAggregateVolume: number;
   mainBarWeightPerPile: number;
@@ -407,6 +413,8 @@ export interface SituPileResults {
   constructionCost: number;
   cementCostTotal: number;
   sandCostTotal: number;
+  localSandCostTotal?: number;
+  sylhetSandCostTotal?: number;
   aggregateCostTotal: number;
   steelCostTotal: number;
   totalCost: number;

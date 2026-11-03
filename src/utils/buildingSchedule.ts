@@ -562,7 +562,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           extraBottomBars: { nos: 2, dia: 16, length: 11 },
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
       baseType: "none",
     },
   };
@@ -611,7 +611,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           extraBottomBars: { nos: 2, dia: 16, length: 11 },
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
       baseType: "none",
     },
   };
@@ -666,7 +666,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           stirrupSpacing: 5,
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
       baseType: "none",
     },
   };
@@ -710,7 +710,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           ],
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
       baseType: "none",
     },
   };
@@ -755,7 +755,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           extraBarsNum: 2,
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
       baseType: "none",
     },
   };
@@ -805,7 +805,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           distSpacingIn: 5,
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, aggRate: 120, steelRate: 95 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, sylhetSandRate: 110, aggRate: 120, steelRate: 95 },
     },
   };
 
@@ -902,7 +902,7 @@ export function createDefaultBuildingEstimates(stories: number = 1): ProjectEsti
           plasterThicknessMm: 12,
         },
       ],
-      rates: { cementRate: 550, sandRate: 45, brickRate: 15, bricksPerCft: 10 },
+      rates: { cementRate: 550, sandRate: 45, localSandRate: 45, brickRate: 15, bricksPerCft: 10 },
     },
   };
 

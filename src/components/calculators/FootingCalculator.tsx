@@ -74,6 +74,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
   // Rates initialized from activeProject.rates or BNBC defaults
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
   const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [localSandRate, setLocalSandRate] = useState(() => activeProject?.rates?.localSandRate || 45);
+  const [sylhetSandRate, setSylhetSandRate] = useState(() => activeProject?.rates?.sylhetSandRate || 110);
   const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
   const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
 
@@ -81,6 +83,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     if (activeProject?.rates) {
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setLocalSandRate(activeProject.rates.localSandRate);
+      if (activeProject.rates.sylhetSandRate) setSylhetSandRate(activeProject.rates.sylhetSandRate);
       if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
       if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
     }
@@ -356,7 +360,12 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
     const useAggregate = !isPicket;
     const cementCost = cementBags * cementRate;
-    const sandCost = sandCft * sandRate;
+    // Sand split: 1/3 Local Sand and 2/3 Sylhet Sand for casting
+    const localSandPortionCft = Number((sandCft * (1 / 3)).toFixed(1));
+    const sylhetSandPortionCft = Number((sandCft * (2 / 3)).toFixed(1));
+    const localSandCost = Math.round(localSandPortionCft * localSandRate);
+    const sylhetSandCost = Math.round(sylhetSandPortionCft * sylhetSandRate);
+    const sandCost = localSandCost + sylhetSandCost;
     const aggCost = useAggregate ? aggCft * aggRate : 0;
     const steelCost = Math.round(totalSteelKg * steelRate);
     const totalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
@@ -367,6 +376,10 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
     const calcResult = {
       cementBags,
       sandCft,
+      localSandCft: localSandPortionCft,
+      sylhetSandCft: sylhetSandPortionCft,
+      localSandCost,
+      sylhetSandCost,
       aggCft,
       brickQty,
       useAggregate,
@@ -393,7 +406,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
 
   useEffect(() => {
     calculate(footings, multiplier, isMultiplying);
-  }, [footings, multiplier, isMultiplying, baseType, brickRate, bricksPerCft, cementRate, sandRate, aggRate, steelRate]);
+  }, [footings, multiplier, isMultiplying, baseType, brickRate, bricksPerCft, cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate]);
 
   const resetForm = () => {
     setFtName("F1");
@@ -427,7 +440,7 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       summary: boq,
       data: {
         footings: currentFts,
-        rates: { cementRate, sandRate, aggRate, steelRate, brickRate, bricksPerCft },
+        rates: { cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate, brickRate, bricksPerCft },
         baseType,
         multiplier,
         isMultiplying,
@@ -455,6 +468,8 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
+        if (est.data.rates.localSandRate) setLocalSandRate(est.data.rates.localSandRate);
+        if (est.data.rates.sylhetSandRate) setSylhetSandRate(est.data.rates.sylhetSandRate);
         setAggRate(est.data.rates.aggRate || 120);
         setSteelRate(est.data.rates.steelRate || 95);
         if (est.data.rates.brickRate) setBrickRate(est.data.rates.brickRate);
@@ -784,10 +799,18 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
               />
             </div>
             <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+              <label className="text-[10px] text-[#00c2c7] font-bold block mb-1">Sylhet Sand (৳/cft · 2/3)</label>
               <NumericInput
-                value={sandRate}
-                onChange={setSandRate}
+                value={sylhetSandRate}
+                onChange={setSylhetSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/40 rounded text-xs text-white outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (৳/cft · 1/3)</label>
+              <NumericInput
+                value={localSandRate}
+                onChange={setLocalSandRate}
                 className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
@@ -951,8 +974,11 @@ export const FootingCalculator: React.FC<FootingCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Sand</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Sand (1/3 Local + 2/3 Sylhet)</div>
                   <div className="text-sm font-bold text-[#f5a623]">{results.sandCft} cft</div>
+                  <div className="text-[8px] text-[#8ba3c1] mt-0.5">
+                    Sylhet: {results.sylhetSandCft} cft · Local: {results.localSandCft} cft
+                  </div>
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">

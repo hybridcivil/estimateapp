@@ -99,6 +99,8 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
   // Rates initialized from activeProject.rates or defaults
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
   const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [localSandRate, setLocalSandRate] = useState(() => activeProject?.rates?.localSandRate || 45);
+  const [sylhetSandRate, setSylhetSandRate] = useState(() => activeProject?.rates?.sylhetSandRate || 110);
   const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
   const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
 
@@ -106,6 +108,8 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
     if (activeProject?.rates) {
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setLocalSandRate(activeProject.rates.localSandRate);
+      if (activeProject.rates.sylhetSandRate) setSylhetSandRate(activeProject.rates.sylhetSandRate);
       if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
       if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
     }
@@ -317,7 +321,12 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
     const totalSteel = Number((totalMainSteel + totalDistSteel).toFixed(1));
 
     const cementCost = cementBags * cementRate;
-    const sandCost = sandVolume * sandRate;
+    // Sand split: 1/3 Local Sand and 2/3 Sylhet Sand for casting
+    const localSandPortionCft = Number((sandVolume * (1 / 3)).toFixed(1));
+    const sylhetSandPortionCft = Number((sandVolume * (2 / 3)).toFixed(1));
+    const localSandCost = Math.round(localSandPortionCft * localSandRate);
+    const sylhetSandCost = Math.round(sylhetSandPortionCft * sylhetSandRate);
+    const sandCost = localSandCost + sylhetSandCost;
     const aggCost = aggregateVolume * aggRate;
     const steelCost = totalSteel * steelRate;
     const singleFloorTotalCost = cementCost + sandCost + aggCost + steelCost;
@@ -331,10 +340,17 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
       dryVolume: Number(((isMultiplying ? totalDryVol * effMultiplier : totalDryVol)).toFixed(2)),
       cementBags: isMultiplying ? Math.ceil(cementBags * effMultiplier) : cementBags,
       sandVolume: Number(((isMultiplying ? sandVolume * effMultiplier : sandVolume)).toFixed(1)),
+      sandCft: Number(((isMultiplying ? sandVolume * effMultiplier : sandVolume)).toFixed(1)),
+      localSandCft: localSandPortionCft,
+      sylhetSandCft: sylhetSandPortionCft,
+      localSandCost,
+      sylhetSandCost,
       aggregateVolume: Number(((isMultiplying ? aggregateVolume * effMultiplier : aggregateVolume)).toFixed(1)),
+      aggCft: Number(((isMultiplying ? aggregateVolume * effMultiplier : aggregateVolume)).toFixed(1)),
       mainBarWeight: Number(((isMultiplying ? totalMainSteel * effMultiplier : totalMainSteel)).toFixed(1)),
       distBarWeight: Number(((isMultiplying ? totalDistSteel * effMultiplier : totalDistSteel)).toFixed(1)),
       totalSteel: Number(((isMultiplying ? totalSteel * effMultiplier : totalSteel)).toFixed(1)),
+      totalSteelKg: Number(((isMultiplying ? totalSteel * effMultiplier : totalSteel)).toFixed(1)),
       totalRisersCount: isMultiplying ? totalRisersCount * effMultiplier : totalRisersCount,
       totalFlightsCount: (list.reduce((sum, s) => sum + s.nos, 0)) * effMultiplier,
       singleFloorFlightsCount: list.reduce((sum, s) => sum + s.nos, 0),
@@ -355,6 +371,8 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
       // Multiplied materials for full building
       multipliedCementBags: Math.ceil(cementBags * effMultiplier),
       multipliedSandCft: Number((sandVolume * effMultiplier).toFixed(1)),
+      multipliedLocalSandCft: Number((localSandPortionCft * effMultiplier).toFixed(1)),
+      multipliedSylhetSandCft: Number((sylhetSandPortionCft * effMultiplier).toFixed(1)),
       multipliedAggCft: Number((aggregateVolume * effMultiplier).toFixed(1)),
       multipliedSteelKg: Number((totalSteel * effMultiplier).toFixed(1)),
     };
@@ -365,7 +383,7 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
 
   useEffect(() => {
     calculate(stairs);
-  }, [multiplier, isMultiplying, cementRate, sandRate, aggRate, steelRate]);
+  }, [multiplier, isMultiplying, cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate]);
 
   const handleSaveToProject = async (asNewCopy = false) => {
     let currentStairs = [...stairs];
@@ -386,7 +404,7 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
       summary: boq,
       data: {
         stairs: currentStairs,
-        rates: { cementRate, sandRate, aggRate, steelRate },
+        rates: { cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate },
         multiplier,
         isMultiplying,
       },
@@ -403,6 +421,8 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
     if (est.data?.rates) {
       setCementRate(est.data.rates.cementRate || 550);
       setSandRate(est.data.rates.sandRate || 45);
+      if (est.data.rates.localSandRate) setLocalSandRate(est.data.rates.localSandRate);
+      if (est.data.rates.sylhetSandRate) setSylhetSandRate(est.data.rates.sylhetSandRate);
       setAggRate(est.data.rates.aggRate || 120);
       setSteelRate(est.data.rates.steelRate || 95);
     }
@@ -775,7 +795,7 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
           {/* Rates Settings */}
           <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 shadow-lg space-y-2">
             <span className="text-xs font-semibold text-[#00c2c7] block">Material Rates</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <div>
                 <label className="text-[10px] text-[#8ba3c1] block mb-1">Cement (per bag)</label>
                 <NumericInput
@@ -785,10 +805,18 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+                <label className="text-[10px] text-[#00c2c7] font-bold block mb-1">Sylhet Sand (৳/cft · 2/3)</label>
                 <NumericInput
-                  value={sandRate}
-                  onChange={setSandRate}
+                  value={sylhetSandRate}
+                  onChange={setSylhetSandRate}
+                  className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/40 rounded text-xs text-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (৳/cft · 1/3)</label>
+                <NumericInput
+                  value={localSandRate}
+                  onChange={setLocalSandRate}
                   className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
                 />
               </div>
@@ -836,9 +864,12 @@ export const StairCalculator: React.FC<StairCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Sand</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Sand (1/3 Local + 2/3 Sylhet)</div>
                   <div className="text-sm font-bold text-[#f5a623]">
                     {isMultiplying ? results.multipliedSandCft : results.sandVolume} cft
+                  </div>
+                  <div className="text-[8px] text-[#8ba3c1] mt-0.5">
+                    Sylhet: {isMultiplying ? results.multipliedSylhetSandCft : results.sylhetSandCft} cft · Local: {isMultiplying ? results.multipliedLocalSandCft : results.localSandCft} cft
                   </div>
                   {isMultiplying && (
                     <div className="text-[9px] text-[#8ba3c1]">

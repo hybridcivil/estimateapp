@@ -9,6 +9,8 @@ export interface ComponentMaterialAllocation {
   concreteVolCft: number;
   cementBags: number;
   sandCft: number;
+  localSandCft: number;
+  sylhetSandCft: number;
   aggCft: number;
   steelKg: number;
   bricksPcs: number;
@@ -200,6 +202,11 @@ export interface FullProjectBreakdown {
     concreteVolCft: number;
     cementBags: number;
     sandCft: number;
+    localSandCft: number;
+    sylhetSandCft: number;
+    localSandCost: number;
+    sylhetSandCost: number;
+    totalSandCost: number;
     aggCft: number;
     steelKg: number;
     steelTons: number;
@@ -290,7 +297,9 @@ export function extractEstimateMaterials(est: ProjectEstimateItem): EstimateMate
 
 export const DEFAULT_MATERIAL_RATES = {
   cementRate: 550,
-  sandRate: 45,
+  sandRate: 45, // legacy fallback
+  localSandRate: 45, // Local sand (লোকাল বালু FM 1.2-1.5) ৳45/cft for brickwork, plaster & 1/3 casting
+  sylhetSandRate: 110, // Sylhet sand (সিলেট বালু FM 2.2-2.5) ৳110/cft for 2/3 casting
   aggRate: 120,
   steelRate: 95,
   brickRate: 15,
@@ -334,6 +343,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -349,6 +360,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -364,6 +377,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -379,6 +394,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -394,6 +411,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -409,6 +428,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -424,6 +445,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -439,6 +462,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -454,6 +479,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -469,6 +496,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -484,6 +513,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -499,6 +530,8 @@ export function computeFullProjectBreakdown(
       concreteVolCft: 0,
       cementBags: 0,
       sandCft: 0,
+      localSandCft: 0,
+      sylhetSandCft: 0,
       aggCft: 0,
       steelKg: 0,
       bricksPcs: 0,
@@ -544,12 +577,21 @@ export function computeFullProjectBreakdown(
       });
     }
 
+    // Casting vs non-casting sand split:
+    // Structural concrete casting elements use 1/3 Local Sand and 2/3 Sylhet Sand
+    // Masonry brickwork, plaster, tiles bedding, and sand piles use 100% Local Sand
+    const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(est.type);
+    const localSandPortion = isCasting ? sCft * (1 / 3) : sCft;
+    const sylhetSandPortion = isCasting ? sCft * (2 / 3) : 0;
+
     // Accumulate to allocation map
     const allocKey = allocationMap[est.type] ? est.type : "other";
     const alloc = allocationMap[allocKey];
     alloc.cost += cost;
     alloc.cementBags += cBags;
     alloc.sandCft += sCft;
+    alloc.localSandCft += localSandPortion;
+    alloc.sylhetSandCft += sylhetSandPortion;
     // Brick chips vs Stone chips are mutually exclusive for concrete coarse aggregate:
     // If brick chips (khoa / picket brick) is selected, coarse aggregate is made of picket bricks (bQty).
     // Stone aggregate (aggCft) price is NOT added; only add to alloc.aggCft if stone chips were used!
@@ -1058,6 +1100,8 @@ export function computeFullProjectBreakdown(
   let totalConcrete = 0;
   let totalCement = 0;
   let totalSand = 0;
+  let totalLocalSand = 0;
+  let totalSylhetSand = 0;
   let totalAgg = 0;
   let totalSteel = 0;
   let totalBricks = 0;
@@ -1068,6 +1112,8 @@ export function computeFullProjectBreakdown(
     totalConcrete += a.concreteVolCft;
     totalCement += a.cementBags;
     totalSand += a.sandCft;
+    totalLocalSand += a.localSandCft;
+    totalSylhetSand += a.sylhetSandCft;
     totalAgg += a.aggCft;
     totalSteel += a.steelKg;
     totalBricks += a.bricksPcs;
@@ -1110,9 +1156,15 @@ export function computeFullProjectBreakdown(
     });
   }
 
+  const localSandRate = defaultRates.localSandRate ?? 45;
+  const sylhetSandRate = defaultRates.sylhetSandRate ?? 110;
+  const totalLocalSandCost = Math.round(totalLocalSand * localSandRate);
+  const totalSylhetSandCost = Math.round(totalSylhetSand * sylhetSandRate);
+  const totalSandCost = totalLocalSandCost + totalSylhetSandCost;
+
   const rawMaterialsCost =
     totalCement * defaultRates.cementRate +
-    totalSand * defaultRates.sandRate +
+    totalSandCost +
     totalAgg * defaultRates.aggRate +
     totalSteel * defaultRates.steelRate +
     totalBricks * defaultRates.brickRate +
@@ -1142,6 +1194,11 @@ export function computeFullProjectBreakdown(
       concreteVolCft: Number(totalConcrete.toFixed(1)),
       cementBags: totalCement,
       sandCft: Number(totalSand.toFixed(1)),
+      localSandCft: Number(totalLocalSand.toFixed(1)),
+      sylhetSandCft: Number(totalSylhetSand.toFixed(1)),
+      localSandCost: totalLocalSandCost,
+      sylhetSandCost: totalSylhetSandCost,
+      totalSandCost,
       aggCft: Number(totalAgg.toFixed(1)),
       steelKg: Math.round(totalSteel),
       steelTons: Number((totalSteel / 1000).toFixed(3)),
@@ -1161,6 +1218,10 @@ export interface ItemMaterialsReport {
   cementBags: number;
   cementCost: number;
   sandCft: number;
+  localSandCft: number;
+  sylhetSandCft: number;
+  localSandCost: number;
+  sylhetSandCost: number;
   sandCost: number;
   aggCft: number;
   aggCost: number;
@@ -1189,6 +1250,8 @@ export interface ItemMaterialsReport {
   rates: {
     cementRate: number;
     sandRate: number;
+    localSandRate: number;
+    sylhetSandRate: number;
     aggRate: number;
     steelRate: number;
     brickRate: number;
@@ -1234,6 +1297,8 @@ export function extractItemMaterials(
   const savedRates = d.rates || {};
   const cementRate = Number(overrideRates?.cementRate ?? savedRates.cementRate ?? d.cementRate ?? s.cementRate ?? DEFAULT_MATERIAL_RATES.cementRate);
   const sandRate = Number(overrideRates?.sandRate ?? savedRates.sandRate ?? d.sandRate ?? s.sandRate ?? DEFAULT_MATERIAL_RATES.sandRate);
+  const localSandRate = Number(overrideRates?.localSandRate ?? savedRates.localSandRate ?? d.localSandRate ?? s.localSandRate ?? DEFAULT_MATERIAL_RATES.localSandRate);
+  const sylhetSandRate = Number(overrideRates?.sylhetSandRate ?? savedRates.sylhetSandRate ?? d.sylhetSandRate ?? s.sylhetSandRate ?? DEFAULT_MATERIAL_RATES.sylhetSandRate);
   const aggRate = Number(overrideRates?.aggRate ?? savedRates.aggRate ?? d.aggRate ?? s.aggRate ?? DEFAULT_MATERIAL_RATES.aggRate);
   const steelRate = Number(overrideRates?.steelRate ?? savedRates.steelRate ?? d.steelRate ?? s.steelRate ?? DEFAULT_MATERIAL_RATES.steelRate);
   const brickRate = Number(overrideRates?.brickRate ?? savedRates.brickRate ?? d.brickRate ?? s.brickRate ?? DEFAULT_MATERIAL_RATES.brickRate);
@@ -1251,13 +1316,17 @@ export function extractItemMaterials(
     ? Math.round(cementBags * cementRate)
     : (s.cementCost !== undefined ? Math.round(s.cementCost) : Math.round(cementBags * cementRate));
 
-  // Sand (cft)
+  // Sand (cft): Casting elements use 1/3 Local Sand and 2/3 Sylhet Sand.
+  // Brickwork, plaster, tiles bedding, and sand piles use 100% Local Sand.
+  const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(est.type);
   const sandCft = Number(
     (s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || s.totalVolume || 0).toFixed(1)
   );
-  const sandCost = overrideRates
-    ? Math.round(sandCft * sandRate)
-    : (s.sandCost !== undefined ? Math.round(s.sandCost) : (s.totalSandCost !== undefined ? Math.round(s.totalSandCost) : Math.round(sandCft * sandRate)));
+  const localSandCft = Number((isCasting ? sandCft * (1 / 3) : sandCft).toFixed(1));
+  const sylhetSandCft = Number((isCasting ? sandCft * (2 / 3) : 0).toFixed(1));
+  const localSandCost = Math.round(localSandCft * localSandRate);
+  const sylhetSandCost = Math.round(sylhetSandCft * sylhetSandRate);
+  const sandCost = localSandCost + sylhetSandCost;
 
   // Stone / Khoa Aggregates (cft)
   const aggCft = Number(
@@ -1474,6 +1543,10 @@ export function extractItemMaterials(
     cementBags,
     cementCost,
     sandCft,
+    localSandCft,
+    sylhetSandCft,
+    localSandCost,
+    sylhetSandCost,
     sandCost,
     aggCft,
     aggCost,
@@ -1502,6 +1575,8 @@ export function extractItemMaterials(
     rates: {
       cementRate,
       sandRate,
+      localSandRate,
+      sylhetSandRate,
       aggRate,
       steelRate,
       brickRate,
@@ -1548,6 +1623,10 @@ export function recalculateEstimateWithRates(
     ...est.summary,
     cementCost: mat.cementCost,
     sandCost: mat.sandCost,
+    localSandCost: mat.localSandCost,
+    sylhetSandCost: mat.sylhetSandCost,
+    localSandCft: mat.localSandCft,
+    sylhetSandCft: mat.sylhetSandCft,
     aggCost: mat.aggCost,
     steelCost: mat.steelCost,
     brickCost: mat.brickCost,

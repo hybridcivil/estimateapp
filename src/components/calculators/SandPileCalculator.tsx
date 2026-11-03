@@ -47,14 +47,19 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
   const [pileLength, setPileLength] = useState<number>(20); // feet
   // Rates & Costs initialized from activeProject.rates or defaults
   const [costPerFoot, setCostPerFoot] = useState<number>(() => activeProject?.rates?.sandPileCostPerFt || 30); // TK / running foot
-  const [costPerCft, setCostPerCft] = useState<number>(() => activeProject?.rates?.sandRate || 45); // TK / cft of sand
+  const [costPerCft, setCostPerCft] = useState<number>(() => activeProject?.rates?.sylhetSandRate || 110); // TK / cft of sand
   const [compactionPct, setCompactionPct] = useState<number>(15); // 15% compaction & bulking allowance
   const [sandType, setSandType] = useState<string>("Sylhet Sand (FM 2.5)");
 
   useEffect(() => {
     if (activeProject?.rates) {
       if (activeProject.rates.sandPileCostPerFt) setCostPerFoot(activeProject.rates.sandPileCostPerFt);
-      if (activeProject.rates.sandRate) setCostPerCft(activeProject.rates.sandRate);
+      if (sandType.includes("Sylhet")) {
+        if (activeProject.rates.sylhetSandRate) setCostPerCft(activeProject.rates.sylhetSandRate);
+      } else {
+        if (activeProject.rates.localSandRate) setCostPerCft(activeProject.rates.localSandRate);
+        else if (activeProject.rates.sandRate) setCostPerCft(activeProject.rates.sandRate);
+      }
     }
   }, [activeProject?.rates]);
 
@@ -517,12 +522,20 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
                     </label>
                     <select
                       value={sandType}
-                      onChange={(e) => setSandType(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSandType(val);
+                        if (val.includes("Sylhet")) {
+                          setCostPerCft(activeProject?.rates?.sylhetSandRate || 110);
+                        } else {
+                          setCostPerCft(activeProject?.rates?.localSandRate || 45);
+                        }
+                      }}
                       className="w-full bg-[#1a2b42] border border-[#2d4a6a] focus:border-[#00c2c7] rounded-xl px-3 py-2 text-xs text-white outline-none"
                     >
-                      <option value="Sylhet Sand (FM 2.5)">Sylhet Coarse Sand (FM 2.5 - Recommended)</option>
-                      <option value="Medium Local Sand (FM 1.8)">Medium Local Sand (FM 1.8)</option>
-                      <option value="Fine Local Sand (FM 1.2)">Fine Sand (FM 1.2)</option>
+                      <option value="Sylhet Sand (FM 2.5)">Sylhet Coarse Sand (FM 2.5 · ৳110/cft)</option>
+                      <option value="Medium Local Sand (FM 1.8)">Medium Local Sand (FM 1.8 · ৳45/cft)</option>
+                      <option value="Fine Local Sand (FM 1.2)">Fine Local Sand (FM 1.2 · ৳45/cft)</option>
                     </select>
                   </div>
                 </div>

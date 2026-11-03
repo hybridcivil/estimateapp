@@ -131,6 +131,8 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
   // Rates initialized from activeProject.rates or defaults
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
   const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [localSandRate, setLocalSandRate] = useState(() => activeProject?.rates?.localSandRate || 45);
+  const [sylhetSandRate, setSylhetSandRate] = useState(() => activeProject?.rates?.sylhetSandRate || 110);
   const [aggRate, setAggRate] = useState(() => activeProject?.rates?.aggRate || 120);
   const [steelRate, setSteelRate] = useState(() => activeProject?.rates?.steelRate || 95);
 
@@ -138,6 +140,8 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     if (activeProject?.rates) {
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
       if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setLocalSandRate(activeProject.rates.localSandRate);
+      if (activeProject.rates.sylhetSandRate) setSylhetSandRate(activeProject.rates.sylhetSandRate);
       if (activeProject.rates.aggRate) setAggRate(activeProject.rates.aggRate);
       if (activeProject.rates.steelRate) setSteelRate(activeProject.rates.steelRate);
       if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
@@ -409,7 +413,12 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
 
     const useAggregate = !isPicket;
     const cementCost = cementBags * cementRate;
-    const sandCost = sandCft * sandRate;
+    // Sand split: 1/3 Local Sand and 2/3 Sylhet Sand for casting
+    const localSandPortionCft = Number((sandCft * (1 / 3)).toFixed(1));
+    const sylhetSandPortionCft = Number((sandCft * (2 / 3)).toFixed(1));
+    const localSandCost = Math.round(localSandPortionCft * localSandRate);
+    const sylhetSandCost = Math.round(sylhetSandPortionCft * sylhetSandRate);
+    const sandCost = localSandCost + sylhetSandCost;
     const aggCost = useAggregate ? aggCft * aggRate : 0;
     const steelCost = totalSteelKg * steelRate;
     const singleFloorTotalCost = cementCost + sandCost + aggCost + steelCost + picketCost;
@@ -425,6 +434,10 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
     const calcResult = {
       cementBags: isMult ? Math.ceil(cementBags * effMultiplier) : cementBags,
       sandCft: Number(((isMult ? sandCft * effMultiplier : sandCft)).toFixed(1)),
+      localSandCft: Number(((isMult ? localSandPortionCft * effMultiplier : localSandPortionCft)).toFixed(1)),
+      sylhetSandCft: Number(((isMult ? sylhetSandPortionCft * effMultiplier : sylhetSandPortionCft)).toFixed(1)),
+      localSandCost: Math.round(isMult ? localSandCost * effMultiplier : localSandCost),
+      sylhetSandCost: Math.round(isMult ? sylhetSandCost * effMultiplier : sylhetSandCost),
       aggCft: Number(((isMult ? aggCft * effMultiplier : aggCft)).toFixed(1)),
       brickQty: isMult ? brickQty * effMultiplier : brickQty,
       useAggregate,
@@ -440,6 +453,8 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
       // Single floor breakdown
       singleFloorCementBags: cementBags,
       singleFloorSandCft: Number(sandCft.toFixed(1)),
+      singleFloorLocalSandCft: localSandPortionCft,
+      singleFloorSylhetSandCft: sylhetSandPortionCft,
       singleFloorAggCft: Number(aggCft.toFixed(1)),
       singleFloorSteelKg: Number(totalSteelKg.toFixed(1)),
       cementCost,
@@ -547,6 +562,8 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
       if (est.data.rates) {
         setCementRate(est.data.rates.cementRate || 550);
         setSandRate(est.data.rates.sandRate || 45);
+        setLocalSandRate(est.data.rates.localSandRate || 45);
+        setSylhetSandRate(est.data.rates.sylhetSandRate || 110);
         setAggRate(est.data.rates.aggRate || 120);
         setSteelRate(est.data.rates.steelRate || 95);
       }
@@ -582,7 +599,7 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
           data: {
             beams,
             baseType,
-            rates: { cementRate, sandRate, aggRate, steelRate },
+            rates: { cementRate, sandRate, localSandRate, sylhetSandRate, aggRate, steelRate },
             multiplier: beamCategory === "grade_beam" ? 1 : (isMultiplying ? Math.max(1, multiplier) : 1),
             isMultiplying: beamCategory === "grade_beam" ? false : isMultiplying,
             beamSubtype: beamCategory,
@@ -1023,10 +1040,18 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
               />
             </div>
             <div>
-              <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+              <label className="text-[10px] text-[#00c2c7] font-bold block mb-1">Sylhet Sand (৳/cft · 2/3)</label>
               <NumericInput
-                value={sandRate}
-                onChange={setSandRate}
+                value={sylhetSandRate}
+                onChange={setSylhetSandRate}
+                className="w-full h-8 px-2 bg-[#243b55] border border-[#00c2c7]/40 rounded text-xs text-white outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (৳/cft · 1/3)</label>
+              <NumericInput
+                value={localSandRate}
+                onChange={setLocalSandRate}
                 className="w-full h-8 px-2 bg-[#243b55] border border-[#2d4a6a] rounded text-xs text-white outline-none"
               />
             </div>
@@ -1231,15 +1256,13 @@ export const BeamCalculator: React.FC<BeamCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Sand</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Sand (1/3 Local + 2/3 Sylhet)</div>
                   <div className="text-sm font-bold text-[#f5a623]">
                     {isMultiplying ? results.multipliedSandCft : results.sandCft} cft
                   </div>
-                  {isMultiplying && (
-                    <div className="text-[9px] text-[#8ba3c1]">
-                      ({results.sandCft} cft / floor)
-                    </div>
-                  )}
+                  <div className="text-[8px] text-[#8ba3c1] mt-0.5">
+                    Sylhet: {results.sylhetSandCft} cft · Local: {results.localSandCft} cft
+                  </div>
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#f5a623] rounded-lg p-2 text-center">

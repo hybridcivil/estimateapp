@@ -148,7 +148,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
   // Rates initialized from activeProject.rates or defaults
   const [brickRate, setBrickRate] = useState(() => activeProject?.rates?.brickRate || 15);
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
-  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.localSandRate || activeProject?.rates?.sandRate || 45);
   const [grillRate, setGrillRate] = useState(() => activeProject?.rates?.grillRatePerSft || 180);
   const [aluminiumRate, setAluminiumRate] = useState(() => activeProject?.rates?.aluminiumGlassRatePerSft || 450);
 
@@ -156,7 +156,8 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
     if (activeProject?.rates) {
       if (activeProject.rates.brickRate) setBrickRate(activeProject.rates.brickRate);
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
-      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setSandRate(activeProject.rates.localSandRate);
+      else if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
       if (activeProject.rates.grillRatePerSft) setGrillRate(activeProject.rates.grillRatePerSft);
       if (activeProject.rates.aluminiumGlassRatePerSft) setAluminiumRate(activeProject.rates.aluminiumGlassRatePerSft);
     }
@@ -1225,7 +1226,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (প্রতি cft ৳)</label>
+                <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (লোকাল বালু ৳/cft)</label>
                 <NumericInput
                   value={sandRate}
                   onChange={setSandRate}

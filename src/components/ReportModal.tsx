@@ -231,6 +231,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const pRates = project.rates || {};
   let defaultCementRate = pRates.cementRate || 550;
   let defaultSandRate = pRates.sandRate || 45;
+  let defaultLocalSandRate = pRates.localSandRate || 45;
+  let defaultSylhetSandRate = pRates.sylhetSandRate || 110;
   let defaultAggRate = pRates.aggRate || pRates.stoneRate || 120;
   let defaultSteelRate = pRates.steelRate || 95;
   let defaultBrickRate = pRates.brickRate || 15;
@@ -242,6 +244,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     const r = e.data?.rates || {};
     if (r.cementRate) defaultCementRate = r.cementRate;
     if (r.sandRate) defaultSandRate = r.sandRate;
+    if (r.localSandRate) defaultLocalSandRate = r.localSandRate;
+    if (r.sylhetSandRate) defaultSylhetSandRate = r.sylhetSandRate;
     if (r.aggRate || r.stoneRate) defaultAggRate = r.aggRate || r.stoneRate;
     if (r.steelRate) defaultSteelRate = r.steelRate;
     if (r.brickRate) defaultBrickRate = r.brickRate;
@@ -253,6 +257,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const effectiveRates = {
     cementRate: defaultCementRate,
     sandRate: defaultSandRate,
+    localSandRate: defaultLocalSandRate,
+    sylhetSandRate: defaultSylhetSandRate,
     aggRate: defaultAggRate,
     steelRate: defaultSteelRate,
     brickRate: defaultBrickRate,
@@ -648,16 +654,27 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">2</td>
           <td class="font-bold">
-            Coarse & Medium Sand (Sylhet FM 2.5 + Local FM 1.5)
-            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Clean graded sand for concrete, mortar & plastering</div>
+            Sylhet Coarse Sand (সিলেট বালু FM 2.2-2.5)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Coarse aggregate sand for structural RCC casting (2/3 sand volume)</div>
           </td>
           <td class="text-center">cft</td>
-          <td class="text-right font-mono">৳ ${defaultSandRate}</td>
-          <td class="text-right font-bold font-mono">${Math.round(totals.sandCft).toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.sandCft * defaultSandRate).toLocaleString("en-IN")}</td>
+          <td class="text-right font-mono">৳ ${defaultSylhetSandRate}</td>
+          <td class="text-right font-bold font-mono">${Math.round(totals.sylhetSandCft).toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.sylhetSandCost).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">3</td>
+          <td class="font-bold">
+            Local Medium Sand (লোকাল বালু FM 1.2-1.5)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">River sand for brickwork masonry, wall plaster & 1/3 casting blend</div>
+          </td>
+          <td class="text-center">cft</td>
+          <td class="text-right font-mono">৳ ${defaultLocalSandRate}</td>
+          <td class="text-right font-bold font-mono">${Math.round(totals.localSandCft).toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.localSandCost).toLocaleString("en-IN")}</td>
+        </tr>
+        <tr>
+          <td class="text-center font-mono" style="color: #64748b;">4</td>
           <td class="font-bold">
             Crushed Stone Aggregate
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular coarse aggregate (stone chips)</div>
@@ -668,7 +685,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-bold font-mono">৳ ${Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
-          <td class="text-center font-mono" style="color: #64748b;">4</td>
+          <td class="text-center font-mono" style="color: #64748b;">5</td>
           <td class="font-bold">
             High-Yield Strength Deformed Rebar Steel
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Grade 500W / 60G TMT Rebar (${totals.steelTons} Metric Tons)</div>
@@ -679,7 +696,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-bold font-mono">৳ ${Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
-          <td class="text-center font-mono" style="color: #64748b;">5</td>
+          <td class="text-center font-mono" style="color: #64748b;">6</td>
           <td class="font-bold">
             First Class Burnt Clay Bricks
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Standard Modular 9.5" × 4.5" × 2.75"</div>
@@ -692,7 +709,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${
           totals.tilesPcs > 0
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">6</td>
+          <td class="text-center font-mono" style="color: #64748b;">7</td>
           <td class="font-bold">
             Floor & Wall Ceramic / Vitrified Tiles
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Finished tile units including cuts, skirting & wastage</div>
@@ -707,7 +724,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${
           totals.boringCost > 0
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? 7 : 6}</td>
+          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? 8 : 7}</td>
           <td class="font-bold">
             Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Rotary / wash boring, bentonite slurry circulation & rig mobilization</div>
@@ -2265,24 +2282,39 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {(totals.cementBags * defaultCementRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* Sand */}
+                    {/* 2. Sylhet Sand */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">2</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        Coarse & Medium Sand (Sylhet FM 2.5 + Local FM 1.5)
+                        Sylhet Coarse Sand (সিলেট বালু FM 2.2-2.5)
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Graded sand for structural concrete, mortar & plastering
+                          Coarse sand for structural RCC casting (2/3 sand volume)
                         </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSandRate}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.sandCft).toLocaleString()}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.sandCft * defaultSandRate).toLocaleString("en-IN")}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultSylhetSandRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.sylhetSandCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.sylhetSandCost).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* Aggregate */}
+                    {/* 3. Local Sand */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">3</td>
+                      <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                        Local Medium Sand (লোকাল বালু FM 1.2-1.5)
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          River sand for brickwork masonry, wall plaster & 1/3 casting blend
+                        </div>
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultLocalSandRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.localSandCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.localSandCost).toLocaleString("en-IN")}</td>
+                    </tr>
+
+                    {/* 4. Aggregate */}
+                    <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">4</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         Crushed Stone Aggregate
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2295,9 +2327,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* Steel */}
+                    {/* 5. Steel */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">4</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">5</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         High-Yield Strength Deformed Rebar Steel
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2310,9 +2342,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* Bricks */}
+                    {/* 6. Bricks */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">5</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">6</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         First Class Burnt Clay Bricks
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2325,10 +2357,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.bricksPcs * defaultBrickRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* Tiles */}
+                    {/* 7. Tiles */}
                     {totals.tilesPcs > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">6</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">7</td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Floor & Wall Ceramic / Vitrified Tiles
                           <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2342,10 +2374,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       </tr>
                     )}
 
-                    {/* Pile Boring Drilling Work */}
+                    {/* 8. Pile Boring Drilling Work */}
                     {totals.boringCost > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? 7 : 6}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? 8 : 7}</td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
                           <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">

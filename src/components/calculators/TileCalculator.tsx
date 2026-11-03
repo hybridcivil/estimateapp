@@ -108,7 +108,7 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
 
   // Rates initialized from activeProject.rates or defaults
   const [cementRate, setCementRate] = useState(() => activeProject?.rates?.cementRate || 550);
-  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.sandRate || 45);
+  const [sandRate, setSandRate] = useState(() => activeProject?.rates?.localSandRate || activeProject?.rates?.sandRate || 45);
 
   useEffect(() => {
     if (activeProject?.rates) {
@@ -117,7 +117,8 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
         setTileType(String(activeProject.rates.tileRate));
       }
       if (activeProject.rates.cementRate) setCementRate(activeProject.rates.cementRate);
-      if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
+      if (activeProject.rates.localSandRate) setSandRate(activeProject.rates.localSandRate);
+      else if (activeProject.rates.sandRate) setSandRate(activeProject.rates.sandRate);
     }
   }, [activeProject?.rates]);
 
@@ -739,7 +740,7 @@ export const TileCalculator: React.FC<TileCalculatorProps> = ({
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#8ba3c1] block mb-1">Sand (per cft)</label>
+                <label className="text-[10px] text-[#f1f5f9] font-bold block mb-1">Local Sand (per cft ৳)</label>
                 <NumericInput
                   value={sandRate}
                   onChange={setSandRate}
