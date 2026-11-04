@@ -1213,6 +1213,26 @@ export function extractItemMaterials(
   );
   const aggType: "stone" | "brick_khoa" | "aggregate" = isBrickKhoa ? "brick_khoa" : "stone";
 
+  // Rebar Steel (kg)
+  const steelKg = Math.round(
+    s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || s.steelKg || s.totalSteelWeight || 0
+  );
+  const steelCost = overrideRates
+    ? Math.round(steelKg * steelRate)
+    : (s.steelCost !== undefined ? Math.round(s.steelCost) : Math.round(steelKg * steelRate));
+
+  // Steel breakdown map
+  const steelBreakdown: Record<string, number> = {};
+  if (s.steelBreakdown && typeof s.steelBreakdown === "object") {
+    Object.entries(s.steelBreakdown).forEach(([dia, w]) => {
+      const numDia = Number(dia);
+      const numW = typeof w === "number" ? w : Number(w);
+      if (!isNaN(numDia) && numDia > 0 && !isNaN(numW) && numW > 0) {
+        steelBreakdown[dia] = Math.round(numW);
+      }
+    });
+  }
+
   // Bricks (pcs): If brick khoa is selected, this is picket bricks. If brickwork estimate, this is wall bricks.
   // If stone chips aggregate is selected for a concrete item, bricks count and cost is strictly 0.
   const rawBricksPcs = Math.round(
@@ -1413,6 +1433,13 @@ export function extractItemMaterials(
     aggCft,
     aggCost,
     aggType,
+    stoneAggCft,
+    stoneAggCost,
+    picketAggCft,
+    picketBricksPcs,
+    picketAggCost,
+    brickworkBricksPcs,
+    brickworkCost,
     steelKg,
     steelCost,
     steelBreakdown,

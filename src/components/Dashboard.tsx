@@ -372,6 +372,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   let totalSandCft = 0;
   let totalLocalSandCft = 0;
   let totalSylhetSandCft = 0;
+  let totalStoneAggCft = 0;
+  let totalPicketAggCft = 0;
+  let totalPicketBricksPcs = 0;
+  let totalBrickworkBricksPcs = 0;
   let totalAggCft = 0;
   let totalSteelKg = 0;
   let totalBricks = 0;
@@ -399,16 +403,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
     totalSylhetSandCft += sylhetPortion;
 
     const aCft = s.multipliedAggCft || s.aggCft || s.aggregateVolume || s.aggregateVol || s.totalAggCft || 0;
-    // Mutual exclusivity: only add to stone aggregate if brick khoa was NOT selected
-    if (!isBrickKhoa) {
-      totalAggCft += aCft;
+    const brk = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
+
+    // Separate stone aggregate, picket aggregate (brick khoa), and brick for brickwork
+    if (e.type === "brick") {
+      totalBrickworkBricksPcs += brk;
+    } else if (isBrickKhoa) {
+      totalPicketAggCft += aCft;
+      totalPicketBricksPcs += brk;
+    } else if (e.type !== "tiles" && e.type !== "sand_pile" && e.type !== "contractor" && e.type !== "paint") {
+      totalStoneAggCft += aCft;
     }
+
+    totalAggCft = totalStoneAggCft + totalPicketAggCft;
+    totalBricks = totalBrickworkBricksPcs + totalPicketBricksPcs;
 
     const stKg = s.multipliedSteelKg || s.totalSteelKg || s.totalSteel || 0;
     totalSteelKg += stKg;
-
-    const brk = s.multipliedBricks || s.totalBricks || s.brickQty || 0;
-    totalBricks += brk;
 
     // Track total window openings area for Square Bar Grill & Aluminium Frame with Glass
     if (e.type === "brick") {
@@ -1042,7 +1053,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
               <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
                 <div className="text-[10px] text-[#8ba3c1]">Total Cement</div>
                 <div className="text-base font-bold text-[#f5a623] mt-0.5">
@@ -1067,30 +1078,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div className="text-[9px] text-[#8ba3c1]">Brick + 1/3 Cast @ ৳{rates.localSandRate}</div>
               </div>
 
-              <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
-                <div className="text-[10px] text-[#8ba3c1]">Aggregate / Picket</div>
-                <div className="text-base font-bold text-[#f5a623] mt-0.5">
-                  {Math.round(totalAggCft).toLocaleString()} cft
+              <div className="bg-[#1a2b42] border border-[#38bdf8] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-[#8ba3c1]">Stone Agg. (পাথর কুচি)</div>
+                <div className="text-base font-bold text-[#38bdf8] mt-0.5">
+                  {Math.round(totalStoneAggCft).toLocaleString()} cft
                 </div>
-                <div className="text-[9px] text-[#8ba3c1]">Concrete base</div>
+                <div className="text-[9px] text-[#8ba3c1]">Stone chips @ ৳{rates.aggRate}</div>
               </div>
 
-              <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center">
+              <div className="bg-[#1a2b42] border border-[#f97316] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-[#8ba3c1]">Picket Khoa (পিকেট)</div>
+                <div className="text-base font-bold text-[#f97316] mt-0.5">
+                  {totalPicketBricksPcs.toLocaleString()} pcs
+                </div>
+                <div className="text-[9px] text-[#8ba3c1]">~{Math.round(totalPicketAggCft).toLocaleString()} cft khoa @ ৳{rates.brickRate}</div>
+              </div>
+
+              <div className="bg-[#1a2b42] border border-[#e67e22] rounded-xl p-2.5 text-center">
+                <div className="text-[10px] text-[#8ba3c1]">Brickwork (গাথুনি)</div>
+                <div className="text-base font-bold text-[#e67e22] mt-0.5">
+                  {totalBrickworkBricksPcs.toLocaleString()} pcs
+                </div>
+                <div className="text-[9px] text-[#8ba3c1]">Wall masonry @ ৳{rates.brickRate}</div>
+              </div>
+
+              <div className="bg-[#1a2b42] border border-[#00c2c7] rounded-xl p-2.5 text-center col-span-2 sm:col-span-1">
                 <div className="text-[10px] text-[#8ba3c1]">Total Rebar Steel</div>
-                <div className="text-base font-bold text-[#f5a623] mt-0.5">
+                <div className="text-base font-bold text-[#00c2c7] mt-0.5">
                   {Math.round(totalSteelKg).toLocaleString()} kg
                 </div>
                 <div className="text-[9px] text-[#8ba3c1]">
                   {(totalSteelKg / 1000).toFixed(2)} Metric Tons
                 </div>
-              </div>
-
-              <div className="bg-[#1a2b42] border border-[#f5a623] rounded-xl p-2.5 text-center col-span-2 sm:col-span-1">
-                <div className="text-[10px] text-[#8ba3c1]">Total Bricks</div>
-                <div className="text-base font-bold text-[#f5a623] mt-0.5">
-                  {totalBricks.toLocaleString()} pcs
-                </div>
-                <div className="text-[9px] text-[#8ba3c1]">Walls & Pickets</div>
               </div>
             </div>
           </div>
@@ -1343,7 +1362,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               colorBorder="border-[#38bdf8]/40"
               colorText="text-[#38bdf8]"
               colorFocus="border-[#38bdf8]"
-              subtext={`${Math.round(totalAggCft).toLocaleString()} cft Stone = ৳${Math.round(totalAggCft * rates.aggRate).toLocaleString("en-IN")}`}
+              subtext={`${Math.round(totalStoneAggCft).toLocaleString()} cft Stone = ৳${Math.round(totalStoneAggCft * rates.aggRate).toLocaleString("en-IN")}`}
               isLight={isLight}
               onCommit={(val) => handleUpdateSingleRate("aggRate", val)}
             />
@@ -1369,7 +1388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               colorBorder="border-[#e67e22]/40"
               colorText="text-[#e67e22]"
               colorFocus="border-[#e67e22]"
-              subtext={`${totalBricks.toLocaleString()} pcs = ৳${Math.round(totalBricks * rates.brickRate).toLocaleString("en-IN")}`}
+              subtext={`${totalBrickworkBricksPcs.toLocaleString()} wall + ${totalPicketBricksPcs.toLocaleString()} picket pcs`}
               isLight={isLight}
               onCommit={(val) => handleUpdateSingleRate("brickRate", val)}
             />

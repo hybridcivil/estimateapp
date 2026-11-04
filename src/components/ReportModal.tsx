@@ -676,16 +676,38 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">4</td>
           <td class="font-bold">
-            Crushed Stone Aggregate
-            <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular coarse aggregate (stone chips)</div>
+            Coarse Stone Aggregate (পাথর কুচি / Stone Chips)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">3/4" down-graded angular crushed stone chips for casting</div>
           </td>
           <td class="text-center">cft</td>
           <td class="text-right font-mono">৳ ${defaultAggRate}</td>
-          <td class="text-right font-bold font-mono">${Math.round(totals.aggCft).toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
+          <td class="text-right font-bold font-mono">${Math.round(totals.stoneAggCft).toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.stoneAggCost).toLocaleString("en-IN")}</td>
         </tr>
         <tr>
           <td class="text-center font-mono" style="color: #64748b;">5</td>
+          <td class="font-bold">
+            Picket Aggregate / Brick Chips (পিকেট ইট / খোয়া)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Picket bricks for breaking into concrete khoa (~${Math.round(totals.picketAggCft).toLocaleString()} cft khoa)</div>
+          </td>
+          <td class="text-center">Pcs</td>
+          <td class="text-right font-mono">৳ ${defaultBrickRate}</td>
+          <td class="text-right font-bold font-mono">${totals.picketBricksPcs.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.picketAggCost).toLocaleString("en-IN")}</td>
+        </tr>
+        <tr>
+          <td class="text-center font-mono" style="color: #64748b;">6</td>
+          <td class="font-bold">
+            First Class Masonry Bricks (গাথুনির ইট / Wall Bricks)
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Standard Modular 9.5" × 4.5" × 2.75" for 5" and 10" brick masonry walls</div>
+          </td>
+          <td class="text-center">Pcs</td>
+          <td class="text-right font-mono">৳ ${defaultBrickRate}</td>
+          <td class="text-right font-bold font-mono">${totals.brickworkBricksPcs.toLocaleString()}</td>
+          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.brickworkCost).toLocaleString("en-IN")}</td>
+        </tr>
+        <tr>
+          <td class="text-center font-mono" style="color: #64748b;">7</td>
           <td class="font-bold">
             High-Yield Strength Deformed Rebar Steel
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Grade 500W / 60G TMT Rebar (${totals.steelTons} Metric Tons)</div>
@@ -695,21 +717,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-bold font-mono">${totals.steelKg.toLocaleString()}</td>
           <td class="text-right font-bold font-mono">৳ ${Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
         </tr>
-        <tr>
-          <td class="text-center font-mono" style="color: #64748b;">6</td>
-          <td class="font-bold">
-            First Class Burnt Clay Bricks
-            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Standard Modular 9.5" × 4.5" × 2.75"</div>
-          </td>
-          <td class="text-center">Pcs</td>
-          <td class="text-right font-mono">৳ ${defaultBrickRate}</td>
-          <td class="text-right font-bold font-mono">${totals.bricksPcs.toLocaleString()}</td>
-          <td class="text-right font-bold font-mono">৳ ${Math.round(totals.bricksPcs * defaultBrickRate).toLocaleString("en-IN")}</td>
-        </tr>
         ${
           totals.tilesPcs > 0
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">7</td>
+          <td class="text-center font-mono" style="color: #64748b;">8</td>
           <td class="font-bold">
             Floor & Wall Ceramic / Vitrified Tiles
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Finished tile units including cuts, skirting & wastage</div>
@@ -724,7 +735,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${
           totals.boringCost > 0
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? 8 : 7}</td>
+          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? 9 : 8}</td>
           <td class="font-bold">
             Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Rotary / wash boring, bentonite slurry circulation & rig mobilization</div>
@@ -739,7 +750,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${
           (totals.contractorCost > 0 || (contractors && contractors.length > 0))
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">${totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}</td>
+          <td class="text-center font-mono" style="color: #64748b;">${(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + 8}</td>
           <td class="font-bold">
             Building Contractor & Construction Labour Rate Schedule
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Ground & upper floors civil works, electrical, plumbing & painting labour (${contractors.length} tasks)</div>
@@ -754,7 +765,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         ${
           totals.ancillaryCost > 0
             ? `<tr>
-          <td class="text-center font-mono" style="color: #64748b;">${(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 6}</td>
+          <td class="text-center font-mono" style="color: #64748b;">${(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 8}</td>
           <td class="font-bold">
             Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
             <div style="font-size: 8px; font-weight: normal; color: #64748b;">Footing flat brick soling, sand cushion, tile adhesive mortar, pointing & edge finishing</div>
@@ -809,9 +820,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-mono">${a.concreteVolCft > 0 ? a.concreteVolCft.toLocaleString() : "—"}</td>
           <td class="text-right font-mono font-bold">${a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}</td>
           <td class="text-right font-mono">${a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}</td>
-          <td class="text-right font-mono">${a.aggCft > 0 ? Math.round(a.aggCft).toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.stoneAggCft > 0 ? Math.round(a.stoneAggCft).toLocaleString() : (a.picketAggCft > 0 ? `${Math.round(a.picketAggCft)} Khoa` : "—")}</td>
           <td class="text-right font-mono font-bold">${a.steelKg > 0 ? a.steelKg.toLocaleString() : "—"}</td>
-          <td class="text-right font-mono">${a.bricksPcs > 0 ? a.bricksPcs.toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${a.brickworkBricksPcs > 0 ? a.brickworkBricksPcs.toLocaleString() : (a.picketBricksPcs > 0 ? `${a.picketBricksPcs.toLocaleString()} Pkt` : "—")}</td>
           <td class="text-right font-mono">${a.tilesPcs > 0 ? a.tilesPcs.toLocaleString() : "—"}</td>
           <td class="text-right font-mono font-bold">৳ ${a.cost.toLocaleString("en-IN")}</td>
         </tr>`
@@ -824,9 +835,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-mono font-bold">${totals.concreteVolCft.toLocaleString()}</td>
           <td class="text-right font-mono font-bold">${totals.cementBags.toLocaleString()}</td>
           <td class="text-right font-mono font-bold">${Math.round(totals.sandCft).toLocaleString()}</td>
-          <td class="text-right font-mono font-bold">${Math.round(totals.aggCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${Math.round(totals.stoneAggCft).toLocaleString()}${totals.picketAggCft > 0 ? ` (${Math.round(totals.picketAggCft)} Khoa)` : ""}</td>
           <td class="text-right font-mono font-bold">${totals.steelKg.toLocaleString()}</td>
-          <td class="text-right font-mono font-bold">${totals.bricksPcs.toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">${totals.brickworkBricksPcs.toLocaleString()}${totals.picketBricksPcs > 0 ? ` (${totals.picketBricksPcs.toLocaleString()} Pkt)` : ""}</td>
           <td class="text-right font-mono font-bold">${totals.tilesPcs.toLocaleString()}</td>
           <td class="text-right font-mono grand-total-val">৳ ${totals.grandTotalCost.toLocaleString("en-IN")}</td>
         </tr>
@@ -2312,24 +2323,54 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.localSandCost).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 4. Aggregate */}
+                    {/* 4. Stone Aggregate */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">4</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        Crushed Stone Aggregate
+                        Coarse Stone Aggregate (পাথর কুচি / Stone Chips)
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          3/4" down-graded angular coarse aggregate (stone chips)
+                          3/4" down-graded angular crushed stone chips for casting
                         </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultAggRate}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.aggCft).toLocaleString()}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.aggCft * defaultAggRate).toLocaleString("en-IN")}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{Math.round(totals.stoneAggCft).toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.stoneAggCost).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 5. Steel */}
+                    {/* 5. Picket Aggregate / Brick Khoa */}
                     <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                       <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">5</td>
+                      <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                        Picket Aggregate / Brick Chips (পিকেট ইট / খোয়া)
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          Picket bricks for breaking into concrete khoa (~{Math.round(totals.picketAggCft).toLocaleString()} cft khoa)
+                        </div>
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Pcs</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultBrickRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.picketBricksPcs.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.picketAggCost).toLocaleString("en-IN")}</td>
+                    </tr>
+
+                    {/* 6. First Class Masonry Bricks */}
+                    <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">6</td>
+                      <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
+                        First Class Masonry Bricks (গাথুনির ইট / Wall Bricks)
+                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
+                          Standard Modular 9.5" × 4.5" × 2.75" for 5" and 10" brick masonry walls
+                        </div>
+                      </td>
+                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Pcs</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultBrickRate}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.brickworkBricksPcs.toLocaleString()}</td>
+                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.brickworkCost).toLocaleString("en-IN")}</td>
+                    </tr>
+
+                    {/* 7. Steel */}
+                    <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
+                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">7</td>
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         High-Yield Strength Deformed Rebar Steel
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2342,25 +2383,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.steelKg * defaultSteelRate).toLocaleString("en-IN")}</td>
                     </tr>
 
-                    {/* 6. Bricks */}
-                    <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                      <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">6</td>
-                      <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
-                        First Class Burnt Clay Bricks
-                        <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Standard Modular 9.5" × 4.5" × 2.75"
-                        </div>
-                      </td>
-                      <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">Pcs</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">৳ {defaultBrickRate}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#f5a623] print:text-slate-950 font-mono">{totals.bricksPcs.toLocaleString()}</td>
-                      <td style={{ padding: cellPaddingCss }} className="text-right font-bold text-[#2ecc71] print:text-slate-950 font-mono">৳ {Math.round(totals.bricksPcs * defaultBrickRate).toLocaleString("en-IN")}</td>
-                    </tr>
-
-                    {/* 7. Tiles */}
+                    {/* 8. Tiles */}
                     {totals.tilesPcs > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">7</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">8</td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Floor & Wall Ceramic / Vitrified Tiles
                           <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2374,10 +2400,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       </tr>
                     )}
 
-                    {/* 8. Pile Boring Drilling Work */}
+                    {/* 9. Pile Boring Drilling Work */}
                     {totals.boringCost > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
-                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? 8 : 7}</td>
+                        <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">{totals.tilesPcs > 0 ? 9 : 8}</td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Cast-in-Situ / Sand Pile Machine Boring & Rig Drilling
                           <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
@@ -2395,7 +2421,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                     {(totals.contractorCost > 0 || (contractors && contractors.length > 0)) && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                         <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">
-                          {totals.tilesPcs > 0 ? (totals.boringCost > 0 ? 8 : 7) : (totals.boringCost > 0 ? 7 : 6)}
+                          {(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + 8}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Building Contractor & Construction Labour Rate Schedule
@@ -2416,7 +2442,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                     {totals.ancillaryCost > 0 && (
                       <tr className="hover:bg-[#1a2b42]/30 print:hover:bg-transparent">
                         <td style={{ padding: cellPaddingCss }} className="text-center font-mono text-[#8ba3c1] print:text-slate-500">
-                          {(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 6}
+                          {(totals.tilesPcs > 0 ? 1 : 0) + (totals.boringCost > 0 ? 1 : 0) + ((totals.contractorCost > 0 || contractors.length > 0) ? 1 : 0) + 8}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                           Substructure Soling (BFS), Sand Bedding, Tile Skirting & Mortar
@@ -2498,13 +2524,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                           {a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                          {a.aggCft > 0 ? Math.round(a.aggCft).toLocaleString() : "—"}
+                          {a.stoneAggCft > 0 ? Math.round(a.stoneAggCft).toLocaleString() : (a.picketAggCft > 0 ? `${Math.round(a.picketAggCft)} Khoa` : "—")}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">
                           {a.steelKg > 0 ? a.steelKg.toLocaleString() : "—"}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#f97316] print:text-slate-700">
-                          {a.bricksPcs > 0 ? a.bricksPcs.toLocaleString() : "—"}
+                          {a.brickworkBricksPcs > 0 ? a.brickworkBricksPcs.toLocaleString() : (a.picketBricksPcs > 0 ? `${a.picketBricksPcs.toLocaleString()} Pkt` : "—")}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#38bdf8] print:text-slate-700">
                           {a.tilesPcs > 0 ? a.tilesPcs.toLocaleString() : "—"}
@@ -2530,13 +2556,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         {Math.round(totals.sandCft).toLocaleString()}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
-                        {Math.round(totals.aggCft).toLocaleString()}
+                        {Math.round(totals.stoneAggCft).toLocaleString()}{totals.picketAggCft > 0 ? ` (${Math.round(totals.picketAggCft)} Khoa)` : ""}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#00c2c7] print:text-slate-900">
                         {totals.steelKg.toLocaleString()}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#f97316] print:text-slate-900">
-                        {totals.bricksPcs.toLocaleString()}
+                        {totals.brickworkBricksPcs.toLocaleString()}{totals.picketBricksPcs > 0 ? ` (${totals.picketBricksPcs.toLocaleString()} Pkt)` : ""}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-[#38bdf8] print:text-slate-900">
                         {totals.tilesPcs.toLocaleString()}
