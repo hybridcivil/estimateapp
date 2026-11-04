@@ -12,6 +12,7 @@ import {
   getDocs,
   getDoc,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -402,11 +403,13 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
 }
 
 /**
- * Calculate the comprehensive total valuation of a project from its estimates or stored totalCost
+ * Calculate the comprehensive total valuation of a project from its estimates or stored totalCost.
+ * If estimates array is provided and empty, valuation is strictly 0.
  */
 export function calculateProjectTotalCost(p: Partial<Project> | null | undefined): number {
   if (!p) return 0;
-  if (Array.isArray(p.estimates) && p.estimates.length > 0) {
+  if (Array.isArray(p.estimates)) {
+    if (p.estimates.length === 0) return 0;
     const sum = p.estimates.reduce((acc, est) => {
       const c =
         Number(est.totalCost) ||
@@ -416,8 +419,9 @@ export function calculateProjectTotalCost(p: Partial<Project> | null | undefined
         0;
       return acc + c;
     }, 0);
-    if (sum > 0) return Math.round(sum);
+    return Math.round(sum);
   }
+  if (p.estimatesCount === 0) return 0;
   return Number(p.totalCost) || 0;
 }
 
@@ -482,6 +486,13 @@ export async function fetchAllProjectsForAdmin(): Promise<Project[]> {
       };
 
       mergedProj.totalCost = calculateProjectTotalCost(mergedProj);
+      if (data.totalCost !== mergedProj.totalCost && typeof data.totalCost !== "undefined") {
+        try {
+          updateDoc(doc(db, "projects", docSnap.id), {
+            totalCost: mergedProj.totalCost,
+          }).catch(() => {});
+        } catch {}
+      }
       allProjectsMap.set(docSnap.id, mergedProj);
     });
   } catch (err) {
