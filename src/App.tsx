@@ -111,11 +111,14 @@ function MainAppContent() {
 
   // Load projects scoped strictly to the authenticated user
   const loadProjects = useCallback(async (preserveActiveId?: string) => {
+    const activeEmail = (appUser?.email || currentUser?.email || "").trim().toLowerCase();
+    const isActualAdmin = activeEmail === "engrkalilinux@gmail.com" || (isAdmin && appUser?.role === "admin");
+
     const userToUse = appUser || (currentUser ? {
       uid: currentUser.uid,
       email: currentUser.email || "",
       displayName: currentUser.displayName || "Civil Engineer",
-      role: isAdmin ? "admin" as const : (appUser?.role || "editor"),
+      role: isActualAdmin ? ("admin" as const) : (appUser?.role || "editor"),
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
     } : null);
@@ -129,7 +132,7 @@ function MainAppContent() {
 
     try {
       setLoading(true);
-      const data = await fetchProjects(userToUse);
+      const data = await fetchProjects(userToUse, isActualAdmin);
       setProjects(data);
 
       if (data.length > 0) {
@@ -157,14 +160,14 @@ function MainAppContent() {
     }
   }, [appUser, currentUser, isAdmin]);
 
-  // Trigger project loading when entering loading_workspace or when user ID changes
+  // Trigger project loading when entering loading_workspace or when user ID/email changes
   useEffect(() => {
     setProjects([]);
     setActiveProject(null);
     if (appUser || currentUser) {
       loadProjects();
     }
-  }, [loadProjects, appUser?.uid, currentUser?.uid]);
+  }, [loadProjects, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
 
   // Project management handlers
   const handleCreateProject = async (data: {

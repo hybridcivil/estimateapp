@@ -31,43 +31,86 @@ export function getCurrentActiveUserId(): string | undefined {
   return undefined;
 }
 
-export function getLocalProjects(userId?: string): Project[] {
+export function getLocalProjects(userId?: string, userEmail?: string): Project[] {
   const activeUid = userId || getCurrentActiveUserId();
-  if (!activeUid) {
+  const cleanEmail = (userEmail || auth.currentUser?.email || "").trim().toLowerCase();
+  if (!activeUid && !cleanEmail) {
     return [];
   }
-  try {
-    const userKey = `ashraf_projects_${activeUid}`;
-    const userRaw = localStorage.getItem(userKey);
-    if (userRaw) {
-      const parsed = JSON.parse(userRaw);
-      if (Array.isArray(parsed)) {
-        // Strictly verify projects belong to this active user OR are assigned to them to edit
-        return parsed.filter(
-          (p: Project) =>
-            p.ownerId === activeUid ||
-            p.assignedTo === activeUid ||
-            p.assignedUserIds?.includes(activeUid)
-        );
-      }
-    }
-  } catch (e) {
-    console.error("Local storage read error", e);
+  const result: Project[] = [];
+  const seenIds = new Set<string>();
+
+  const keysToCheck: string[] = [];
+  if (activeUid) {
+    keysToCheck.push(`ashraf_projects_${activeUid}`);
   }
-  return [];
+  if (cleanEmail) {
+    keysToCheck.push(`ashraf_projects_usr_${cleanEmail.replace(/[^a-z0-9]/g, "_")}`);
+  }
+
+  for (const k of keysToCheck) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          for (const p of parsed) {
+            if (p && p.id && !seenIds.has(p.id)) {
+              // Verify project genuinely belongs to this user or is assigned to them
+              const isOwner =
+                (activeUid && p.ownerId === activeUid) ||
+                (cleanEmail && Boolean(p.ownerEmail) && p.ownerEmail.trim().toLowerCase() === cleanEmail);
+              const isAssigned =
+                (activeUid && p.assignedTo === activeUid) ||
+                (activeUid && Array.isArray(p.assignedUserIds) && p.assignedUserIds.includes(activeUid)) ||
+                (cleanEmail && Boolean(p.assignedToEmail) && p.assignedToEmail.trim().toLowerCase() === cleanEmail) ||
+                (cleanEmail && Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e: string) => e?.trim().toLowerCase() === cleanEmail));
+
+              if (isOwner || isAssigned) {
+                seenIds.add(p.id);
+                result.push({
+                  ...p,
+                  estimates: Array.isArray(p.estimates) ? p.estimates : [],
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Local storage read error for key", k, e);
+    }
+  }
+
+  return result;
 }
 
-export function saveLocalProjects(projects: Project[], userId?: string) {
+export function saveLocalProjects(projects: Project[], userId?: string, userEmail?: string) {
   const activeUid = userId || getCurrentActiveUserId();
-  if (!activeUid) return;
+  const cleanEmail = (userEmail || auth.currentUser?.email || "").trim().toLowerCase();
+  if (!activeUid && !cleanEmail) return;
+
   try {
-    const userProjects = projects.filter(
-      (p) =>
-        p.ownerId === activeUid ||
-        p.assignedTo === activeUid ||
-        p.assignedUserIds?.includes(activeUid)
-    );
-    localStorage.setItem(`ashraf_projects_${activeUid}`, JSON.stringify(userProjects));
+    const userProjects = projects.filter((p) => {
+      if (!p || !p.id) return false;
+      const isOwner =
+        (activeUid && p.ownerId === activeUid) ||
+        (cleanEmail && Boolean(p.ownerEmail) && p.ownerEmail.trim().toLowerCase() === cleanEmail);
+      const isAssigned =
+        (activeUid && p.assignedTo === activeUid) ||
+        (activeUid && Array.isArray(p.assignedUserIds) && p.assignedUserIds.includes(activeUid)) ||
+        (cleanEmail && Boolean(p.assignedToEmail) && p.assignedToEmail.trim().toLowerCase() === cleanEmail) ||
+        (cleanEmail && Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e: string) => e?.trim().toLowerCase() === cleanEmail));
+      return isOwner || isAssigned;
+    });
+
+    const json = JSON.stringify(userProjects);
+    if (activeUid) {
+      localStorage.setItem(`ashraf_projects_${activeUid}`, json);
+    }
+    if (cleanEmail) {
+      localStorage.setItem(`ashraf_projects_usr_${cleanEmail.replace(/[^a-z0-9]/g, "_")}`, json);
+    }
   } catch (e) {
     console.error("Local storage write error", e);
   }
@@ -78,6 +121,7 @@ export function saveLocalProjects(projects: Project[], userId?: string) {
  */
 export function persistProjectToAllUserStores(updatedProj: Project, targetUserId?: string) {
   const effectiveUid = targetUserId || updatedProj.ownerId || getCurrentActiveUserId();
+  const effectiveEmail = updatedProj.ownerEmail?.trim().toLowerCase();
 
   try {
     if (effectiveUid) {
@@ -97,22 +141,24 @@ export function persistProjectToAllUserStores(updatedProj: Project, targetUserId
         list.unshift(updatedProj);
       }
       localStorage.setItem(userKey, JSON.stringify(list));
-    } else {
-      let fallbackList: Project[] = [];
-      const fallbackRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (fallbackRaw) {
+    }
+    if (effectiveEmail) {
+      const emailKey = `ashraf_projects_usr_${effectiveEmail.replace(/[^a-z0-9]/g, "_")}`;
+      let list: Project[] = [];
+      const raw = localStorage.getItem(emailKey);
+      if (raw) {
         try {
-          const parsed = JSON.parse(fallbackRaw);
-          if (Array.isArray(parsed)) fallbackList = parsed;
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) list = parsed;
         } catch {}
       }
-      const fIdx = fallbackList.findIndex((p) => p.id === updatedProj.id);
-      if (fIdx !== -1) {
-        fallbackList[fIdx] = updatedProj;
+      const idx = list.findIndex((p) => p.id === updatedProj.id);
+      if (idx !== -1) {
+        list[idx] = updatedProj;
       } else {
-        fallbackList.unshift(updatedProj);
+        list.unshift(updatedProj);
       }
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fallbackList));
+      localStorage.setItem(emailKey, JSON.stringify(list));
     }
   } catch (e) {
     console.error("persistProjectToAllUserStores error", e);
@@ -185,6 +231,15 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
     return [];
   }
 
+  const cleanEmail = user?.email?.trim().toLowerCase();
+  const effectiveIsAdmin = Boolean(
+    isAdminView ||
+    user?.role === "admin" ||
+    (cleanEmail && cleanEmail === "engrkalilinux@gmail.com")
+  );
+
+  let firestoreSucceeded = false;
+
   // 1. Try reading directly from Firestore
   try {
     const colRef = collection(db, "projects");
@@ -200,28 +255,43 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
       }
     };
 
-    if (isAdminView) {
+    if (effectiveIsAdmin) {
       const snapshot = await getDocs(colRef);
       snapshot.forEach(addSnapDoc);
+      firestoreSucceeded = true;
     } else if (user) {
       // Regular user: query both owned projects AND projects assigned to this user by admin
-      const qOwned = query(colRef, where("ownerId", "==", user.uid));
-      const qAssigned = query(colRef, where("assignedTo", "==", user.uid));
-      const promises = [getDocs(qOwned), getDocs(qAssigned)];
+      const promises: Promise<any>[] = [];
+      if (user.uid) {
+        promises.push(getDocs(query(colRef, where("ownerId", "==", user.uid))));
+        promises.push(getDocs(query(colRef, where("assignedTo", "==", user.uid))));
+        promises.push(getDocs(query(colRef, where("assignedUserIds", "array-contains", user.uid))));
+      }
 
-      if (user.email) {
-        const cleanEmail = user.email.trim().toLowerCase();
-        promises.push(getDocs(query(colRef, where("assignedToEmail", "==", cleanEmail))));
+      if (cleanEmail) {
         promises.push(getDocs(query(colRef, where("ownerEmail", "==", cleanEmail))));
+        promises.push(getDocs(query(colRef, where("assignedToEmail", "==", cleanEmail))));
+        promises.push(getDocs(query(colRef, where("assignedUserEmails", "array-contains", cleanEmail))));
       }
 
       const snapshots = await Promise.all(promises);
       snapshots.forEach((snap) => snap.forEach(addSnapDoc));
+      firestoreSucceeded = true;
     }
 
-    const firestoreProjects = Array.from(docMap.values());
-    if (firestoreProjects.length > 0) {
-      const userLocal = getLocalProjects(user?.uid);
+    if (firestoreSucceeded) {
+      const firestoreProjects = Array.from(docMap.values());
+      const userLocal = getLocalProjects(user?.uid, cleanEmail);
+
+      if (effectiveIsAdmin) {
+        saveLocalProjects(firestoreProjects, user?.uid, cleanEmail);
+        return firestoreProjects;
+      }
+
+      // STRICT ISOLATION FOR REGULAR USERS:
+      // When Firestore query succeeds, Firestore is the single authoritative source of truth.
+      const validRemoteIds = new Set(firestoreProjects.map((p) => p.id));
+
       const mergedProjects = firestoreProjects.map((fProj) => {
         const localMatch = userLocal.find((l) => l.id === fProj.id);
         if (!localMatch) return fProj;
@@ -249,9 +319,13 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
         return fProj;
       });
 
-      // Also preserve any local projects not yet present in Firestore
+      // ONLY preserve local projects if the user is STRICTLY the creator/owner and it has not been registered yet
       for (const loc of userLocal) {
-        if (!mergedProjects.some((m) => m.id === loc.id)) {
+        const isLocOwner =
+          (user?.uid && loc.ownerId === user.uid) ||
+          (cleanEmail && loc.ownerEmail?.toLowerCase() === cleanEmail);
+        // Do NOT preserve projects owned by others or previously assigned projects that are no longer assigned in Firestore
+        if (isLocOwner && !validRemoteIds.has(loc.id)) {
           mergedProjects.push(loc);
           try {
             const cleanData = sanitizeForFirestore(loc);
@@ -262,12 +336,9 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
 
       // Sort by updatedAt descending
       mergedProjects.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
-      saveLocalProjects(mergedProjects, user?.uid);
+      // Save strictly authorized projects, pruning any unassigned / phantom projects from local storage
+      saveLocalProjects(mergedProjects, user?.uid, cleanEmail);
       return mergedProjects;
-    } else if (user && !isAdminView) {
-      // User signed in but has no projects in Firestore yet -> check local user store
-      const userLocal = getLocalProjects(user.uid);
-      return userLocal;
     }
   } catch (err) {
     console.warn("Firestore fetch error, falling back to backend/local:", err);
@@ -276,8 +347,8 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
   // 2. Fallback to Express backend (filter by user.uid and assignedTo)
   try {
     const backendUrl =
-      user && !isAdminView
-        ? `/api/projects?ownerId=${encodeURIComponent(user.uid)}&userEmail=${encodeURIComponent(user.email || "")}`
+      user && !effectiveIsAdmin
+        ? `/api/projects?ownerId=${encodeURIComponent(user.uid)}&userEmail=${encodeURIComponent(cleanEmail || "")}`
         : "/api/projects";
     const res = await fetch(backendUrl);
     if (res.ok) {
@@ -287,10 +358,10 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
         estimates: Array.isArray(p.estimates) ? p.estimates : [],
       }));
 
-      if (user && !isAdminView) {
+      if (user && !effectiveIsAdmin) {
         const userProjects = normalized.filter((p) => {
           const uid = user.uid;
-          const email = user.email?.toLowerCase();
+          const email = cleanEmail;
           return (
             p.ownerId === uid ||
             p.assignedTo === uid ||
@@ -300,9 +371,9 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
             (email && Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e) => e.toLowerCase() === email))
           );
         });
-        saveLocalProjects(userProjects, user.uid);
+        saveLocalProjects(userProjects, user.uid, cleanEmail);
         return userProjects;
-      } else if (isAdminView) {
+      } else if (effectiveIsAdmin) {
         return normalized;
       }
     }
@@ -311,9 +382,20 @@ export async function fetchProjects(user?: AppUser | null, isAdminView?: boolean
   }
 
   // 3. Fallback to user-isolated localStorage
-  if (user && !isAdminView) {
-    const userLocal = getLocalProjects(user.uid);
-    return userLocal;
+  if (user && !effectiveIsAdmin) {
+    const userLocal = getLocalProjects(user.uid, cleanEmail);
+    return userLocal.filter((p) => {
+      const uid = user.uid;
+      const email = cleanEmail;
+      return (
+        p.ownerId === uid ||
+        p.assignedTo === uid ||
+        p.assignedUserIds?.includes(uid) ||
+        (email && p.ownerEmail?.toLowerCase() === email) ||
+        (email && p.assignedToEmail?.toLowerCase() === email) ||
+        (email && Array.isArray(p.assignedUserEmails) && p.assignedUserEmails.some((e) => e.toLowerCase() === email))
+      );
+    });
   }
 
   return [];
@@ -856,8 +938,9 @@ export async function unassignProjectFromUser(
     if (updatedProj.ownerId) {
       persistProjectToAllUserStores(updatedProj, updatedProj.ownerId);
     }
-    if (previousAssignedId) {
-      try {
+    const previousAssignedEmail = currentProj.assignedToEmail?.trim().toLowerCase();
+    try {
+      if (previousAssignedId) {
         const uKey = `ashraf_projects_${previousAssignedId}`;
         const raw = localStorage.getItem(uKey);
         if (raw) {
@@ -865,8 +948,38 @@ export async function unassignProjectFromUser(
           const filtered = list.filter((p) => p.id !== projectId);
           localStorage.setItem(uKey, JSON.stringify(filtered));
         }
-      } catch {}
-    }
+      }
+      if (previousAssignedEmail) {
+        const eKey = `ashraf_projects_usr_${previousAssignedEmail.replace(/[^a-z0-9]/g, "_")}`;
+        const raw = localStorage.getItem(eKey);
+        if (raw) {
+          const list: Project[] = JSON.parse(raw);
+          const filtered = list.filter((p) => p.id !== projectId);
+          localStorage.setItem(eKey, JSON.stringify(filtered));
+        }
+      }
+      // Scan all ashraf_projects_ slots in localStorage and remove this project if not owner
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("ashraf_projects_")) {
+          const isOwnerKey =
+            (updatedProj.ownerId && k === `ashraf_projects_${updatedProj.ownerId}`) ||
+            (updatedProj.ownerEmail && k === `ashraf_projects_usr_${updatedProj.ownerEmail.toLowerCase().replace(/[^a-z0-9]/g, "_")}`);
+          if (!isOwnerKey) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (raw) {
+                const list = JSON.parse(raw);
+                if (Array.isArray(list) && list.some((p: any) => p.id === projectId)) {
+                  const filtered = list.filter((p: any) => p.id !== projectId);
+                  localStorage.setItem(k, JSON.stringify(filtered));
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+    } catch {}
 
     return { success: true, project: updatedProj };
   } catch (err: any) {
@@ -995,8 +1108,8 @@ export async function createProject(
 
   // 3. Update user-isolated localStorage
   if (user?.uid) {
-    const userLocal = getLocalProjects(user.uid);
-    saveLocalProjects([newProj, ...userLocal], user.uid);
+    const userLocal = getLocalProjects(user.uid, user.email || undefined);
+    saveLocalProjects([newProj, ...userLocal], user.uid, user.email || undefined);
   } else {
     const local = getLocalProjects();
     saveLocalProjects([newProj, ...local]);
@@ -1015,7 +1128,7 @@ export async function updateProject(
   projectContext?: Project | null
 ): Promise<Project | null> {
   const activeUid = user?.uid || getCurrentActiveUserId();
-  const local = getLocalProjects(activeUid);
+  const local = getLocalProjects(activeUid, user?.email || undefined);
   const existingProj =
     (projectContext && projectContext.id === id)
       ? projectContext
