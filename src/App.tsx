@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Project, EstimateType, ProjectEstimateItem } from "./types";
+import { Project, EstimateType, ProjectEstimateItem, ServiceVoucher } from "./types";
 import {
   fetchProjects,
   fetchProject,
@@ -9,6 +9,9 @@ import {
   saveEstimateToProject,
   deleteEstimateFromProject,
   renameEstimate,
+  fetchServiceVouchers,
+  saveServiceVoucher,
+  deleteServiceVoucher,
 } from "./services/api";
 
 import { Header } from "./components/Header";
@@ -17,6 +20,7 @@ import { Dashboard } from "./components/Dashboard";
 import { NewProjectModal } from "./components/NewProjectModal";
 import { ReportModal } from "./components/ReportModal";
 import { SplashScreen } from "./components/SplashScreen";
+import { ServiceVoucherModal } from "./components/ServiceVoucherModal";
 
 import { BeamCalculator } from "./components/calculators/BeamCalculator";
 import { ColumnCalculator } from "./components/calculators/ColumnCalculator";
@@ -77,6 +81,42 @@ function MainAppContent() {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Service Voucher & Business Invoicing State
+  const [isServiceVoucherModalOpen, setIsServiceVoucherModalOpen] = useState(false);
+  const [serviceVouchers, setServiceVouchers] = useState<ServiceVoucher[]>([]);
+
+  const loadServiceVouchers = useCallback(async () => {
+    const userKey = appUser?.uid || currentUser?.uid;
+    try {
+      const list = await fetchServiceVouchers(userKey);
+      setServiceVouchers(list);
+    } catch (err) {
+      console.warn("Failed to load service vouchers", err);
+    }
+  }, [appUser?.uid, currentUser?.uid]);
+
+  const handleSaveServiceVoucher = async (voucher: ServiceVoucher) => {
+    const userKey = appUser?.uid || currentUser?.uid;
+    const saved = await saveServiceVoucher(voucher, userKey);
+    setServiceVouchers((prev) => {
+      const idx = prev.findIndex((v) => v.id === saved.id || v.voucherNo === saved.voucherNo);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = saved;
+        return copy;
+      }
+      return [saved, ...prev];
+    });
+    showToast(`Voucher ${saved.voucherNo} saved successfully!`, "success");
+  };
+
+  const handleDeleteServiceVoucher = async (id: string) => {
+    const userKey = appUser?.uid || currentUser?.uid;
+    await deleteServiceVoucher(id, userKey);
+    setServiceVouchers((prev) => prev.filter((v) => v.id !== id && v.voucherNo !== id));
+    showToast("Voucher deleted", "info");
+  };
 
   // Toast notification
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -166,8 +206,9 @@ function MainAppContent() {
     setActiveProject(null);
     if (appUser || currentUser) {
       loadProjects();
+      loadServiceVouchers();
     }
-  }, [loadProjects, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
+  }, [loadProjects, loadServiceVouchers, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
 
   // Project management handlers
   const handleCreateProject = async (data: {
@@ -515,6 +556,8 @@ function MainAppContent() {
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenServiceVoucher={() => setIsServiceVoucherModalOpen(true)}
+        voucherCount={serviceVouchers.length}
         viewMode={viewMode}
         onSetViewMode={handleSetViewMode}
       />
@@ -566,6 +609,7 @@ function MainAppContent() {
                 onOpenReportModal={() => setIsReportModalOpen(true)}
                 onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                onOpenServiceVoucher={() => setIsServiceVoucherModalOpen(true)}
                 onImportProject={handleImportProject}
                 onAddDefaultBuildingList={handleAddDefaultBuildingList}
                 onUpdateProject={handleUpdateProject}
@@ -728,6 +772,18 @@ function MainAppContent() {
       <LoginRegistrationModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      {/* Service Voucher & Consultancy Billing Modal */}
+      <ServiceVoucherModal
+        isOpen={isServiceVoucherModalOpen}
+        onClose={() => setIsServiceVoucherModalOpen(false)}
+        activeProject={activeProject}
+        vouchers={serviceVouchers}
+        onSaveVoucher={handleSaveServiceVoucher}
+        onDeleteVoucher={handleDeleteServiceVoucher}
+        currentUserEmail={currentUser?.email || appUser?.email || undefined}
+        currentUserId={currentUser?.uid || appUser?.uid || undefined}
       />
 
 

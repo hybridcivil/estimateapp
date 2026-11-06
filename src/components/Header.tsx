@@ -15,6 +15,7 @@ import {
   User as UserIcon,
   ChevronDown,
   Eye,
+  Receipt,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -30,6 +31,8 @@ interface HeaderProps {
   onOpenReportModal: () => void;
   onOpenAdminPanel?: () => void;
   onOpenAuthModal?: () => void;
+  onOpenServiceVoucher?: () => void;
+  voucherCount?: number;
   viewMode: "auto" | "web" | "app";
   onSetViewMode: (mode: "auto" | "web" | "app") => void;
 }
@@ -45,6 +48,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReportModal,
   onOpenAdminPanel,
   onOpenAuthModal,
+  onOpenServiceVoucher,
+  voucherCount,
   viewMode,
   onSetViewMode,
 }) => {
@@ -298,6 +303,24 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span className="hidden md:inline">BOQ Rollup</span>
+            </button>
+          )}
+
+          {/* Service Voucher & Billing */}
+          {onOpenServiceVoucher && (
+            <button
+              onClick={onOpenServiceVoucher}
+              className="flex items-center gap-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-500/40 px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition active:scale-95 shadow-sm cursor-pointer"
+              title="Open Service Voucher & Consultancy Billing (সার্ভিস ভাউচার ও মেমো)"
+            >
+              <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Service Voucher</span>
+              <span className="sm:hidden">Voucher</span>
+              {typeof voucherCount === "number" && voucherCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-emerald-500 text-slate-950 font-black">
+                  {voucherCount}
+                </span>
+              )}
             </button>
           )}
 

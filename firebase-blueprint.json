@@ -167,6 +167,115 @@
         }
       },
       "required": ["uid", "email"]
+    },
+    "ServiceVoucher": {
+      "title": "ServiceVoucher",
+      "description": "Engineering consultancy and civil service voucher, billing invoice, and payment tracking record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique voucher identifier",
+          "maxLength": 128
+        },
+        "voucherNo": {
+          "type": "string",
+          "description": "Sequential or formatted voucher number (e.g., HC-2026-001)",
+          "maxLength": 100
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO date string of voucher issue"
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Client or company name",
+          "maxLength": 200
+        },
+        "phone": {
+          "type": "string",
+          "description": "Client contact phone number",
+          "maxLength": 50
+        },
+        "projectName": {
+          "type": "string",
+          "description": "Project or building name",
+          "maxLength": 200
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Optional linked project ID in Ashraf Civil Studio",
+          "maxLength": 128
+        },
+        "address": {
+          "type": "string",
+          "description": "Project site or client address",
+          "maxLength": 500
+        },
+        "items": {
+          "type": "array",
+          "description": "List of engineering consultancy services, quantities, rates, and line totals"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Gross subtotal before discount"
+        },
+        "discount": {
+          "type": "number",
+          "description": "Discount amount in BDT"
+        },
+        "netTotal": {
+          "type": "number",
+          "description": "Net payable amount after discount"
+        },
+        "paid": {
+          "type": "number",
+          "description": "Advance or received payment in BDT"
+        },
+        "due": {
+          "type": "number",
+          "description": "Outstanding balance due in BDT"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment method (Cash, bKash, Nagad, Bank Transfer, Cheque)",
+          "maxLength": 50
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Payment status (Paid, Partial, Due)",
+          "maxLength": 50
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of engineer who created the voucher",
+          "maxLength": 128
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Email of engineer who created the voucher",
+          "maxLength": 200
+        },
+        "terms": {
+          "type": "string",
+          "description": "Customizable terms and conditions note",
+          "maxLength": 2000
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes or remarks",
+          "maxLength": 2000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "voucherNo", "date", "clientName", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -181,6 +290,10 @@
     "/admins/{adminId}": {
       "schema": "Admin",
       "description": "Admin collection listing trusted user IDs with global management rights"
+    },
+    "/service_vouchers/{voucherId}": {
+      "schema": "ServiceVoucher",
+      "description": "Collection of engineering consultancy service vouchers and billing invoices"
     }
   }
 }

@@ -78,6 +78,30 @@ service cloud.firestore {
         && data.email is string && data.email.size() > 0 && data.email.size() <= 200;
     }
 
+    function isValidServiceVoucher(data) {
+      return data.keys().hasAll(['id', 'voucherNo', 'date', 'clientName', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.voucherNo is string && data.voucherNo.size() > 0 && data.voucherNo.size() <= 100
+        && data.date is string && data.date.size() <= 50
+        && data.clientName is string && data.clientName.size() <= 200
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 100))
+        && (!('projectName' in data) || (data.projectName is string && data.projectName.size() <= 200))
+        && (!('projectId' in data) || data.projectId == null || (data.projectId is string && data.projectId.size() <= 128))
+        && (!('address' in data) || (data.address is string && data.address.size() <= 500))
+        && (!('items' in data) || data.items is list)
+        && (!('subtotal' in data) || data.subtotal is number)
+        && (!('discount' in data) || data.discount is number)
+        && (!('netTotal' in data) || data.netTotal is number)
+        && (!('paid' in data) || data.paid is number)
+        && (!('due' in data) || data.due is number)
+        && (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 50))
+        && (!('paymentStatus' in data) || (data.paymentStatus is string && data.paymentStatus.size() <= 50))
+        && (!('ownerId' in data) || data.ownerId == null || (data.ownerId is string && data.ownerId.size() <= 128))
+        && (!('ownerEmail' in data) || data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 200))
+        && (!('terms' in data) || (data.terms is string && data.terms.size() <= 3000))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000));
+    }
+
     // Connection testing endpoint
     match /test/{testId} {
       allow get: if true;
@@ -117,6 +141,19 @@ service cloud.firestore {
                     && isValidProject(incoming())
                     && incoming().id == existing().id;
       allow delete: if isValidId(projectId);
+    }
+
+    // Service Vouchers & Consultancy Invoices collection
+    match /service_vouchers/{voucherId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(voucherId)
+                    && incoming().id == voucherId
+                    && isValidServiceVoucher(incoming());
+      allow update: if isValidId(voucherId)
+                    && isValidServiceVoucher(incoming())
+                    && incoming().id == existing().id;
+      allow delete: if isValidId(voucherId);
     }
   }
 }

@@ -455,3 +455,50 @@ export interface ContractorSummary {
   totalPaintingWallAreaSft: number;
   itemsCount: number;
 }
+
+export type VoucherUnit =
+  | "sq.ft"
+  | "Job"
+  | "Floor"
+  | "Nos"
+  | "Item"
+  | "Points"
+  | "Visit"
+  | "Month"
+  | "cft";
+
+export interface ServiceVoucherItem {
+  id: string;
+  service: string;
+  description?: string;
+  unit: VoucherUnit;
+  qty: number;
+  rate: number;
+  total: number;
+}
+
+export interface ServiceVoucher {
+  id: string;
+  voucherNo: string;
+  date: string;
+  clientName: string;
+  phone: string;
+  projectName: string;
+  projectId?: string;
+  address: string;
+  items: ServiceVoucherItem[];
+  subtotal: number;
+  discount: number;
+  netTotal: number;
+  paid: number;
+  due: number;
+  paymentMethod: "Cash" | "bKash" | "Nagad" | "Bank Transfer" | "Cheque" | "Other";
+  paymentStatus: "Paid" | "Partial" | "Due";
+  preparedBy?: string;
+  terms?: string;
+  notes?: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}

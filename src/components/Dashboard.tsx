@@ -70,6 +70,7 @@ interface DashboardProps {
   onImportProject: (projectData: any) => Promise<void>;
   onAddDefaultBuildingList?: () => Promise<void>;
   onUpdateProject?: (id: string, data: any) => Promise<void>;
+  onOpenServiceVoucher?: () => void;
 }
 
 interface MaterialRateInputProps {
@@ -198,6 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onImportProject,
   onAddDefaultBuildingList,
   onUpdateProject,
+  onOpenServiceVoucher,
 }) => {
   const { isLight, toggleTheme } = useTheme();
   const { currentUser, appUser, isAdmin, isViewer, isEditor, userRole, signInWithGoogle, logout } = useAuth();
@@ -1015,6 +1017,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 <span>BOQ Report</span>
               </button>
+
+              {onOpenServiceVoucher && (
+                <button
+                  type="button"
+                  onClick={onOpenServiceVoucher}
+                  className="flex items-center gap-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm"
+                  title="Open Service Voucher & Consultancy Invoices (সার্ভিস ভাউচার ও মেমো)"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Service Voucher</span>
+                </button>
+              )}
 
               <button
                 onClick={() => handleExportProject(activeProject)}

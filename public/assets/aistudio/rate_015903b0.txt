@@ -1,0 +1,323 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hybrid Civil - Service Voucher</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;background:#f1f5f9;color:#1e293b;
+font-family:Arial,"Noto Sans Bengali",sans-serif;
+}
+header{
+background:#102a43;color:white;padding:20px;
+text-align:center;
+}
+header h2{margin:0 0 5px}
+main{max-width:850px;margin:20px auto;padding:12px}
+.card{
+background:white;padding:18px;border-radius:12px;
+margin-bottom:15px;box-shadow:0 2px 8px #0001;
+}
+h3{margin-top:0;color:#0f4c81}
+label{display:block;font-size:14px;margin:12px 0 5px}
+input,select,textarea,button{
+width:100%;padding:11px;border:1px solid #cbd5e1;
+border-radius:6px;font-size:15px;
+}
+button{cursor:pointer;border:0;font-weight:bold}
+.btn{background:#0f4c81;color:white;margin-top:10px}
+.btn2{background:#15803d;color:white}
+.btn3{background:#64748b;color:white}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border-bottom:1px solid #ddd;padding:9px;text-align:left}
+th{background:#eaf2f8}
+.right{text-align:right}
+.total{font-size:18px;font-weight:bold}
+.small{font-size:13px;color:#64748b}
+.saved{margin-top:12px}
+@media(max-width:500px){
+.row{grid-template-columns:1fr}
+.card{padding:12px}
+table{font-size:13px}
+}
+@media print{
+body{background:white}
+header,.no-print{display:none!important}
+main{margin:0;padding:0}
+.card{box-shadow:none;border:0}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>HYBRID CIVIL</h2>
+Engineering & Consultancy
+<div class="small" style="color:#ddd">Service Voucher & Estimate</div>
+</header>
+
+<main>
+
+<div class="card">
+<h3>ক্লায়েন্টের তথ্য</h3>
+
+<div class="row">
+<div>
+<label>Voucher No.</label>
+<input id="voucher" placeholder="Auto generated">
+</div>
+<div>
+<label>তারিখ</label>
+<input type="date" id="date">
+</div>
+</div>
+
+<label>ক্লায়েন্টের নাম</label>
+<input id="client" placeholder="নাম লিখুন">
+
+<div class="row">
+<div>
+<label>মোবাইল নম্বর</label>
+<input id="phone" placeholder="01XXXXXXXXX">
+</div>
+<div>
+<label>প্রজেক্টের নাম</label>
+<input id="project" placeholder="বাড়ি / ভবন">
+</div>
+</div>
+
+<label>ঠিকানা</label>
+<textarea id="address" rows="2"></textarea>
+</div>
+
+<div class="card no-print">
+<h3>সার্ভিস যোগ করুন</h3>
+
+<label>সার্ভিস নির্বাচন</label>
+<select id="service">
+<option value="">সার্ভিস নির্বাচন করুন</option>
+<option>Architectural Design</option>
+<option>Structural Design</option>
+<option>Electrical Design</option>
+<option>Plumbing Design</option>
+<option>3D Building Model</option>
+<option>Municipality Approval Drawing</option>
+<option>Soil Test</option>
+<option>Digital Survey</option>
+<option>Construction Supervision</option>
+<option>BOQ & Estimation</option>
+<option>Other Service</option>
+</select>
+
+<div class="row">
+<div>
+<label>পরিমাণ</label>
+<input type="number" id="qty" value="1" min="0.01" step="any">
+</div>
+<div>
+<label>একক মূল্য (৳)</label>
+<input type="number" id="price" min="0" step="any" placeholder="টাকা">
+</div>
+</div>
+
+<button class="btn" onclick="addItem()">+ সার্ভিস যোগ করুন</button>
+</div>
+
+<div class="card">
+<h3>Voucher Details</h3>
+
+<table>
+<thead>
+<tr>
+<th>সার্ভিস</th>
+<th>পরিমাণ</th>
+<th>মূল্য</th>
+<th>মোট</th>
+<th class="no-print"></th>
+</tr>
+</thead>
+<tbody id="items"></tbody>
+</table>
+
+<label>Discount (৳)</label>
+<input type="number" id="discount" value="0" min="0" oninput="calculate()">
+
+<label>অগ্রিম / Paid (৳)</label>
+<input type="number" id="paid" value="0" min="0" oninput="calculate()">
+
+<div class="saved">
+<p>সর্বমোট: <span id="subtotal">৳0</span></p>
+<p>Discount: <span id="discountText">৳0</span></p>
+<p class="total">Net Total: <span id="net">৳0</span></p>
+<p>অগ্রিম: <span id="paidText">৳0</span></p>
+<p class="total">বকেয়া: <span id="due">৳0</span></p>
+</div>
+
+<div class="no-print">
+<button class="btn btn2" onclick="saveVoucher()">Voucher সংরক্ষণ</button>
+<button class="btn" onclick="window.print()">Print / PDF</button>
+<button class="btn btn3" onclick="newVoucher()">নতুন Voucher</button>
+</div>
+</div>
+
+<div class="card no-print">
+<h3>সংরক্ষিত Voucher</h3>
+<select id="savedList" onchange="loadVoucher()">
+<option value="">Voucher নির্বাচন করুন</option>
+</select>
+<button class="btn btn3" onclick="deleteVoucher()">Voucher Delete</button>
+</div>
+
+</main>
+
+<script>
+let items = [];
+let vouchers = JSON.parse(localStorage.getItem("hybridVouchers") || "[]");
+
+const $ = id => document.getElementById(id);
+const money = n => "৳" + Number(n || 0).toLocaleString("en-BD", {
+minimumFractionDigits:2, maximumFractionDigits:2
+});
+
+function newVoucher(){
+$("voucher").value = "HC-" + Date.now().toString().slice(-8);
+$("date").value = new Date().toISOString().slice(0,10);
+["client","phone","project","address"].forEach(id=>$ (id).value="");
+$("discount").value=0;
+$("paid").value=0;
+items=[];
+render();
+}
+
+function addItem(){
+let service=$("service").value;
+let qty=Number($("qty").value);
+let price=Number($("price").value);
+
+if(!service || qty<=0 || price<0 || $("price").value===""){
+alert("সার্ভিস, পরিমাণ ও মূল্য দিন");
+return;
+}
+
+items.push({service,qty,price});
+render();
+}
+
+function removeItem(i){
+items.splice(i,1);
+render();
+}
+
+function render(){
+$("items").innerHTML=items.map((x,i)=>`
+<tr>
+<td>${escapeHTML(x.service)}</td>
+<td>${x.qty}</td>
+<td>${money(x.price)}</td>
+<td>${money(x.qty*x.price)}</td>
+<td class="no-print">
+<button onclick="removeItem(${i})">X</button>
+</td>
+</tr>
+`).join("");
+calculate();
+}
+
+function calculate(){
+let subtotal=items.reduce((s,x)=>s+x.qty*x.price,0);
+let discount=Math.max(0,Number($("discount").value)||0);
+let net=Math.max(0,subtotal-discount);
+let paid=Math.max(0,Number($("paid").value)||0);
+let due=Math.max(0,net-paid);
+
+$("subtotal").textContent=money(subtotal);
+$("discountText").textContent=money(discount);
+$("net").textContent=money(net);
+$("paidText").textContent=money(paid);
+$("due").textContent=money(due);
+}
+
+function getVoucher(){
+return {
+voucher:$("voucher").value,
+date:$("date").value,
+client:$("client").value,
+phone:$("phone").value,
+project:$("project").value,
+address:$("address").value,
+items,
+discount:Number($("discount").value)||0,
+paid:Number($("paid").value)||0
+};
+}
+
+function saveVoucher(){
+if(!$("client").value.trim()){
+alert("ক্লায়েন্টের নাম লিখুন");
+return;
+}
+if(!items.length){
+alert("কমপক্ষে একটি সার্ভিস যোগ করুন");
+return;
+}
+
+let v=getVoucher();
+let i=vouchers.findIndex(x=>x.voucher===v.voucher);
+
+if(i>=0) vouchers[i]=v;
+else vouchers.push(v);
+
+localStorage.setItem("hybridVouchers",JSON.stringify(vouchers));
+updateList();
+alert("Voucher সংরক্ষণ হয়েছে");
+}
+
+function updateList(){
+$("savedList").innerHTML='<option value="">Voucher নির্বাচন করুন</option>'+
+vouchers.map(v=>`<option value="${escapeHTML(v.voucher)}">${escapeHTML(v.voucher)} - ${escapeHTML(v.client)}</option>`).join("");
+}
+
+function loadVoucher(){
+let v=vouchers.find(x=>x.voucher===$("savedList").value);
+if(!v)return;
+
+$("voucher").value=v.voucher;
+$("date").value=v.date;
+$("client").value=v.client;
+$("phone").value=v.phone;
+$("project").value=v.project;
+$("address").value=v.address;
+$("discount").value=v.discount;
+$("paid").value=v.paid;
+items=v.items;
+render();
+}
+
+function deleteVoucher(){
+let id=$("savedList").value;
+if(!id)return;
+if(!confirm("এই Voucher মুছে ফেলবেন?"))return;
+
+vouchers=vouchers.filter(v=>v.voucher!==id);
+localStorage.setItem("hybridVouchers",JSON.stringify(vouchers));
+updateList();
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+
+newVoucher();
+updateList();
+</script>
+
+</body>
+</html>
