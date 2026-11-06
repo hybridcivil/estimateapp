@@ -1462,18 +1462,51 @@ export function downloadEstimateJson(estimate: ProjectEstimateItem, projectName:
 }
 
 /* -------------------------------------------------------------------------- */
-/*             SERVICE VOUCHERS & CONSULTANCY BILLING PERSISTENCE             */
+/* -------------------------------------------------------------------------- */
+/*      CONFIDENTIAL SERVICE VOUCHERS & BILLING PERSISTENCE (PER USER)        */
 /* -------------------------------------------------------------------------- */
 
 const VOUCHER_STORAGE_KEY_PREFIX = "hybrid_service_vouchers_";
 
-export function getLocalServiceVouchers(userKey?: string): ServiceVoucher[] {
-  const key = userKey ? `${VOUCHER_STORAGE_KEY_PREFIX}${userKey}` : `${VOUCHER_STORAGE_KEY_PREFIX}global`;
+export type VoucherUserContext = { uid?: string; email?: string } | string | null | undefined;
+
+export function getVoucherStorageKey(user: VoucherUserContext): string | null {
+  if (!user) return null;
+  if (typeof user === "string") {
+    const clean = user.trim().toLowerCase();
+    return clean ? `${VOUCHER_STORAGE_KEY_PREFIX}${clean}` : null;
+  }
+  const cleanId = (user.uid || "").trim();
+  const cleanEmail = (user.email || "").trim().toLowerCase();
+  const identifier = cleanId || cleanEmail;
+  return identifier ? `${VOUCHER_STORAGE_KEY_PREFIX}${identifier}` : null;
+}
+
+export function isVoucherOwnedByUser(voucher: ServiceVoucher, user: VoucherUserContext): boolean {
+  if (!user) return false;
+  const targetUid = typeof user === "string" ? user.trim() : (user.uid || "").trim();
+  const targetEmail = typeof user === "string" ? user.trim().toLowerCase() : (user.email || "").trim().toLowerCase();
+
+  const vUid = (voucher.ownerId || "").trim();
+  const vEmail = (voucher.ownerEmail || "").trim().toLowerCase();
+
+  if (targetUid && vUid && targetUid === vUid) return true;
+  if (targetEmail && vEmail && targetEmail === vEmail) return true;
+  return false;
+}
+
+export function getLocalServiceVouchers(user: VoucherUserContext): ServiceVoucher[] {
+  const key = getVoucherStorageKey(user);
+  if (!key) return [];
+
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        // Enforce strict confidentiality: filter out any records that do not belong to this user
+        return parsed.filter((v: ServiceVoucher) => isVoucherOwnedByUser(v, user));
+      }
     }
   } catch (err) {
     console.warn("Failed to read local service vouchers", err);
@@ -1481,10 +1514,18 @@ export function getLocalServiceVouchers(userKey?: string): ServiceVoucher[] {
   return [];
 }
 
-export function saveLocalServiceVoucher(voucher: ServiceVoucher, userKey?: string): void {
-  const key = userKey ? `${VOUCHER_STORAGE_KEY_PREFIX}${userKey}` : `${VOUCHER_STORAGE_KEY_PREFIX}global`;
+export function saveLocalServiceVoucher(voucher: ServiceVoucher, user: VoucherUserContext): void {
+  const key = getVoucherStorageKey(user);
+  if (!key) return;
+
+  // Stamp owner info if missing
+  const uid = typeof user === "object" ? user?.uid : undefined;
+  const email = typeof user === "object" ? user?.email?.trim().toLowerCase() : undefined;
+  if (!voucher.ownerId && uid) voucher.ownerId = uid;
+  if (!voucher.ownerEmail && email) voucher.ownerEmail = email;
+
   try {
-    const current = getLocalServiceVouchers(userKey);
+    const current = getLocalServiceVouchers(user);
     const idx = current.findIndex((v) => v.id === voucher.id || v.voucherNo === voucher.voucherNo);
     if (idx >= 0) {
       current[idx] = voucher;
@@ -1492,77 +1533,97 @@ export function saveLocalServiceVoucher(voucher: ServiceVoucher, userKey?: strin
       current.unshift(voucher);
     }
     localStorage.setItem(key, JSON.stringify(current));
-    // Also save in fallback global key so user never loses data across sessions
-    if (userKey) {
-      const globalList = getLocalServiceVouchers();
-      const gIdx = globalList.findIndex((v) => v.id === voucher.id || v.voucherNo === voucher.voucherNo);
-      if (gIdx >= 0) globalList[gIdx] = voucher;
-      else globalList.unshift(voucher);
-      localStorage.setItem(`${VOUCHER_STORAGE_KEY_PREFIX}global`, JSON.stringify(globalList));
-    }
+
+    // CLEANUP: Always remove legacy global key so other accounts on this browser cannot see it
+    localStorage.removeItem(`${VOUCHER_STORAGE_KEY_PREFIX}global`);
   } catch (err) {
     console.warn("Failed to save local service voucher", err);
   }
 }
 
-export function deleteLocalServiceVoucher(voucherId: string, userKey?: string): void {
-  const keys = [
-    userKey ? `${VOUCHER_STORAGE_KEY_PREFIX}${userKey}` : null,
-    `${VOUCHER_STORAGE_KEY_PREFIX}global`,
-  ].filter(Boolean) as string[];
+export function deleteLocalServiceVoucher(voucherId: string, user: VoucherUserContext): void {
+  const key = getVoucherStorageKey(user);
+  if (!key) return;
 
-  for (const k of keys) {
-    try {
-      const raw = localStorage.getItem(k);
-      if (raw) {
-        const list = JSON.parse(raw);
-        if (Array.isArray(list)) {
-          const filtered = list.filter((v: ServiceVoucher) => v.id !== voucherId && v.voucherNo !== voucherId);
-          localStorage.setItem(k, JSON.stringify(filtered));
-        }
-      }
-    } catch {}
+  try {
+    const list = getLocalServiceVouchers(user);
+    const filtered = list.filter((v: ServiceVoucher) => v.id !== voucherId && v.voucherNo !== voucherId);
+    localStorage.setItem(key, JSON.stringify(filtered));
+  } catch (err) {
+    console.warn("Failed to delete local service voucher", err);
   }
 }
 
-export async function fetchServiceVouchers(userKey?: string): Promise<ServiceVoucher[]> {
-  const localList = getLocalServiceVouchers(userKey);
+export async function fetchServiceVouchers(user: VoucherUserContext): Promise<ServiceVoucher[]> {
+  if (!user) return [];
+
+  const uid = typeof user === "string" ? user.trim() : (user.uid || "").trim();
+  const email = typeof user === "string" ? user.trim().toLowerCase() : (user.email || "").trim().toLowerCase();
+
+  if (!uid && !email) return [];
+
+  // 1. Read existing local records for this specific user
+  const localList = getLocalServiceVouchers(user);
   const map = new Map<string, ServiceVoucher>();
   localList.forEach((v) => map.set(v.id, v));
 
+  // 2. Query Firestore strictly for vouchers owned by this user
   try {
     const vouchersRef = collection(db, "service_vouchers");
-    const snapshot = await getDocs(vouchersRef);
-    snapshot.forEach((d) => {
-      const data = d.data() as ServiceVoucher;
-      if (data && data.id) {
-        map.set(data.id, data);
-        saveLocalServiceVoucher(data, userKey);
-      }
-    });
+    const queries: Promise<any>[] = [];
+
+    if (uid) {
+      queries.push(getDocs(query(vouchersRef, where("ownerId", "==", uid))));
+    }
+    if (email) {
+      queries.push(getDocs(query(vouchersRef, where("ownerEmail", "==", email))));
+    }
+
+    if (queries.length > 0) {
+      const snapshots = await Promise.all(queries);
+      snapshots.forEach((snapshot) => {
+        snapshot.forEach((d: any) => {
+          const data = d.data() as ServiceVoucher;
+          if (data && data.id && isVoucherOwnedByUser(data, user)) {
+            map.set(data.id, data);
+            saveLocalServiceVoucher(data, user);
+          }
+        });
+      });
+    }
   } catch (err) {
     console.warn("Firestore fetchServiceVouchers fallback to local storage:", err);
   }
 
-  const result = Array.from(map.values());
+  const result = Array.from(map.values()).filter((v) => isVoucherOwnedByUser(v, user));
   result.sort((a, b) => new Date(b.date || b.updatedAt).getTime() - new Date(a.date || a.updatedAt).getTime());
   return result;
 }
 
-export async function saveServiceVoucher(voucher: ServiceVoucher, userKey?: string): Promise<ServiceVoucher> {
-  saveLocalServiceVoucher(voucher, userKey);
+export async function saveServiceVoucher(voucher: ServiceVoucher, user: VoucherUserContext): Promise<ServiceVoucher> {
+  const uid = typeof user === "object" ? user?.uid : undefined;
+  const email = typeof user === "object" ? user?.email?.trim().toLowerCase() : undefined;
+
+  const enriched: ServiceVoucher = {
+    ...voucher,
+    ownerId: voucher.ownerId || uid,
+    ownerEmail: voucher.ownerEmail || email,
+    updatedAt: new Date().toISOString(),
+  };
+
+  saveLocalServiceVoucher(enriched, user);
 
   try {
-    const docRef = doc(db, "service_vouchers", voucher.id);
-    await setDoc(docRef, voucher, { merge: true });
+    const docRef = doc(db, "service_vouchers", enriched.id);
+    await setDoc(docRef, enriched, { merge: true });
   } catch (err) {
     console.warn("Firestore saveServiceVoucher fallback to local only:", err);
   }
-  return voucher;
+  return enriched;
 }
 
-export async function deleteServiceVoucher(voucherId: string, userKey?: string): Promise<void> {
-  deleteLocalServiceVoucher(voucherId, userKey);
+export async function deleteServiceVoucher(voucherId: string, user: VoucherUserContext): Promise<void> {
+  deleteLocalServiceVoucher(voucherId, user);
 
   try {
     const docRef = doc(db, "service_vouchers", voucherId);

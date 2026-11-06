@@ -834,10 +834,24 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Generate unique sequential voucher number
+  // Strictly isolate vouchers belonging to the active user (confidential per user)
+  const userVouchers = useMemo(() => {
+    const cleanEmail = currentUserEmail?.trim().toLowerCase();
+    const cleanUid = currentUserId?.trim();
+
+    return vouchers.filter((v) => {
+      // If user is identified, match either UID or Email
+      if (cleanUid && v.ownerId && v.ownerId === cleanUid) return true;
+      if (cleanEmail && v.ownerEmail && v.ownerEmail.toLowerCase() === cleanEmail) return true;
+      // If neither matches, this voucher belongs to someone else and must remain confidential
+      return false;
+    });
+  }, [vouchers, currentUserId, currentUserEmail]);
+
+  // Generate unique sequential voucher number for this user
   const generateVoucherNo = () => {
     const year = new Date().getFullYear();
-    const count = (vouchers.length + 1).toString().padStart(4, "0");
+    const count = (userVouchers.length + 1).toString().padStart(4, "0");
     return `HC-${year}-${count}`;
   };
 
@@ -1139,9 +1153,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Filtered list of vouchers
+  // Filtered list of vouchers (strictly scoped to this user)
   const filteredVouchers = useMemo(() => {
-    return vouchers.filter((v) => {
+    return userVouchers.filter((v) => {
       const matchSearch =
         !searchQuery ||
         v.voucherNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1152,20 +1166,20 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
       const matchStatus = statusFilter === "all" || v.paymentStatus === statusFilter;
       return matchSearch && matchStatus;
     });
-  }, [vouchers, searchQuery, statusFilter]);
+  }, [userVouchers, searchQuery, statusFilter]);
 
-  // Overall KPI Stats
+  // Overall KPI Stats (strictly for current user)
   const stats = useMemo(() => {
-    const totalBilled = vouchers.reduce((s, v) => s + (v.netTotal || 0), 0);
-    const totalPaid = vouchers.reduce((s, v) => s + (v.paid || 0), 0);
-    const totalDue = vouchers.reduce((s, v) => s + (v.due || 0), 0);
+    const totalBilled = userVouchers.reduce((s, v) => s + (v.netTotal || 0), 0);
+    const totalPaid = userVouchers.reduce((s, v) => s + (v.paid || 0), 0);
+    const totalDue = userVouchers.reduce((s, v) => s + (v.due || 0), 0);
     return {
-      count: vouchers.length,
+      count: userVouchers.length,
       totalBilled,
       totalPaid,
       totalDue,
     };
-  }, [vouchers]);
+  }, [userVouchers]);
 
   if (!isOpen) return null;
 
@@ -1180,16 +1194,19 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               <Receipt className="w-5 h-5 text-white" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-extrabold text-base sm:text-lg text-white tracking-wide">
                   HYBRID CIVIL • SERVICE VOUCHER
                 </h3>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  Business & Consultancy Billing
+                  Business Billing
+                </span>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                  🔒 Confidential • {currentUserEmail ? currentUserEmail.split("@")[0] : "Private"}
                 </span>
               </div>
               <p className="text-[11px] text-[#8ba3c1]">
-                সার্ভিস মেমো, ক্লায়েন্ট ভাউচার, প্রফেশনাল ড্রয়িং বিল ও পেমেন্ট রিসিট
+                সার্ভিস মেমো, ক্লায়েন্ট ভাউচার, প্রফেশনাল ড্রয়িং বিল ও পেমেন্ট রিসিট (সম্পূর্ণ ব্যক্তিগত ও গোপনীয়)
               </p>
             </div>
           </div>
@@ -1220,9 +1237,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
             >
               <FolderOpen className="w-3.5 h-3.5" />
               <span>Saved Vouchers</span>
-              {vouchers.length > 0 && (
+              {userVouchers.length > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-amber-500 text-slate-950 font-bold ml-1">
-                  {vouchers.length}
+                  {userVouchers.length}
                 </span>
               )}
             </button>

@@ -293,7 +293,7 @@
     },
     "/service_vouchers/{voucherId}": {
       "schema": "ServiceVoucher",
-      "description": "Collection of engineering consultancy service vouchers and billing invoices"
+      "description": "Collection of engineering consultancy service vouchers and billing invoices strictly isolated and confidential per user"
     }
   }
 }

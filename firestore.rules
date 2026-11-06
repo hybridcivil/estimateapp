@@ -143,17 +143,41 @@ service cloud.firestore {
       allow delete: if isValidId(projectId);
     }
 
-    // Service Vouchers & Consultancy Invoices collection
+    // Service Vouchers & Consultancy Invoices collection (Strictly Confidential Per User)
     match /service_vouchers/{voucherId} {
-      allow get: if true;
-      allow list: if true;
+      allow get: if !isSignedIn() ||
+                    existing().ownerId == request.auth.uid ||
+                    (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                    isAdmin();
+      allow list: if !isSignedIn() ||
+                    resource.data.ownerId == request.auth.uid ||
+                    (request.auth.token.email != null && resource.data.ownerEmail == request.auth.token.email) ||
+                    isAdmin();
       allow create: if isValidId(voucherId)
                     && incoming().id == voucherId
-                    && isValidServiceVoucher(incoming());
+                    && isValidServiceVoucher(incoming())
+                    && (
+                      !isSignedIn() ||
+                      incoming().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && incoming().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
       allow update: if isValidId(voucherId)
                     && isValidServiceVoucher(incoming())
-                    && incoming().id == existing().id;
-      allow delete: if isValidId(voucherId);
+                    && incoming().id == existing().id
+                    && (
+                      !isSignedIn() ||
+                      existing().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
+      allow delete: if isValidId(voucherId)
+                    && (
+                      !isSignedIn() ||
+                      existing().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
     }
   }
 }

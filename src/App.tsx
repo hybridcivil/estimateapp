@@ -87,18 +87,23 @@ function MainAppContent() {
   const [serviceVouchers, setServiceVouchers] = useState<ServiceVoucher[]>([]);
 
   const loadServiceVouchers = useCallback(async () => {
-    const userKey = appUser?.uid || currentUser?.uid;
+    const userToUse = appUser || (currentUser ? { uid: currentUser.uid, email: currentUser.email || "" } : null);
+    if (!userToUse || (!userToUse.uid && !userToUse.email)) {
+      setServiceVouchers([]);
+      return;
+    }
     try {
-      const list = await fetchServiceVouchers(userKey);
+      const list = await fetchServiceVouchers(userToUse);
       setServiceVouchers(list);
     } catch (err) {
       console.warn("Failed to load service vouchers", err);
     }
-  }, [appUser?.uid, currentUser?.uid]);
+  }, [appUser, currentUser]);
 
   const handleSaveServiceVoucher = async (voucher: ServiceVoucher) => {
-    const userKey = appUser?.uid || currentUser?.uid;
-    const saved = await saveServiceVoucher(voucher, userKey);
+    const userToUse = appUser || (currentUser ? { uid: currentUser.uid, email: currentUser.email || "" } : null);
+    if (!userToUse) return;
+    const saved = await saveServiceVoucher(voucher, userToUse);
     setServiceVouchers((prev) => {
       const idx = prev.findIndex((v) => v.id === saved.id || v.voucherNo === saved.voucherNo);
       if (idx >= 0) {
@@ -108,14 +113,14 @@ function MainAppContent() {
       }
       return [saved, ...prev];
     });
-    showToast(`Voucher ${saved.voucherNo} saved successfully!`, "success");
+    showToast(`ভাউচার ${saved.voucherNo} সংরক্ষিত হয়েছে!`, "success");
   };
 
   const handleDeleteServiceVoucher = async (id: string) => {
-    const userKey = appUser?.uid || currentUser?.uid;
-    await deleteServiceVoucher(id, userKey);
+    const userToUse = appUser || (currentUser ? { uid: currentUser.uid, email: currentUser.email || "" } : null);
+    await deleteServiceVoucher(id, userToUse);
     setServiceVouchers((prev) => prev.filter((v) => v.id !== id && v.voucherNo !== id));
-    showToast("Voucher deleted", "info");
+    showToast("ভাউচার মুছে ফেলা হয়েছে", "info");
   };
 
   // Toast notification
@@ -145,6 +150,7 @@ function MainAppContent() {
     if (flowState === "app" && !currentUser && !appUser && !authLoading) {
       setProjects([]);
       setActiveProject(null);
+      setServiceVouchers([]);
       setFlowState("auth");
     }
   }, [currentUser, appUser, authLoading, flowState]);
