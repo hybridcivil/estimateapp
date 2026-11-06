@@ -38,7 +38,7 @@
     background: transparent !important;
   }
 
-  /* Hide app shell headers, navs, floating controls and background main calculators when report is open */
+  /* Hide app shell headers, navs, floating controls and background main calculators when report or voucher is open */
   header,
   nav,
   aside,
@@ -51,17 +51,28 @@
   body:has(.report-modal-backdrop) #root > div > main,
   body:has(.report-modal-backdrop) #root > div > header,
   body:has(.report-modal-backdrop) #root > div > nav,
+  body.voucher-print-active #root > div > main,
+  body.voucher-print-active #root > div > header,
+  body.voucher-print-active #root > div > nav,
+  body.voucher-print-active #root > div > aside,
+  body.voucher-print-active #root > div > footer,
+  body.voucher-print-active .toast,
+  body:has(.voucher-modal-backdrop) #root > div > main,
+  body:has(.voucher-modal-backdrop) #root > div > header,
+  body:has(.voucher-modal-backdrop) #root > div > nav,
+  body:has(.voucher-modal-backdrop) #root > div > aside,
   .print-hide,
   .no-print {
     display: none !important;
   }
 
   /* Reset outer modal overlays for print */
-  .report-modal-backdrop {
+  .report-modal-backdrop,
+  .voucher-modal-backdrop {
     position: static !important;
     inset: auto !important;
     display: block !important;
-    background: transparent !important;
+    background: #ffffff !important;
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
@@ -73,7 +84,8 @@
     z-index: auto !important;
   }
 
-  .report-modal-card {
+  .report-modal-card,
+  .voucher-modal-card {
     position: static !important;
     display: block !important;
     background: #ffffff !important;
@@ -83,11 +95,33 @@
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    max-width: none !important;
+    max-width: 100% !important;
     max-height: none !important;
     width: 100% !important;
     height: auto !important;
     overflow: visible !important;
+  }
+
+  /* Only printable voucher page shows when voucher is printing */
+  .voucher-modal-card .voucher-editor-tab,
+  .voucher-modal-card .voucher-list-tab,
+  .voucher-modal-card .voucher-modal-header,
+  .voucher-modal-card .voucher-action-toolbar,
+  .voucher-print-hide {
+    display: none !important;
+  }
+
+  #printable-service-voucher {
+    display: block !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   .report-printable-content {

@@ -25,6 +25,7 @@ import {
   FileText,
   Sparkles,
   ArrowLeft,
+  ExternalLink,
 } from "lucide-react";
 import { numberToBengaliWords, toBengaliNumber } from "../utils/numberToWordsBengali";
 
@@ -139,6 +140,650 @@ const DEFAULT_TERMS =
   "২. রাজউক/পৌরসভা ড্রয়িং অনুমোদন ও ফাইনাল আর্কিটেকচারাল/স্ট্রাকচারাল ফাইল হস্তান্তরের পূর্বে অবশিষ্ট বকেয়া পরিশোধ করতে হবে।\n" +
   "৩. সাইট ভিজিট ও ইঞ্জিনিয়ারিং কনসালটেন্সি সেবা সরকারি ও সাপ্তাহিক ছুটির দিন ব্যতীত কর্মদিবসে কার্যকর হবে।\n" +
   "৪. ক্লায়েন্ট কর্তৃক কোনো পরিবর্তন হলে অতিরিক্ত চার্জ প্রযোজ্য হতে পারে।";
+
+function escapeHtml(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = false): string {
+  const words = numberToBengaliWords(v.netTotal);
+  const formattedDate = new Date(v.date || Date.now()).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const itemsRows = (v.items || [])
+    .map(
+      (item, idx) => `
+    <tr>
+      <td style="text-align: center; font-family: 'JetBrains Mono', monospace; color: #475569; border: 1px solid #cbd5e1; padding: 6px 10px;">${idx + 1}</td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px; font-weight: 600; color: #0f172a;">${escapeHtml(item.service)}</td>
+      <td style="text-align: center; font-family: 'JetBrains Mono', monospace; color: #475569; border: 1px solid #cbd5e1; padding: 6px 10px;">${escapeHtml(item.unit)}</td>
+      <td style="text-align: right; font-family: 'JetBrains Mono', monospace; border: 1px solid #cbd5e1; padding: 6px 10px; font-weight: 600;">${item.qty}</td>
+      <td style="text-align: right; font-family: 'JetBrains Mono', monospace; border: 1px solid #cbd5e1; padding: 6px 10px;">৳ ${Number(item.rate).toLocaleString("en-IN")}</td>
+      <td style="text-align: right; font-family: 'JetBrains Mono', monospace; font-weight: bold; border: 1px solid #cbd5e1; padding: 6px 10px; color: #0f172a;">৳ ${Number(item.total).toLocaleString("en-IN")}</td>
+    </tr>
+  `
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(v.voucherNo)} - ${escapeHtml(v.clientName || "Client")} - HYBRID CIVIL Service Voucher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-family: 'Hind Siliguri', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .action-bar {
+      max-width: 800px;
+      margin: 15px auto;
+      padding: 10px 16px;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .action-btn {
+      background: #00c2c7;
+      color: #0f1c2e;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .action-btn:hover {
+      background: #00a8ad;
+    }
+    .paper-sheet {
+      max-width: 800px;
+      margin: 0 auto 30px auto;
+      background: #ffffff;
+      padding: 36px 40px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08);
+    }
+    .header-box {
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .brand-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+      margin: 0;
+      line-height: 1;
+    }
+    .brand-tag {
+      font-size: 11px;
+      font-weight: 800;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 4px;
+    }
+    .brand-sub {
+      font-size: 9.5px;
+      color: #475569;
+      margin-top: 4px;
+      max-width: 420px;
+      line-height: 1.35;
+    }
+    .doc-badge {
+      display: inline-block;
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .voucher-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 800;
+      color: #1e3a8a;
+    }
+    .voucher-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #475569;
+      margin-top: 2px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0;
+      padding: 12px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .meta-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #64748b;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .meta-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .meta-subtext {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 2px;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 12px;
+    }
+    .items-table th {
+      background: #f1f5f9;
+      color: #1e293b;
+      font-weight: 700;
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .totals-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+      align-items: flex-start;
+      margin: 16px 0;
+    }
+    .words-box {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 11.5px;
+    }
+    .terms-box {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 10.5px;
+      color: #334155;
+      line-height: 1.5;
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+    .calc-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .calc-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .calc-row-net {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-weight: 800;
+      font-size: 13.5px;
+      color: #0f172a;
+      border-bottom: 2px solid #cbd5e1;
+    }
+    .calc-row-due {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-weight: 900;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .due-amount {
+      color: ${v.due > 0 ? "#b91c1c" : "#15803d"};
+    }
+    .signatures-block {
+      margin-top: 42px;
+      padding-top: 16px;
+      border-top: 1px solid #cbd5e1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      text-align: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .sign-line {
+      width: 190px;
+      margin: 0 auto 6px auto;
+      border-bottom: 1.5px dashed #64748b;
+      padding-bottom: 24px;
+    }
+    .footer-note {
+      margin-top: 24px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      font-size: 9px;
+      color: #94a3b8;
+    }
+    @media print {
+      body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .no-print, .action-bar {
+        display: none !important;
+      }
+      .paper-sheet {
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
+  ${
+    autoPrint
+      ? `<script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.focus();
+        window.print();
+      }, 350);
+    });
+  </script>`
+      : ""
+  }
+</head>
+<body>
+  <div class="action-bar no-print">
+    <div>
+      <strong>HYBRID CIVIL • Official Voucher</strong> - <span>${escapeHtml(v.voucherNo)}</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="action-btn" onclick="window.print()">
+        🖨️ Print / Save as PDF
+      </button>
+      <button class="action-btn" style="background: #334155; color: #ffffff;" onclick="window.close()">
+        ✕ Close
+      </button>
+    </div>
+  </div>
+
+  <div class="paper-sheet">
+    <div class="header-box">
+      <div>
+        <h1 class="brand-title">HYBRID CIVIL</h1>
+        <div class="brand-tag">Engineering &amp; Consultancy</div>
+        <div class="brand-sub">
+          Structural Analysis &amp; Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ &amp; Estimation
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div class="doc-badge">SERVICE VOUCHER / BILL</div>
+        <div class="voucher-num">Voucher No: ${escapeHtml(v.voucherNo)}</div>
+        <div class="voucher-date">Date: ${formattedDate}</div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div>
+        <div class="meta-title">বিল প্রাপক / Bill To:</div>
+        <div class="meta-val">${escapeHtml(v.clientName)}</div>
+        ${v.phone ? `<div class="meta-subtext">মোবাইল: ${escapeHtml(v.phone)}</div>` : ""}
+        ${v.address ? `<div class="meta-subtext">ঠিকানা: ${escapeHtml(v.address)}</div>` : ""}
+      </div>
+      <div style="border-left: 1px solid #e2e8f0; padding-left: 14px;">
+        <div class="meta-title">প্রজেক্ট বিবরণ / Project:</div>
+        <div class="meta-val">${escapeHtml(v.projectName || "Civil Engineering Consultancy")}</div>
+        <div class="meta-subtext" style="margin-top: 4px;">
+          <span>পেমেন্ট মাধ্যম:</span> <strong>${escapeHtml(v.paymentMethod)}</strong>
+        </div>
+        <div class="meta-subtext">
+          <span>স্ট্যাটাস:</span>
+          <strong style="text-transform: uppercase; color: ${
+            v.paymentStatus === "Paid" ? "#15803d" : v.paymentStatus === "Partial" ? "#b45309" : "#b91c1c"
+          };">${v.paymentStatus}</strong>
+        </div>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 35px; text-align: center;">#</th>
+          <th>সার্ভিস ও কনসালটেন্সির বিবরণ (Description)</th>
+          <th style="width: 70px; text-align: center;">একক (Unit)</th>
+          <th style="width: 75px; text-align: right;">পরিমাণ (Qty)</th>
+          <th style="width: 95px; text-align: right;">দর (Rate ৳)</th>
+          <th style="width: 110px; text-align: right;">মোট (Amount ৳)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsRows}
+      </tbody>
+    </table>
+
+    <div class="totals-grid">
+      <div>
+        <div class="words-box">
+          <strong style="color: #0f172a;">কথায় (Amount in Words):</strong>
+          <div style="font-style: italic; color: #1e293b; margin-top: 2px;">
+            ${escapeHtml(words)}
+          </div>
+        </div>
+
+        ${
+          v.terms
+            ? `<div class="terms-box">
+          <strong style="color: #0f172a; display: block; margin-bottom: 2px;">শর্তাবলী (Terms &amp; Conditions):</strong>
+          ${escapeHtml(v.terms)}
+        </div>`
+            : ""
+        }
+      </div>
+
+      <div class="calc-card">
+        <div class="calc-row">
+          <span style="color: #475569;">সর্বমোট (Subtotal):</span>
+          <span>৳ ${v.subtotal.toLocaleString("en-IN")}</span>
+        </div>
+        ${
+          v.discount > 0
+            ? `<div class="calc-row" style="color: #b45309;">
+          <span>বিশেষ ছাড় (Discount):</span>
+          <span>- ৳ ${v.discount.toLocaleString("en-IN")}</span>
+        </div>`
+            : ""
+        }
+        <div class="calc-row-net">
+          <span>নেট মূল্য (Net Total):</span>
+          <span style="color: #1e3a8a;">৳ ${v.netTotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div class="calc-row" style="color: #15803d;">
+          <span>পরিশোধিত / অগ্রিম (Paid):</span>
+          <span>৳ ${v.paid.toLocaleString("en-IN")}</span>
+        </div>
+        <div class="calc-row-due">
+          <span class="due-amount">${v.due > 0 ? "বকেয়া (Balance Due):" : "পরিশোধিত (Paid):"}</span>
+          <span class="due-amount">৳ ${v.due.toLocaleString("en-IN")}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="signatures-block">
+      <div>
+        <div class="sign-line"></div>
+        <div style="font-weight: 700; color: #0f172a;">ক্লায়েন্টের স্বাক্ষর (Client Signature)</div>
+        <div style="font-size: 10px; color: #64748b;">গ্রাহক প্রাপ্তি ও অনুমোদন</div>
+      </div>
+      <div>
+        <div class="sign-line"></div>
+        <div style="font-weight: 700; color: #0f172a;">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
+        <div style="font-size: 10px; color: #64748b;">HYBRID CIVIL • Engineering &amp; Consultancy</div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      This is a computer-generated voucher issued by Ashraf Civil Studio / Hybrid Civil Cloud System.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export const VoucherPrintDocument: React.FC<{ voucher: ServiceVoucher }> = ({ voucher }) => {
+  return (
+    <div
+      id="printable-service-voucher"
+      className="bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-xl max-w-[800px] mx-auto border border-slate-300 font-sans leading-relaxed print:p-0 print:border-none print:shadow-none print:max-w-none print:rounded-none print:m-0"
+    >
+      {/* 1. LETTERHEAD HEADER */}
+      <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black text-slate-950 tracking-tight leading-none">
+            HYBRID CIVIL
+          </h1>
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">
+            Engineering & Consultancy
+          </div>
+          <div className="text-[10px] text-slate-600 mt-1 max-w-sm">
+            Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation
+          </div>
+        </div>
+
+        <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
+          <div className="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-md mb-1.5">
+            SERVICE VOUCHER / BILL
+          </div>
+          <div className="text-xs font-mono font-bold text-slate-900">
+            Voucher No: <span className="text-blue-900 font-black">{voucher.voucherNo}</span>
+          </div>
+          <div className="text-[11px] text-slate-600 font-mono">
+            Date: {new Date(voucher.date || Date.now()).toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. CLIENT & PROJECT METADATA CARD */}
+      <div className="grid grid-cols-2 gap-4 my-4 p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+        <div>
+          <div className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">বিল প্রাপক / Bill To:</div>
+          <div className="font-bold text-slate-950 text-sm mt-0.5">{voucher.clientName}</div>
+          {voucher.phone && (
+            <div className="text-slate-700 font-mono text-[11px] mt-0.5">
+              মোবাইল: {voucher.phone}
+            </div>
+          )}
+          {voucher.address && (
+            <div className="text-slate-600 text-[10.5px] mt-0.5">
+              ঠিকানা: {voucher.address}
+            </div>
+          )}
+        </div>
+
+        <div className="border-l border-slate-200 pl-4">
+          <div className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">প্রজেক্ট বিবরণ / Project:</div>
+          <div className="font-bold text-slate-950 text-sm mt-0.5">
+            {voucher.projectName || "Civil Engineering Consultancy"}
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] text-slate-600">পেমেন্ট মাধ্যম:</span>
+            <span className="font-bold font-mono text-slate-900">{voucher.paymentMethod}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-slate-600">স্ট্যাটাস:</span>
+            <span
+              className={`text-[9px] font-black uppercase px-2 py-0.2 rounded ${
+                voucher.paymentStatus === "Paid"
+                  ? "bg-green-100 text-green-900 border border-green-300"
+                  : voucher.paymentStatus === "Partial"
+                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                  : "bg-red-100 text-red-900 border border-red-300"
+              }`}
+            >
+              {voucher.paymentStatus}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. ITEM SERVICE TABLE */}
+      <div className="my-4 border border-slate-300 rounded-lg overflow-hidden">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px]">
+              <th className="py-2 px-3 text-center w-8 border-r border-slate-300">#</th>
+              <th className="py-2 px-3 border-r border-slate-300">সার্ভিস ও কনসালটেন্সির বিবরণ (Description)</th>
+              <th className="py-2 px-2 text-center w-16 border-r border-slate-300">একক (Unit)</th>
+              <th className="py-2 px-3 text-right w-20 border-r border-slate-300">পরিমাণ (Qty)</th>
+              <th className="py-2 px-3 text-right w-24 border-r border-slate-300">দর (Rate ৳)</th>
+              <th className="py-2 px-3 text-right w-28">মোট (Amount ৳)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 text-slate-900">
+            {voucher.items.map((item, idx) => (
+              <tr key={item.id} className="leading-tight">
+                <td className="py-2 px-3 text-center font-mono text-slate-500 border-r border-slate-200">
+                  {idx + 1}
+                </td>
+                <td className="py-2 px-3 font-semibold border-r border-slate-200">
+                  {item.service}
+                </td>
+                <td className="py-2 px-2 text-center font-mono text-slate-600 border-r border-slate-200">
+                  {item.unit}
+                </td>
+                <td className="py-2 px-3 text-right font-mono border-r border-slate-200">
+                  {item.qty}
+                </td>
+                <td className="py-2 px-3 text-right font-mono border-r border-slate-200">
+                  ৳ {item.rate.toLocaleString("en-IN")}
+                </td>
+                <td className="py-2 px-3 text-right font-mono font-bold">
+                  ৳ {item.total.toLocaleString("en-IN")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 4. FINANCIAL SUMMARY BLOCK */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start my-4">
+        <div className="sm:col-span-7 text-[11px] space-y-2">
+          <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+            <div className="font-bold text-slate-900">কথায় (Amount in Words):</div>
+            <div className="text-slate-800 font-medium italic mt-0.5">
+              {numberToBengaliWords(voucher.netTotal)}
+            </div>
+          </div>
+
+          {voucher.terms && (
+            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-700 leading-relaxed whitespace-pre-line">
+              <div className="font-bold text-slate-900 mb-1">শর্তাবলী (Terms & Conditions):</div>
+              {voucher.terms}
+            </div>
+          )}
+        </div>
+
+        <div className="sm:col-span-5 bg-slate-100 border border-slate-300 rounded-lg p-3 text-xs space-y-1.5 font-mono">
+          <div className="flex justify-between text-slate-700 pb-1 border-b border-slate-200">
+            <span>সর্বমোট (Subtotal):</span>
+            <span className="font-bold">৳ {voucher.subtotal.toLocaleString("en-IN")}</span>
+          </div>
+
+          {voucher.discount > 0 && (
+            <div className="flex justify-between text-amber-800 pb-1 border-b border-slate-200">
+              <span>বিশেষ ছাড় (Discount):</span>
+              <span className="font-bold">- ৳ {voucher.discount.toLocaleString("en-IN")}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between text-slate-950 font-bold pb-1 border-b border-slate-300 text-sm">
+            <span>নেট মূল্য (Net Total):</span>
+            <span className="text-blue-900">৳ {voucher.netTotal.toLocaleString("en-IN")}</span>
+          </div>
+
+          <div className="flex justify-between text-green-800 pb-1 border-b border-slate-200">
+            <span>পরিশোধিত / অগ্রিম (Paid):</span>
+            <span className="font-bold">৳ {voucher.paid.toLocaleString("en-IN")}</span>
+          </div>
+
+          <div className="flex justify-between text-slate-950 font-black text-sm pt-0.5">
+            <span className={voucher.due > 0 ? "text-red-700" : "text-green-700"}>
+              {voucher.due > 0 ? "বকেয়া (Balance Due):" : "পরিশোধিত (Paid):"}
+            </span>
+            <span className={voucher.due > 0 ? "text-red-700" : "text-green-700"}>
+              ৳ {voucher.due.toLocaleString("en-IN")}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 5. SIGNATURE & STAMP BLOCK */}
+      <div className="mt-12 pt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs">
+        <div>
+          <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
+          <div className="font-bold text-slate-900">ক্লায়েন্টের স্বাক্ষর (Client Signature)</div>
+          <div className="text-[10px] text-slate-500">গ্রাহক প্রাপ্তি ও অনুমোদন</div>
+        </div>
+
+        <div>
+          <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
+          <div className="font-bold text-slate-900">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
+          <div className="text-[10px] text-slate-500">HYBRID CIVIL • Engineering & Consultancy</div>
+        </div>
+      </div>
+
+      {/* FOOTER NOTE */}
+      <div className="mt-6 pt-2 border-t border-slate-200 text-center text-[9px] text-slate-400">
+        This is a computer-generated voucher issued by Ashraf Civil Studio / Hybrid Civil Cloud System.
+      </div>
+    </div>
+  );
+};
 
 export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   isOpen,
@@ -437,13 +1082,61 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     }
   };
 
-  // Direct print trigger
-  const handleDirectPrint = () => {
-    setPrintVoucher(currentVoucher);
-    setActiveTab("print");
+  // Core print runner that isolates document and sets professional document title
+  const triggerBrowserPrint = (v: ServiceVoucher) => {
+    document.body.classList.add("voucher-print-active");
+    const originalTitle = document.title;
+    const client = (v.clientName || "Client").trim();
+    document.title = `${v.voucherNo} - ${client} - HYBRID CIVIL Service Voucher`;
+
+    const cleanup = () => {
+      document.body.classList.remove("voucher-print-active");
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", cleanup);
+    };
+
+    window.addEventListener("afterprint", cleanup);
+
     setTimeout(() => {
       window.print();
-    }, 250);
+      setTimeout(cleanup, 2500);
+    }, 200);
+  };
+
+  // Direct print trigger (works from editor or list)
+  const handleDirectPrint = (v?: ServiceVoucher) => {
+    const target = v || currentVoucher;
+    setPrintVoucher(target);
+    setActiveTab("print");
+    triggerBrowserPrint(target);
+  };
+
+  // Open in new clean tab with standalone HTML & auto-print
+  const handleOpenCleanTab = (v: ServiceVoucher) => {
+    const htmlContent = generateVoucherStandaloneHtml(v, true);
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.open();
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+      newWindow.focus();
+    }
+  };
+
+  // Download standalone offline printable HTML memo
+  const handleDownloadHtml = (v: ServiceVoucher) => {
+    const htmlContent = generateVoucherStandaloneHtml(v, false);
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const cleanNo = v.voucherNo.replace(/[^a-zA-Z0-9_\-]/g, "_");
+    const cleanClient = (v.clientName || "Client").trim().replace(/[^a-zA-Z0-9_\-]/g, "_");
+    link.download = `${cleanNo}_${cleanClient}_Service_Voucher.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Filtered list of vouchers
@@ -477,11 +1170,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-6xl bg-[#0f172a] border border-[#2d4a6a] rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-slate-100">
+    <div className="voucher-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible">
+      <div className="voucher-modal-card relative w-full max-w-6xl bg-[#0f172a] border border-[#2d4a6a] rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-slate-100 print:max-w-none print:max-h-none print:bg-white print:border-none print:shadow-none print:overflow-visible">
         
         {/* TOP MODAL HEADER & TABS (Hidden on Print) */}
-        <div className="print:hidden flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#152033] border-b border-[#2d4a6a] shrink-0">
+        <div className="voucher-modal-header print:hidden flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#152033] border-b border-[#2d4a6a] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md">
               <Receipt className="w-5 h-5 text-white" />
@@ -583,7 +1276,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           {/* TAB 1: VOUCHER EDITOR                                           */}
           {/* ============================================================== */}
           {activeTab === "editor" && (
-            <div className="space-y-4">
+            <div className="voucher-editor-tab space-y-4 print:hidden">
               {/* Header Action Bar */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-[#2d4a6a]/60">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1084,7 +1777,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           {/* TAB 2: SAVED VOUCHERS LIST & HISTORY                            */}
           {/* ============================================================== */}
           {activeTab === "list" && (
-            <div className="space-y-4">
+            <div className="voucher-list-tab space-y-4 print:hidden">
               {/* KPI STATS ROW */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 text-center">
@@ -1280,9 +1973,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           {/* TAB 3: HIGH-FIDELITY OFFICIAL PRINT & PDF MEMO                  */}
           {/* ============================================================== */}
           {activeTab === "print" && printVoucher && (
-            <div className="space-y-4">
+            <div className="space-y-4 print:space-y-0">
               {/* Print Toolbar (Hidden during actual print) */}
-              <div className="print:hidden flex flex-wrap items-center justify-between gap-2.5 bg-[#152033] p-2.5 rounded-xl border border-[#2d4a6a]">
+              <div className="voucher-action-toolbar print:hidden flex flex-wrap items-center justify-between gap-2.5 bg-[#152033] p-2.5 rounded-xl border border-[#2d4a6a]">
                 <button
                   type="button"
                   onClick={() => setActiveTab("editor")}
@@ -1292,11 +1985,31 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <span>Back to Editor</span>
                 </button>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-4 py-1.5 rounded-lg text-xs shadow-md transition active:scale-95"
+                    onClick={() => handleOpenCleanTab(printVoucher)}
+                    className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/40 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95"
+                    title="Open pure isolated voucher in a new clean window"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Clean Tab (ক্লিন ভিউ)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadHtml(printVoucher)}
+                    className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95"
+                    title="Download voucher as standalone offline HTML memo"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download HTML Memo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => triggerBrowserPrint(printVoucher)}
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black px-4 py-1.5 rounded-lg text-xs shadow-md transition active:scale-95"
                   >
                     <Printer className="w-4 h-4" />
                     <span>Print / Save as PDF (A4)</span>
@@ -1305,196 +2018,14 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* OFFICIAL VOUCHER PAPER CONTAINER */}
-              <div
-                id="printable-service-voucher"
-                className="bg-white text-slate-900 p-6 sm:p-8 rounded-xl shadow-xl max-w-[800px] mx-auto border border-slate-300 font-sans leading-relaxed print:p-0 print:border-none print:shadow-none print:max-w-none print:rounded-none"
-              >
-                {/* 1. LETTERHEAD HEADER */}
-                <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-2xl font-black text-slate-950 tracking-tight leading-none">
-                      HYBRID CIVIL
-                    </h1>
-                    <div className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">
-                      Engineering & Consultancy
-                    </div>
-                    <div className="text-[10px] text-slate-600 mt-1 max-w-sm">
-                      Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation
-                    </div>
-                  </div>
+              <VoucherPrintDocument voucher={printVoucher} />
+            </div>
+          )}
 
-                  <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
-                    <div className="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-black uppercase tracking-wider rounded-md mb-1.5">
-                      SERVICE VOUCHER / BILL
-                    </div>
-                    <div className="text-xs font-mono font-bold text-slate-900">
-                      Voucher No: <span className="text-blue-900 font-black">{printVoucher.voucherNo}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-600 font-mono">
-                      Date: {new Date(printVoucher.date).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. CLIENT & PROJECT METADATA CARD */}
-                <div className="grid grid-cols-2 gap-4 my-4 p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                  <div>
-                    <div className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">বিল প্রাপক / Bill To:</div>
-                    <div className="font-bold text-slate-950 text-sm mt-0.5">{printVoucher.clientName}</div>
-                    {printVoucher.phone && (
-                      <div className="text-slate-700 font-mono text-[11px] mt-0.5">
-                        মোবাইল: {printVoucher.phone}
-                      </div>
-                    )}
-                    {printVoucher.address && (
-                      <div className="text-slate-600 text-[10.5px] mt-0.5">
-                        ঠিকানা: {printVoucher.address}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-l border-slate-200 pl-4">
-                    <div className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">প্রজেক্ট বিবরণ / Project:</div>
-                    <div className="font-bold text-slate-950 text-sm mt-0.5">
-                      {printVoucher.projectName || "Civil Engineering Consultancy"}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-slate-600">পেমেন্ট মাধ্যম:</span>
-                      <span className="font-bold font-mono text-slate-900">{printVoucher.paymentMethod}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-slate-600">স্ট্যাটাস:</span>
-                      <span
-                        className={`text-[9px] font-black uppercase px-2 py-0.2 rounded ${
-                          printVoucher.paymentStatus === "Paid"
-                            ? "bg-green-100 text-green-900 border border-green-300"
-                            : printVoucher.paymentStatus === "Partial"
-                            ? "bg-amber-100 text-amber-900 border border-amber-300"
-                            : "bg-red-100 text-red-900 border border-red-300"
-                        }`}
-                      >
-                        {printVoucher.paymentStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. ITEM SERVICE TABLE */}
-                <div className="my-4 border border-slate-300 rounded-lg overflow-hidden">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px]">
-                        <th className="py-2 px-3 text-center w-8 border-r border-slate-300">#</th>
-                        <th className="py-2 px-3 border-r border-slate-300">সার্ভিস ও কনসালটেন্সির বিবরণ (Description)</th>
-                        <th className="py-2 px-2 text-center w-16 border-r border-slate-300">একক (Unit)</th>
-                        <th className="py-2 px-3 text-right w-20 border-r border-slate-300">পরিমাণ (Qty)</th>
-                        <th className="py-2 px-3 text-right w-24 border-r border-slate-300">দর (Rate ৳)</th>
-                        <th className="py-2 px-3 text-right w-28">মোট (Amount ৳)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 text-slate-900">
-                      {printVoucher.items.map((item, idx) => (
-                        <tr key={item.id} className="leading-tight">
-                          <td className="py-2 px-3 text-center font-mono text-slate-500 border-r border-slate-200">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2 px-3 font-semibold border-r border-slate-200">
-                            {item.service}
-                          </td>
-                          <td className="py-2 px-2 text-center font-mono text-slate-600 border-r border-slate-200">
-                            {item.unit}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono border-r border-slate-200">
-                            {item.qty}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono border-r border-slate-200">
-                            ৳ {item.rate.toLocaleString("en-IN")}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-bold">
-                            ৳ {item.total.toLocaleString("en-IN")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* 4. FINANCIAL SUMMARY BLOCK */}
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start my-4">
-                  <div className="sm:col-span-7 text-[11px] space-y-2">
-                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                      <div className="font-bold text-slate-900">কথায় (Amount in Words):</div>
-                      <div className="text-slate-800 font-medium italic mt-0.5">
-                        {numberToBengaliWords(printVoucher.netTotal)}
-                      </div>
-                    </div>
-
-                    {printVoucher.terms && (
-                      <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[10px] text-slate-700 leading-relaxed whitespace-pre-line">
-                        <div className="font-bold text-slate-900 mb-1">শর্তাবলী (Terms & Conditions):</div>
-                        {printVoucher.terms}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="sm:col-span-5 bg-slate-100 border border-slate-300 rounded-lg p-3 text-xs space-y-1.5 font-mono">
-                    <div className="flex justify-between text-slate-700 pb-1 border-b border-slate-200">
-                      <span>সর্বমোট (Subtotal):</span>
-                      <span className="font-bold">৳ {printVoucher.subtotal.toLocaleString("en-IN")}</span>
-                    </div>
-
-                    {printVoucher.discount > 0 && (
-                      <div className="flex justify-between text-amber-800 pb-1 border-b border-slate-200">
-                        <span>বিশেষ ছাড় (Discount):</span>
-                        <span className="font-bold">- ৳ {printVoucher.discount.toLocaleString("en-IN")}</span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between text-slate-950 font-bold pb-1 border-b border-slate-300 text-sm">
-                      <span>নেট মূল্য (Net Total):</span>
-                      <span className="text-blue-900">৳ {printVoucher.netTotal.toLocaleString("en-IN")}</span>
-                    </div>
-
-                    <div className="flex justify-between text-green-800 pb-1 border-b border-slate-200">
-                      <span>পরিশোধিত / অগ্রিম (Paid):</span>
-                      <span className="font-bold">৳ {printVoucher.paid.toLocaleString("en-IN")}</span>
-                    </div>
-
-                    <div className="flex justify-between text-slate-950 font-black text-sm pt-0.5">
-                      <span className={printVoucher.due > 0 ? "text-red-700" : "text-green-700"}>
-                        {printVoucher.due > 0 ? "বকেয়া (Balance Due):" : "পরিশোধিত (Paid):"}
-                      </span>
-                      <span className={printVoucher.due > 0 ? "text-red-700" : "text-green-700"}>
-                        ৳ {printVoucher.due.toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. SIGNATURE & STAMP BLOCK */}
-                <div className="mt-12 pt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs">
-                  <div>
-                    <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
-                    <div className="font-bold text-slate-900">ক্লায়েন্টের স্বাক্ষর (Client Signature)</div>
-                    <div className="text-[10px] text-slate-500">গ্রাহক প্রাপ্তি ও অনুমোদন</div>
-                  </div>
-
-                  <div>
-                    <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
-                    <div className="font-bold text-slate-900">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
-                    <div className="text-[10px] text-slate-500">HYBRID CIVIL • Engineering & Consultancy</div>
-                  </div>
-                </div>
-
-                {/* FOOTER NOTE */}
-                <div className="mt-6 pt-2 border-t border-slate-200 text-center text-[9px] text-slate-400">
-                  This is a computer-generated voucher issued by Ashraf Civil Studio / Hybrid Civil Cloud System.
-                </div>
-              </div>
+          {/* HIDDEN ON SCREEN, VISIBLE ON PRINT: Ensures browser Ctrl+P from Editor or List tab prints ONLY the pristine voucher memo */}
+          {activeTab !== "print" && (
+            <div className="hidden print:block">
+              <VoucherPrintDocument voucher={currentVoucher} />
             </div>
           )}
         </div>
