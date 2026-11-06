@@ -804,7 +804,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <th>Structural Element</th>
           <th class="text-right" style="width: 75px">Wet Conc (cft)</th>
           <th class="text-right" style="width: 75px">Cement (Bags)</th>
-          <th class="text-right" style="width: 65px">Sand (cft)</th>
+          <th class="text-right" style="width: 75px">Sand (Syl/Loc)</th>
           <th class="text-right" style="width: 65px">Stone (cft)</th>
           <th class="text-right" style="width: 70px">Steel (kg)</th>
           <th class="text-right" style="width: 65px">Bricks (Pcs)</th>
@@ -819,7 +819,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="font-bold">${a.label} <span style="font-size: 8px; color: #64748b; font-weight: normal;">(${a.count > 0 ? `${a.count.toLocaleString()} ${a.unit}` : ""})</span></td>
           <td class="text-right font-mono">${a.concreteVolCft > 0 ? a.concreteVolCft.toLocaleString() : "—"}</td>
           <td class="text-right font-mono font-bold">${a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}</td>
-          <td class="text-right font-mono">${a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}</td>
+          <td class="text-right font-mono">${
+            a.sandCft > 0
+              ? a.sylhetSandCft > 0
+                ? `<span style="color:#007791;font-weight:700;">${Math.round(a.sylhetSandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Syl</span><br><span style="color:#1e293b;font-weight:600;">${Math.round(a.localSandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Loc</span>`
+                : `<span style="color:#1e293b;font-weight:600;">${Math.round(a.localSandCft || a.sandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Loc</span>`
+              : "—"
+          }</td>
           <td class="text-right font-mono">${a.stoneAggCft > 0 ? Math.round(a.stoneAggCft).toLocaleString() : (a.picketAggCft > 0 ? `${Math.round(a.picketAggCft)} Khoa` : "—")}</td>
           <td class="text-right font-mono font-bold">${a.steelKg > 0 ? a.steelKg.toLocaleString() : "—"}</td>
           <td class="text-right font-mono">${a.brickworkBricksPcs > 0 ? a.brickworkBricksPcs.toLocaleString() : (a.picketBricksPcs > 0 ? `${a.picketBricksPcs.toLocaleString()} Pkt` : "—")}</td>
@@ -834,7 +840,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="font-bold">Total Material Quantities:</td>
           <td class="text-right font-mono font-bold">${totals.concreteVolCft.toLocaleString()}</td>
           <td class="text-right font-mono font-bold">${totals.cementBags.toLocaleString()}</td>
-          <td class="text-right font-mono font-bold">${Math.round(totals.sandCft).toLocaleString()}</td>
+          <td class="text-right font-mono font-bold">
+            <div>${Math.round(totals.sandCft).toLocaleString()} cft</div>
+            ${(totals.sylhetSandCft > 0 || totals.localSandCft > 0) ? `<div style="font-size:7.5px;font-weight:normal;color:#475569"><span style="color:#007791">${Math.round(totals.sylhetSandCft).toLocaleString()} Syl</span> / ${Math.round(totals.localSandCft).toLocaleString()} Loc</div>` : ""}
+          </td>
           <td class="text-right font-mono font-bold">${Math.round(totals.stoneAggCft).toLocaleString()}${totals.picketAggCft > 0 ? ` (${Math.round(totals.picketAggCft)} Khoa)` : ""}</td>
           <td class="text-right font-mono font-bold">${totals.steelKg.toLocaleString()}</td>
           <td class="text-right font-mono font-bold">${totals.brickworkBricksPcs.toLocaleString()}${totals.picketBricksPcs > 0 ? ` (${totals.picketBricksPcs.toLocaleString()} Pkt)` : ""}</td>
@@ -2495,7 +2504,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <th style={{ padding: cellPaddingCss }}>Structural Element</th>
                       <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Wet Conc (cft)</th>
                       <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Cement (Bags)</th>
-                      <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Sand (cft)</th>
+                      <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Sand (Syl/Loc)</th>
                       <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Stone (cft)</th>
                       <th style={{ padding: cellPaddingCss, width: "70px" }} className="text-right">Steel (kg)</th>
                       <th style={{ padding: cellPaddingCss, width: "65px" }} className="text-right">Bricks (Pcs)</th>
@@ -2521,7 +2530,25 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                           {a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
-                          {a.sandCft > 0 ? Math.round(a.sandCft).toLocaleString() : "—"}
+                          {a.sandCft > 0 ? (
+                            a.sylhetSandCft > 0 ? (
+                              <div className="leading-tight">
+                                <div>
+                                  <span className="font-bold text-[#00c2c7] print:text-teal-700">{Math.round(a.sylhetSandCft).toLocaleString()}</span>
+                                  <span className="text-[8px] text-[#8ba3c1] print:text-slate-500 ml-0.5">Syl</span>
+                                </div>
+                                <div className="text-[10px] text-white print:text-slate-800">
+                                  <span>{Math.round(a.localSandCft).toLocaleString()}</span>
+                                  <span className="text-[8px] text-[#8ba3c1] print:text-slate-500 ml-0.5">Loc</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-bold text-white print:text-slate-800">{Math.round(a.localSandCft || a.sandCft).toLocaleString()}</span>
+                                <span className="text-[8px] text-[#8ba3c1] print:text-slate-500 ml-0.5">Loc</span>
+                              </div>
+                            )
+                          ) : "—"}
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
                           {a.stoneAggCft > 0 ? Math.round(a.stoneAggCft).toLocaleString() : (a.picketAggCft > 0 ? `${Math.round(a.picketAggCft)} Khoa` : "—")}
@@ -2553,7 +2580,14 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         {totals.cementBags.toLocaleString()}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
-                        {Math.round(totals.sandCft).toLocaleString()}
+                        <div>{Math.round(totals.sandCft).toLocaleString()} cft</div>
+                        {(totals.sylhetSandCft > 0 || totals.localSandCft > 0) && (
+                          <div className="text-[8.5px] font-normal text-[#8ba3c1] print:text-slate-600 whitespace-nowrap">
+                            <span className="text-[#00c2c7] print:text-teal-700">{Math.round(totals.sylhetSandCft).toLocaleString()} Syl</span>
+                            {" / "}
+                            <span>{Math.round(totals.localSandCft).toLocaleString()} Loc</span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-right font-mono font-bold text-white print:text-slate-900">
                         {Math.round(totals.stoneAggCft).toLocaleString()}{totals.picketAggCft > 0 ? ` (${Math.round(totals.picketAggCft)} Khoa)` : ""}

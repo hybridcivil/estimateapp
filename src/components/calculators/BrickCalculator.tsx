@@ -1289,7 +1289,7 @@ export const BrickCalculator: React.FC<BrickCalculatorProps> = ({
                 </div>
 
                 <div className="bg-[#1a2b42] border border-[#2ecc71] rounded-lg p-2 text-center">
-                  <div className="text-[9px] text-[#8ba3c1]">Sand Total (বালু)</div>
+                  <div className="text-[9px] text-[#8ba3c1]">Local Sand (লোকাল বালু)</div>
                   <div className="text-sm font-bold text-[#2ecc71]">
                     {isMultiplying ? results.multipliedSandCft : results.totalSandCft} cft
                   </div>

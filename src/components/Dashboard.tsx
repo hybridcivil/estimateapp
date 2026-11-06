@@ -1595,7 +1595,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <th className="py-2.5 px-3 font-bold">Estimate File / Element</th>
                   <th className="py-2.5 px-2 font-bold text-center">Mult</th>
                   <th className="py-2.5 px-3 font-bold text-right text-[#f5a623]">Cement (Bags)</th>
-                  <th className="py-2.5 px-3 font-bold text-right text-[#f1f5f9]">Sand (cft)</th>
+                  <th className="py-2.5 px-3 font-bold text-right text-[#f1f5f9]">Sand (Sylhet / Local cft)</th>
                   <th className="py-2.5 px-3 font-bold text-right text-[#38bdf8]">Stone/Khoa (cft)</th>
                   <th className="py-2.5 px-3 font-bold text-right text-[#00c2c7]">Steel (kg)</th>
                   <th className="py-2.5 px-3 font-bold text-right text-[#e67e22]">Bricks (pcs)</th>
@@ -1714,8 +1714,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <td className="py-2.5 px-3 text-right font-mono">
                         {mat.sandCft > 0 ? (
                           <div>
-                            <span className="font-bold text-[#f1f5f9]">{mat.sandCft}</span>
-                            <div className="text-[9px] text-[#8ba3c1]/70">৳{mat.sandCost.toLocaleString("en-IN")}</div>
+                            {mat.sylhetSandCft > 0 ? (
+                              <div className="text-[11px] leading-tight">
+                                <span className="font-bold text-[#00c2c7]">{mat.sylhetSandCft}</span>
+                                <span className="text-[9px] text-[#8ba3c1] ml-0.5">Syl</span>
+                                <div className="text-[#f1f5f9] font-bold">
+                                  <span>{mat.localSandCft}</span>
+                                  <span className="text-[9px] text-[#8ba3c1] ml-0.5">Loc</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-bold text-[#f1f5f9]">{mat.localSandCft || mat.sandCft}</span>
+                                <span className="text-[9px] text-[#8ba3c1] ml-0.5">Loc</span>
+                              </div>
+                            )}
+                            <div className="text-[9px] text-[#8ba3c1]/70 mt-0.5">৳{mat.sandCost.toLocaleString("en-IN")}</div>
                           </div>
                         ) : (
                           <span className="text-[#8ba3c1]/40">-</span>
@@ -1849,6 +1863,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       return {
                         cement: acc.cement + m.cementBags,
                         sand: acc.sand + m.sandCft,
+                        sylhetSand: acc.sylhetSand + m.sylhetSandCft,
+                        localSand: acc.localSand + m.localSandCft,
                         agg: acc.agg + (m.aggType === "brick_khoa" ? 0 : m.aggCft),
                         steel: acc.steel + m.steelKg,
                         bricks: acc.bricks + m.bricksPcs,
@@ -1857,7 +1873,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         cost: acc.cost + (e.totalCost || 0),
                       };
                     },
-                    { cement: 0, sand: 0, agg: 0, steel: 0, bricks: 0, tiles: 0, vol: 0, cost: 0 }
+                    { cement: 0, sand: 0, sylhetSand: 0, localSand: 0, agg: 0, steel: 0, bricks: 0, tiles: 0, vol: 0, cost: 0 }
                   );
                   return (
                     <tr className="bg-[#152033] border-t-2 border-[#00c2c7] text-white font-bold text-xs">
@@ -1868,7 +1884,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {totals.cement.toLocaleString()} bags
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-[#f1f5f9]">
-                        {Number(totals.sand.toFixed(1)).toLocaleString()} cft
+                        <div>{Number(totals.sand.toFixed(1)).toLocaleString()} cft</div>
+                        {(totals.sylhetSand > 0 || totals.localSand > 0) && (
+                          <div className="text-[9px] font-normal text-[#8ba3c1] mt-0.5 whitespace-nowrap">
+                            <span className="text-[#00c2c7] font-semibold">{Number(totals.sylhetSand.toFixed(1)).toLocaleString()} Syl</span>
+                            {" · "}
+                            <span className="text-[#f1f5f9] font-semibold">{Number(totals.localSand.toFixed(1)).toLocaleString()} Loc</span>
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-[#38bdf8]">
                         {Number(totals.agg.toFixed(1)).toLocaleString()} cft
@@ -2139,8 +2162,38 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </div>
                           )}
 
-                          {/* Sand */}
-                          {mat.sandCft > 0 && (
+                          {/* Sylhet Sand (2/3 for casting) */}
+                          {mat.sylhetSandCft > 0 && (
+                            <div className="bg-[#1a2b42] border border-[#00c2c7]/25 rounded-lg p-1.5">
+                              <div className="text-[8px] text-[#00c2c7] uppercase font-mono font-semibold">
+                                Sylhet Sand (2/3)
+                              </div>
+                              <div className="font-bold text-[#00c2c7] text-[11px]">
+                                {mat.sylhetSandCft} cft
+                              </div>
+                              <div className="text-[8px] text-[#8ba3c1]/70">
+                                ৳ {mat.sylhetSandCost.toLocaleString("en-IN")}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Local Sand (1/3 for casting, 100% for brickwork/tiles) */}
+                          {mat.localSandCft > 0 && (
+                            <div className="bg-[#1a2b42] border border-[#f1f5f9]/15 rounded-lg p-1.5">
+                              <div className="text-[8px] text-[#8ba3c1] uppercase font-mono font-semibold">
+                                {mat.sylhetSandCft > 0 ? "Local Sand (1/3)" : "Local Sand"}
+                              </div>
+                              <div className="font-bold text-[#f1f5f9] text-[11px]">
+                                {mat.localSandCft} cft
+                              </div>
+                              <div className="text-[8px] text-[#8ba3c1]/70">
+                                ৳ {mat.localSandCost.toLocaleString("en-IN")}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Fallback if legacy sand with no split */}
+                          {mat.sylhetSandCft === 0 && mat.localSandCft === 0 && mat.sandCft > 0 && (
                             <div className="bg-[#1a2b42] border border-[#f1f5f9]/15 rounded-lg p-1.5">
                               <div className="text-[8px] text-[#8ba3c1] uppercase font-mono">Sand</div>
                               <div className="font-bold text-[#f1f5f9] text-[11px]">

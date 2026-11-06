@@ -209,15 +209,30 @@ export const EditEstimateModal: React.FC<EditEstimateModalProps> = ({
                         </div>
                       )}
 
-                      {/* Sand */}
-                      {mat.sandCft > 0 && (
-                        <div className="bg-[#1a2b42] border border-[#f1f5f9]/20 rounded-lg p-2 text-center">
-                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono">Sand</div>
-                          <div className="text-xs font-bold text-[#f1f5f9]">
-                            {mat.sandCft} cft
+                      {/* Sylhet Sand (সিলেট বালু · 2/3 for casting) */}
+                      {mat.sylhetSandCft > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#00c2c7]/40 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#00c2c7] uppercase font-mono font-bold">Sylhet Sand (2/3)</div>
+                          <div className="text-xs font-bold text-[#00c2c7]">
+                            {mat.sylhetSandCft} cft
                           </div>
                           <div className="text-[9px] text-[#8ba3c1]/80">
-                            ৳ {mat.sandCost.toLocaleString("en-IN")}
+                            ৳ {mat.sylhetSandCost.toLocaleString("en-IN")}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Local Sand (লোকাল বালু · 1/3 casting or 100% brick/plaster/tiles) */}
+                      {mat.localSandCft > 0 && (
+                        <div className="bg-[#1a2b42] border border-[#f1f5f9]/30 rounded-lg p-2 text-center">
+                          <div className="text-[9px] text-[#8ba3c1] uppercase font-mono font-bold">
+                            {mat.sylhetSandCft > 0 ? "Local Sand (1/3)" : "Local Sand"}
+                          </div>
+                          <div className="text-xs font-bold text-[#f1f5f9]">
+                            {mat.localSandCft} cft
+                          </div>
+                          <div className="text-[9px] text-[#8ba3c1]/80">
+                            ৳ {mat.localSandCost.toLocaleString("en-IN")}
                           </div>
                         </div>
                       )}
