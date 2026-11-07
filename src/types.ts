@@ -481,6 +481,10 @@ export interface ServiceVoucher {
   id: string;
   voucherNo: string;
   date: string;
+  companyName?: string;
+  companyTagline?: string;
+  companyServices?: string;
+  companyContact?: string;
   clientName: string;
   phone: string;
   projectName: string;

@@ -99,7 +99,11 @@ service cloud.firestore {
         && (!('ownerId' in data) || data.ownerId == null || (data.ownerId is string && data.ownerId.size() <= 128))
         && (!('ownerEmail' in data) || data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 200))
         && (!('terms' in data) || (data.terms is string && data.terms.size() <= 3000))
-        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000));
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000))
+        && (!('companyName' in data) || data.companyName == null || (data.companyName is string && data.companyName.size() <= 200))
+        && (!('companyTagline' in data) || data.companyTagline == null || (data.companyTagline is string && data.companyTagline.size() <= 200))
+        && (!('companyServices' in data) || data.companyServices == null || (data.companyServices is string && data.companyServices.size() <= 500))
+        && (!('companyContact' in data) || data.companyContact == null || (data.companyContact is string && data.companyContact.size() <= 300));
     }
 
     // Connection testing endpoint

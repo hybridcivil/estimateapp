@@ -266,6 +266,26 @@
           "description": "Additional notes or remarks",
           "maxLength": 2000
         },
+        "companyName": {
+          "type": "string",
+          "description": "Customizable engineering firm or consultancy name on voucher header",
+          "maxLength": 200
+        },
+        "companyTagline": {
+          "type": "string",
+          "description": "Firm tagline or subtitle (e.g. Engineering & Consultancy)",
+          "maxLength": 200
+        },
+        "companyServices": {
+          "type": "string",
+          "description": "Firm specializations and service offerings list",
+          "maxLength": 500
+        },
+        "companyContact": {
+          "type": "string",
+          "description": "Firm contact phone number, address, or license details",
+          "maxLength": 300
+        },
         "createdAt": {
           "type": "string",
           "description": "ISO timestamp of creation"

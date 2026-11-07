@@ -26,6 +26,11 @@ import {
   Sparkles,
   ArrowLeft,
   ExternalLink,
+  Briefcase,
+  Bookmark,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { numberToBengaliWords, toBengaliNumber } from "../utils/numberToWordsBengali";
 
@@ -179,7 +184,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(v.voucherNo)} - ${escapeHtml(v.clientName || "Client")} - HYBRID CIVIL Service Voucher</title>
+  <title>${escapeHtml(v.voucherNo)} - ${escapeHtml(v.clientName || "Client")} - ${escapeHtml(v.companyName || "HYBRID CIVIL")} Service Voucher</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -456,7 +461,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
 <body>
   <div class="action-bar no-print">
     <div>
-      <strong>HYBRID CIVIL • Official Voucher</strong> - <span>${escapeHtml(v.voucherNo)}</span>
+      <strong>${escapeHtml(v.companyName || "HYBRID CIVIL")} • Official Voucher</strong> - <span>${escapeHtml(v.voucherNo)}</span>
     </div>
     <div style="display: flex; gap: 8px;">
       <button class="action-btn" onclick="window.print()">
@@ -471,11 +476,12 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
   <div class="paper-sheet">
     <div class="header-box">
       <div>
-        <h1 class="brand-title">HYBRID CIVIL</h1>
-        <div class="brand-tag">Engineering &amp; Consultancy</div>
+        <h1 class="brand-title">${escapeHtml(v.companyName || "HYBRID CIVIL")}</h1>
+        <div class="brand-tag">${escapeHtml(v.companyTagline || "Engineering & Consultancy")}</div>
         <div class="brand-sub">
-          Structural Analysis &amp; Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ &amp; Estimation
+          ${escapeHtml(v.companyServices || "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation")}
         </div>
+        ${v.companyContact ? `<div class="brand-sub" style="margin-top: 3px; font-weight: 600; color: #334155;">${escapeHtml(v.companyContact)}</div>` : ""}
       </div>
       <div style="text-align: right;">
         <div class="doc-badge">SERVICE VOUCHER / BILL</div>
@@ -578,12 +584,12 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
       <div>
         <div class="sign-line"></div>
         <div style="font-weight: 700; color: #0f172a;">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
-        <div style="font-size: 10px; color: #64748b;">HYBRID CIVIL • Engineering &amp; Consultancy</div>
+        <div style="font-size: 10px; color: #64748b;">${escapeHtml(v.companyName || "HYBRID CIVIL")} • ${escapeHtml(v.companyTagline || "Engineering & Consultancy")}</div>
       </div>
     </div>
 
     <div class="footer-note">
-      This is a computer-generated voucher issued by Ashraf Civil Studio / Hybrid Civil Cloud System.
+      This is a computer-generated voucher issued via Dolphin Box • Developer: Anonymous
     </div>
   </div>
 </body>
@@ -600,14 +606,19 @@ export const VoucherPrintDocument: React.FC<{ voucher: ServiceVoucher }> = ({ vo
       <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-950 tracking-tight leading-none">
-            HYBRID CIVIL
+            {voucher.companyName || "HYBRID CIVIL"}
           </h1>
           <div className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">
-            Engineering & Consultancy
+            {voucher.companyTagline || "Engineering & Consultancy"}
           </div>
           <div className="text-[10px] text-slate-600 mt-1 max-w-sm">
-            Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation
+            {voucher.companyServices || "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"}
           </div>
+          {voucher.companyContact && (
+            <div className="text-[10px] text-slate-700 font-semibold mt-1">
+              {voucher.companyContact}
+            </div>
+          )}
         </div>
 
         <div className="text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
@@ -773,13 +784,15 @@ export const VoucherPrintDocument: React.FC<{ voucher: ServiceVoucher }> = ({ vo
         <div>
           <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
           <div className="font-bold text-slate-900">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
-          <div className="text-[10px] text-slate-500">HYBRID CIVIL • Engineering & Consultancy</div>
+          <div className="text-[10px] text-slate-500">
+            {voucher.companyName || "HYBRID CIVIL"} • {voucher.companyTagline || "Engineering & Consultancy"}
+          </div>
         </div>
       </div>
 
       {/* FOOTER NOTE */}
       <div className="mt-6 pt-2 border-t border-slate-200 text-center text-[9px] text-slate-400">
-        This is a computer-generated voucher issued by Ashraf Civil Studio / Hybrid Civil Cloud System.
+        This is a computer-generated voucher issued via Dolphin Box • Developer: Anonymous
       </div>
     </div>
   );
@@ -815,6 +828,80 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   >("Cash");
   const [terms, setTerms] = useState<string>(DEFAULT_TERMS);
   const [notes, setNotes] = useState<string>("");
+
+  // User storage key for per-user default company/firm branding preferences
+  const userStorageKey = useMemo(() => {
+    return (currentUserId || currentUserEmail || "default_user")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_");
+  }, [currentUserId, currentUserEmail]);
+
+  // Read saved default firm settings from localStorage
+  const getSavedCompanyDefaults = () => {
+    try {
+      const raw = localStorage.getItem(`voucher_company_pref_${userStorageKey}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          name: parsed.name || "HYBRID CIVIL",
+          tagline: parsed.tagline || "Engineering & Consultancy",
+          services:
+            parsed.services ||
+            "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation",
+          contact: parsed.contact || "",
+        };
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      name: "HYBRID CIVIL",
+      tagline: "Engineering & Consultancy",
+      services:
+        "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation",
+      contact: "",
+    };
+  };
+
+  // Firm / Consultancy Header State (editable per voucher and customizable per user)
+  const [companyName, setCompanyName] = useState<string>("HYBRID CIVIL");
+  const [companyTagline, setCompanyTagline] = useState<string>("Engineering & Consultancy");
+  const [companyServices, setCompanyServices] = useState<string>(
+    "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"
+  );
+  const [companyContact, setCompanyContact] = useState<string>("");
+  const [showCompanySettings, setShowCompanySettings] = useState<boolean>(false);
+  const [companySaveNotice, setCompanySaveNotice] = useState<string | null>(null);
+
+  const handleSaveCompanyAsDefault = () => {
+    try {
+      localStorage.setItem(
+        `voucher_company_pref_${userStorageKey}`,
+        JSON.stringify({
+          name: companyName.trim() || "HYBRID CIVIL",
+          tagline: companyTagline.trim() || "Engineering & Consultancy",
+          services:
+            companyServices.trim() ||
+            "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation",
+          contact: companyContact.trim() || "",
+        })
+      );
+      setCompanySaveNotice("আপনার ফার্মের তথ্য ডিফল্ট হিসেবে সংরক্ষিত হয়েছে!");
+      setTimeout(() => setCompanySaveNotice(null), 3500);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleResetCompanyToDefault = () => {
+    setCompanyName("HYBRID CIVIL");
+    setCompanyTagline("Engineering & Consultancy");
+    setCompanyServices(
+      "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"
+    );
+    setCompanyContact("");
+  };
 
   // New item drafting row
   const [selectedPreset, setSelectedPreset] = useState<string>("");
@@ -857,10 +944,15 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
   // Reset or create fresh voucher
   const handleNewVoucher = () => {
+    const defaults = getSavedCompanyDefaults();
     const newId = `voucher_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setVoucherId(newId);
     setVoucherNo(generateVoucherNo());
     setDate(new Date().toISOString().slice(0, 10));
+    setCompanyName(defaults.name);
+    setCompanyTagline(defaults.tagline);
+    setCompanyServices(defaults.services);
+    setCompanyContact(defaults.contact);
     setClientName(activeProject?.client || "");
     setPhone("");
     setProjectName(activeProject?.name || "");
@@ -887,9 +979,14 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
   // Load existing voucher for editing
   const handleLoadVoucher = (v: ServiceVoucher) => {
+    const defaults = getSavedCompanyDefaults();
     setVoucherId(v.id);
     setVoucherNo(v.voucherNo);
     setDate(v.date || new Date().toISOString().slice(0, 10));
+    setCompanyName(v.companyName || defaults.name);
+    setCompanyTagline(v.companyTagline || defaults.tagline);
+    setCompanyServices(v.companyServices || defaults.services);
+    setCompanyContact(v.companyContact || defaults.contact);
     setClientName(v.clientName || "");
     setPhone(v.phone || "");
     setProjectName(v.projectName || "");
@@ -911,6 +1008,10 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     setVoucherId(newId);
     setVoucherNo(generateVoucherNo());
     setDate(new Date().toISOString().slice(0, 10));
+    setCompanyName(v.companyName || companyName);
+    setCompanyTagline(v.companyTagline || companyTagline);
+    setCompanyServices(v.companyServices || companyServices);
+    setCompanyContact(v.companyContact || companyContact);
     setClientName(v.clientName || "");
     setPhone(v.phone || "");
     setProjectName(v.projectName ? `${v.projectName} (Copy)` : "");
@@ -1044,6 +1145,10 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
       paymentStatus,
       terms,
       notes,
+      companyName: companyName.trim() || undefined,
+      companyTagline: companyTagline.trim() || undefined,
+      companyServices: companyServices.trim() || undefined,
+      companyContact: companyContact.trim() || undefined,
       ownerEmail: currentUserEmail,
       ownerId: currentUserId,
       createdAt: date || new Date().toISOString(),
@@ -1068,6 +1173,10 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     paymentStatus,
     terms,
     notes,
+    companyName,
+    companyTagline,
+    companyServices,
+    companyContact,
     currentUserEmail,
     currentUserId,
   ]);
@@ -1101,7 +1210,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     document.body.classList.add("voucher-print-active");
     const originalTitle = document.title;
     const client = (v.clientName || "Client").trim();
-    document.title = `${v.voucherNo} - ${client} - HYBRID CIVIL Service Voucher`;
+    const firm = (v.companyName || "HYBRID CIVIL").trim();
+    document.title = `${v.voucherNo} - ${client} - ${firm} Service Voucher`;
 
     const cleanup = () => {
       document.body.classList.remove("voucher-print-active");
@@ -1359,6 +1469,162 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                     <span>{isSaving ? "সংরক্ষণ হচ্ছে..." : "Voucher সংরক্ষণ করুন"}</span>
                   </button>
                 </div>
+              </div>
+
+              {/* SECTION: FIRM & CONSULTANCY NAME / BRANDING (CUSTOMIZABLE PER USER) */}
+              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3.5 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2d4a6a]/60 pb-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Briefcase className="w-4 h-4 text-[#00c2c7]" />
+                    <h4 className="text-xs font-bold text-[#00c2c7] uppercase tracking-wider">
+                      ফার্ম / কনসালটেন্সি নাম ও ব্র্যান্ডিং (Firm &amp; Consultancy Header)
+                    </h4>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {companyName || "HYBRID CIVIL"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCompanySettings(!showCompanySettings)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[#8ba3c1] hover:text-white px-2.5 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] transition"
+                    >
+                      <Edit className="w-3 h-3 text-amber-400" />
+                      <span>{showCompanySettings ? "হেডার সেটিংস বন্ধ করুন" : "ফার্মের নাম ও বিবরণ পরিবর্তন করুন"}</span>
+                      {showCompanySettings ? <ChevronUp className="w-3.5 h-3.5 ml-0.5" /> : <ChevronDown className="w-3.5 h-3.5 ml-0.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick preview card when collapsed */}
+                {!showCompanySettings && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-[#162238] px-3 py-2 rounded-lg border border-[#2d4a6a]/60">
+                    <div className="space-y-0.5">
+                      <div className="font-bold text-white text-sm flex items-center gap-2">
+                        <span>{companyName || "HYBRID CIVIL"}</span>
+                        <span className="text-xs font-medium text-[#8ba3c1]">
+                          • {companyTagline || "Engineering & Consultancy"}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[#8ba3c1] line-clamp-1">
+                        {companyServices || "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"}
+                      </div>
+                      {companyContact && (
+                        <div className="text-[10px] text-emerald-400 font-mono">
+                          {companyContact}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompanySettings(true)}
+                      className="text-[11px] text-[#00c2c7] hover:underline font-semibold"
+                    >
+                      ✏️ নিজের নাম বা ফার্ম পরিবর্তন করুন
+                    </button>
+                  </div>
+                )}
+
+                {/* Expanded configuration fields */}
+                {showCompanySettings && (
+                  <div className="space-y-3 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                          ফার্ম / কনসালটেন্সি নাম (Firm / Company Name) <span className="text-rose-400">*</span>
+                        </label>
+                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                          <Briefcase className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="যেমন: HYBRID CIVIL বা আপনার কনসালটেন্সি নাম"
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            className="bg-transparent text-white text-xs font-bold outline-none w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                          ট্যাগলাইন / উপাধি (Tagline / Subtitle)
+                        </label>
+                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                          <input
+                            type="text"
+                            placeholder="যেমন: Engineering & Consultancy"
+                            value={companyTagline}
+                            onChange={(e) => setCompanyTagline(e.target.value)}
+                            className="bg-transparent text-white text-xs outline-none w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                          স্পেশালাইজেশন ও সার্ভিসের তালিকা (Specializations & Services Header)
+                        </label>
+                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                          <input
+                            type="text"
+                            placeholder="যেমন: Structural Analysis & Design • Architectural Planning • Soil Test • Survey • Estimation"
+                            value={companyServices}
+                            onChange={(e) => setCompanyServices(e.target.value)}
+                            className="bg-transparent text-white text-xs outline-none w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                          যোগাযোগের ফোন, ঠিকানা ও লাইসেন্স (Contact Phone / Address / Reg No)
+                        </label>
+                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                          <input
+                            type="text"
+                            placeholder="যেমন: মোবাইল: 017XXXXXXXX • ঠিকানা: ধানমন্ডি, ঢাকা"
+                            value={companyContact}
+                            onChange={(e) => setCompanyContact(e.target.value)}
+                            className="bg-transparent text-white text-xs outline-none w-full font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Default Saving and Reset Controls */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#2d4a6a]/60">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={handleSaveCompanyAsDefault}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm active:scale-95"
+                          title="ভবিষ্যতের সকল নতুন ভাউচারে এই ফার্ম হেডার স্বয়ংক্রিয়ভাবে ব্যবহারের জন্য সেভ করুন"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                          <span>আমার একাউন্টে ডিফল্ট হিসেবে সেভ করুন (Save as Default)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleResetCompanyToDefault}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border border-[#2d4a6a] text-xs font-medium transition"
+                          title="HYBRID CIVIL ডিফল্টে রিসেট করুন"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>রিসেট (Reset)</span>
+                        </button>
+                      </div>
+
+                      {companySaveNotice && (
+                        <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {companySaveNotice}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SECTION: CLIENT & PROJECT INFORMATION */}
