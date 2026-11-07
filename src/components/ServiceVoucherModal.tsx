@@ -33,6 +33,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { numberToBengaliWords, toBengaliNumber } from "../utils/numberToWordsBengali";
+import { useTheme } from "../context/ThemeContext";
 
 interface ServiceVoucherModalProps {
   isOpen: boolean;
@@ -808,6 +809,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   currentUserEmail,
   currentUserId,
 }) => {
+  const { isLight } = useTheme();
+
   // Navigation tabs: "editor" | "list" | "print"
   const [activeTab, setActiveTab] = useState<"editor" | "list" | "print">("editor");
 
@@ -1295,40 +1298,52 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
   return (
     <div className="voucher-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:static print:overflow-visible">
-      <div className="voucher-modal-card relative w-full max-w-6xl bg-[#0f172a] border border-[#2d4a6a] rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden text-slate-100 print:max-w-none print:max-h-none print:bg-white print:border-none print:shadow-none print:overflow-visible">
+      <div className={`voucher-modal-card relative w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden print:max-w-none print:max-h-none print:bg-white print:border-none print:shadow-none print:overflow-visible ${
+        isLight ? "bg-[#f8fafc] text-slate-900 border border-slate-300" : "bg-[#0f172a] text-slate-100 border border-[#2d4a6a]"
+      }`}>
         
         {/* TOP MODAL HEADER & TABS (Hidden on Print) */}
-        <div className="voucher-modal-header print:hidden flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-[#152033] border-b border-[#2d4a6a] shrink-0">
+        <div className={`voucher-modal-header print:hidden flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b shrink-0 ${
+          isLight ? "bg-white border-slate-200" : "bg-[#152033] border-[#2d4a6a]"
+        }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-slate-950 font-black shadow-md">
               <Receipt className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-extrabold text-base sm:text-lg text-white tracking-wide">
+                <h3 className={`font-extrabold text-base sm:text-lg tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>
                   DOLPHIN BOX • SERVICE VOUCHER
                 </h3>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className={`hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isLight ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                }`}>
                   Business Billing
                 </span>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                <span className={`hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isLight ? "bg-sky-50 text-sky-800 border-sky-300" : "bg-sky-500/20 text-sky-300 border-sky-500/30"
+                }`}>
                   🔒 Confidential • {currentUserEmail ? currentUserEmail.split("@")[0] : "Private"}
                 </span>
               </div>
-              <p className="text-[11px] text-[#8ba3c1]">
+              <p className={`text-[11px] ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
                 সার্ভিস মেমো, ক্লায়েন্ট ভাউচার, প্রফেশনাল ড্রয়িং বিল ও পেমেন্ট রিসিট (সম্পূর্ণ ব্যক্তিগত ও গোপনীয়)
               </p>
             </div>
           </div>
 
           {/* Navigation Mode Buttons */}
-          <div className="flex items-center gap-1.5 bg-[#0e1624] p-1 rounded-xl border border-[#2d4a6a]">
+          <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${
+            isLight ? "bg-slate-100 border-slate-300" : "bg-[#0e1624] border-[#2d4a6a]"
+          }`}>
             <button
               type="button"
               onClick={() => setActiveTab("editor")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                 activeTab === "editor"
                   ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                  : isLight
+                  ? "text-slate-600 hover:text-slate-900"
                   : "text-[#8ba3c1] hover:text-white"
               }`}
             >
@@ -1342,6 +1357,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition relative ${
                 activeTab === "list"
                   ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                  : isLight
+                  ? "text-slate-600 hover:text-slate-900"
                   : "text-[#8ba3c1] hover:text-white"
               }`}
             >
@@ -1361,6 +1378,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                   activeTab === "print"
                     ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                    : isLight
+                    ? "text-slate-600 hover:text-slate-900"
                     : "text-[#8ba3c1] hover:text-white"
                 }`}
               >
@@ -1374,7 +1393,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded-lg transition"
+            className={`p-1.5 rounded-lg transition ${
+              isLight ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-[#8ba3c1] hover:text-white hover:bg-[#243b55]"
+            }`}
             title="Close"
           >
             <X className="w-5 h-5" />
@@ -1405,25 +1426,37 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           {activeTab === "editor" && (
             <div className="voucher-editor-tab space-y-4 print:hidden">
               {/* Header Action Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-[#2d4a6a]/60">
+              <div className={`flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b ${
+                isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+              }`}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2.5 py-1 rounded-lg border border-[#2d4a6a]">
-                    <span className="text-[10px] text-[#8ba3c1] font-bold uppercase tracking-wider">Voucher No:</span>
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
+                    isLight ? "bg-white border-slate-300" : "bg-[#1a2b42] border-[#2d4a6a]"
+                  }`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                      isLight ? "text-slate-500" : "text-[#8ba3c1]"
+                    }`}>Voucher No:</span>
                     <input
                       type="text"
                       value={voucherNo}
                       onChange={(e) => setVoucherNo(e.target.value)}
-                      className="bg-transparent text-emerald-400 font-mono font-extrabold text-xs outline-none w-28 sm:w-36"
+                      className={`bg-transparent font-mono font-extrabold text-xs outline-none w-28 sm:w-36 ${
+                        isLight ? "text-emerald-700" : "text-emerald-400"
+                      }`}
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-[#1a2b42] px-2.5 py-1 rounded-lg border border-[#2d4a6a]">
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
+                    isLight ? "bg-white border-slate-300" : "bg-[#1a2b42] border-[#2d4a6a]"
+                  }`}>
                     <Calendar className="w-3.5 h-3.5 text-[#00c2c7]" />
                     <input
                       type="date"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
-                      className="bg-transparent text-white text-xs font-mono outline-none"
+                      className={`bg-transparent text-xs font-mono outline-none ${
+                        isLight ? "text-slate-800" : "text-white"
+                      }`}
                     />
                   </div>
 
@@ -1431,10 +1464,14 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                     <button
                       type="button"
                       onClick={handlePreFillFromProject}
-                      className="flex items-center gap-1 bg-[#1a2b42] hover:bg-[#243b55] text-amber-400 border border-amber-500/30 px-2.5 py-1 rounded-lg text-xs font-semibold transition active:scale-95"
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition active:scale-95 ${
+                        isLight
+                          ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                          : "bg-[#1a2b42] hover:bg-[#243b55] text-amber-400 border-amber-500/30"
+                      }`}
                       title="Load client name, project name, and site address from the current project"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                       <span>Pre-fill from "{activeProject.name}"</span>
                     </button>
                   )}
@@ -1444,7 +1481,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <button
                     type="button"
                     onClick={handleNewVoucher}
-                    className="flex items-center gap-1 bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white px-2.5 py-1 rounded-lg text-xs font-semibold border border-[#2d4a6a] transition"
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                      isLight
+                        ? "bg-white hover:bg-slate-100 text-slate-700 border-slate-300"
+                        : "bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border-[#2d4a6a]"
+                    }`}
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>New Voucher</span>
@@ -1453,7 +1494,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <button
                     type="button"
                     onClick={handleDirectPrint}
-                    className="flex items-center gap-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white border border-[#2d4a6a] px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition active:scale-95 ${
+                      isLight
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300"
+                        : "bg-[#243b55] hover:bg-[#2d4a6a] text-white border-[#2d4a6a]"
+                    }`}
                   >
                     <Printer className="w-3.5 h-3.5 text-[#00c2c7]" />
                     <span>Print / PDF</span>
@@ -1472,14 +1517,22 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* SECTION: FIRM & CONSULTANCY NAME / BRANDING (CUSTOMIZABLE PER USER) */}
-              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3.5 shadow-sm space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2d4a6a]/60 pb-2">
+              <div className={`border rounded-xl p-3.5 shadow-sm space-y-3 ${
+                isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121a2b] border-[#2d4a6a] text-white"
+              }`}>
+                <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2 ${
+                  isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+                }`}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Briefcase className="w-4 h-4 text-[#00c2c7]" />
-                    <h4 className="text-xs font-bold text-[#00c2c7] uppercase tracking-wider">
+                    <h4 className={`text-xs font-bold uppercase tracking-wider ${
+                      isLight ? "text-teal-700" : "text-[#00c2c7]"
+                    }`}>
                       ফার্ম / কনসালটেন্সি নাম ও ব্র্যান্ডিং (Firm &amp; Consultancy Header)
                     </h4>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      isLight ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                    }`}>
                       {companyName || "Dolphin Box"}
                     </span>
                   </div>
@@ -1488,9 +1541,13 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowCompanySettings(!showCompanySettings)}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[#8ba3c1] hover:text-white px-2.5 py-1 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] border border-[#2d4a6a] transition"
+                      className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition ${
+                        isLight
+                          ? "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-300"
+                          : "bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border-[#2d4a6a]"
+                      }`}
                     >
-                      <Edit className="w-3 h-3 text-amber-400" />
+                      <Edit className="w-3 h-3 text-amber-500" />
                       <span>{showCompanySettings ? "হেডার সেটিংস বন্ধ করুন" : "ফার্মের নাম ও বিবরণ পরিবর্তন করুন"}</span>
                       {showCompanySettings ? <ChevronUp className="w-3.5 h-3.5 ml-0.5" /> : <ChevronDown className="w-3.5 h-3.5 ml-0.5" />}
                     </button>
@@ -1499,19 +1556,23 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
                 {/* Quick preview card when collapsed */}
                 {!showCompanySettings && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-[#162238] px-3 py-2 rounded-lg border border-[#2d4a6a]/60">
+                  <div className={`flex flex-wrap items-center justify-between gap-2 text-xs px-3 py-2 rounded-lg border ${
+                    isLight ? "bg-slate-50 border-slate-200" : "bg-[#162238] border-[#2d4a6a]/60"
+                  }`}>
                     <div className="space-y-0.5">
-                      <div className="font-bold text-white text-sm flex items-center gap-2">
+                      <div className={`font-bold text-sm flex items-center gap-2 ${
+                        isLight ? "text-slate-900" : "text-white"
+                      }`}>
                         <span>{companyName || "Dolphin Box"}</span>
-                        <span className="text-xs font-medium text-[#8ba3c1]">
+                        <span className={`text-xs font-medium ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
                           • {companyTagline || "Engineering & Consultancy"}
                         </span>
                       </div>
-                      <div className="text-[10px] text-[#8ba3c1] line-clamp-1">
+                      <div className={`text-[10px] line-clamp-1 ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
                         {companyServices || "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"}
                       </div>
                       {companyContact && (
-                        <div className="text-[10px] text-emerald-400 font-mono">
+                        <div className={`text-[10px] font-mono ${isLight ? "text-emerald-700 font-semibold" : "text-emerald-400"}`}>
                           {companyContact}
                         </div>
                       )}
@@ -1519,7 +1580,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowCompanySettings(true)}
-                      className="text-[11px] text-[#00c2c7] hover:underline font-semibold"
+                      className={`text-[11px] hover:underline font-semibold ${isLight ? "text-teal-700" : "text-[#00c2c7]"}`}
                     >
                       ✏️ নিজের নাম বা ফার্ম পরিবর্তন করুন
                     </button>
@@ -1531,69 +1592,95 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <div className="space-y-3 pt-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
-                          ফার্ম / কনসালটেন্সি নাম (Firm / Company Name) <span className="text-rose-400">*</span>
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
+                          ফার্ম / কনসালটেন্সি নাম (Firm / Company Name) <span className="text-rose-500">*</span>
                         </label>
-                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
-                          <Briefcase className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                        <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                          isLight
+                            ? "bg-white border-slate-300 focus-within:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                        }`}>
+                          <Briefcase className={`w-3.5 h-3.5 mr-1.5 shrink-0 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                           <input
                             type="text"
                             placeholder="যেমন: Dolphin Box বা আপনার কনসালটেন্সি নাম"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
-                            className="bg-transparent text-white text-xs font-bold outline-none w-full"
+                            className={`bg-transparent text-xs font-bold outline-none w-full ${
+                              isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                            }`}
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                           ট্যাগলাইন / উপাধি (Tagline / Subtitle)
                         </label>
-                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                        <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                          isLight
+                            ? "bg-white border-slate-300 focus-within:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                        }`}>
                           <input
                             type="text"
                             placeholder="যেমন: Engineering & Consultancy"
                             value={companyTagline}
                             onChange={(e) => setCompanyTagline(e.target.value)}
-                            className="bg-transparent text-white text-xs outline-none w-full"
+                            className={`bg-transparent text-xs outline-none w-full ${
+                              isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                            }`}
                           />
                         </div>
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                           স্পেশালাইজেশন ও সার্ভিসের তালিকা (Specializations & Services Header)
                         </label>
-                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                        <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                          isLight
+                            ? "bg-white border-slate-300 focus-within:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                        }`}>
                           <input
                             type="text"
                             placeholder="যেমন: Structural Analysis & Design • Architectural Planning • Soil Test • Survey • Estimation"
                             value={companyServices}
                             onChange={(e) => setCompanyServices(e.target.value)}
-                            className="bg-transparent text-white text-xs outline-none w-full"
+                            className={`bg-transparent text-xs outline-none w-full ${
+                              isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                            }`}
                           />
                         </div>
                       </div>
 
                       <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                        <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                           যোগাযোগের ফোন, ঠিকানা ও লাইসেন্স (Contact Phone / Address / Reg No)
                         </label>
-                        <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
+                        <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                          isLight
+                            ? "bg-white border-slate-300 focus-within:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                        }`}>
                           <input
                             type="text"
                             placeholder="যেমন: মোবাইল: 017XXXXXXXX • ঠিকানা: ধানমন্ডি, ঢাকা"
                             value={companyContact}
                             onChange={(e) => setCompanyContact(e.target.value)}
-                            className="bg-transparent text-white text-xs outline-none w-full font-mono"
+                            className={`bg-transparent text-xs outline-none w-full font-mono ${
+                              isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                            }`}
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Default Saving and Reset Controls */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#2d4a6a]/60">
+                    <div className={`flex flex-wrap items-center justify-between gap-2 pt-2 border-t ${
+                      isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+                    }`}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
                           type="button"
@@ -1608,7 +1695,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                         <button
                           type="button"
                           onClick={handleResetCompanyToDefault}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border border-[#2d4a6a] text-xs font-medium transition"
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition ${
+                            isLight
+                              ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+                              : "bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border-[#2d4a6a]"
+                          }`}
                           title="Dolphin Box ডিফল্টে রিসেট করুন"
                         >
                           <RotateCcw className="w-3 h-3" />
@@ -1617,7 +1708,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       </div>
 
                       {companySaveNotice && (
-                        <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className={`text-[11px] font-semibold flex items-center gap-1 ${
+                          isLight ? "text-emerald-700" : "text-emerald-400"
+                        }`}>
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           {companySaveNotice}
                         </span>
@@ -1628,76 +1721,98 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* SECTION: CLIENT & PROJECT INFORMATION */}
-              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3.5 shadow-sm space-y-3">
-                <div className="flex items-center justify-between border-b border-[#2d4a6a]/60 pb-2">
-                  <h4 className="text-xs font-bold text-[#00c2c7] uppercase tracking-wider flex items-center gap-1.5">
+              <div className={`border rounded-xl p-3.5 shadow-sm space-y-3 ${
+                isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121a2b] border-[#2d4a6a] text-white"
+              }`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${
+                  isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+                }`}>
+                  <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                    isLight ? "text-teal-700" : "text-[#00c2c7]"
+                  }`}>
                     <User className="w-3.5 h-3.5" />
                     ক্লায়েন্ট ও প্রজেক্টের বিবরণ (Client & Project Details)
                   </h4>
-                  <span className="text-[10px] text-[#8ba3c1]">Bill To Information</span>
+                  <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`}>Bill To Information</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
-                      ক্লায়েন্টের নাম (Client Name) <span className="text-rose-400">*</span>
+                    <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
+                      ক্লায়েন্টের নাম (Client Name) <span className="text-rose-500">*</span>
                     </label>
-                    <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
-                      <User className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                    <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                      isLight ? "bg-white border-slate-300 focus-within:border-teal-500" : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                    }`}>
+                      <User className={`w-3.5 h-3.5 mr-1.5 shrink-0 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                       <input
                         type="text"
                         placeholder="যেমন: ইঞ্জিনিয়ার মো: রফিকুল ইসলাম"
                         value={clientName}
                         onChange={(e) => setClientName(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none w-full font-medium"
+                        className={`bg-transparent text-xs outline-none w-full font-medium ${
+                          isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                        }`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                    <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                       মোবাইল নম্বর (Phone / Mobile)
                     </label>
-                    <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
-                      <Phone className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                    <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                      isLight ? "bg-white border-slate-300 focus-within:border-teal-500" : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                    }`}>
+                      <Phone className={`w-3.5 h-3.5 mr-1.5 shrink-0 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                       <input
                         type="text"
                         placeholder="01XXXXXXXXX"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none w-full font-mono"
+                        className={`bg-transparent text-xs outline-none w-full font-mono ${
+                          isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                        }`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                    <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                       প্রজেক্ট / ভবনের নাম (Project / Building)
                     </label>
-                    <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
-                      <Building className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                    <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                      isLight ? "bg-white border-slate-300 focus-within:border-teal-500" : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                    }`}>
+                      <Building className={`w-3.5 h-3.5 mr-1.5 shrink-0 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                       <input
                         type="text"
                         placeholder="যেমন: নাজনীন ভিলা (৬ তলা ভবন)"
                         value={projectName}
                         onChange={(e) => setProjectName(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none w-full"
+                        className={`bg-transparent text-xs outline-none w-full ${
+                          isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                        }`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                    <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                       ঠিকানা / সাইট লোকেশন (Address / Location)
                     </label>
-                    <div className="flex items-center bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 focus-within:border-[#00c2c7]">
-                      <MapPin className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
+                    <div className={`flex items-center border rounded-lg px-2.5 py-1.5 ${
+                      isLight ? "bg-white border-slate-300 focus-within:border-teal-500" : "bg-[#1a2b42] border-[#2d4a6a] focus-within:border-[#00c2c7]"
+                    }`}>
+                      <MapPin className={`w-3.5 h-3.5 mr-1.5 shrink-0 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                       <input
                         type="text"
                         placeholder="যেমন: ব্লক-ডি, বসুন্ধরা আ/এ, ঢাকা"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className="bg-transparent text-white text-xs outline-none w-full"
+                        className={`bg-transparent text-xs outline-none w-full ${
+                          isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                        }`}
                       />
                     </div>
                   </div>
@@ -1705,29 +1820,41 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* SECTION: ADD SERVICES TOOLBAR */}
-              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3.5 shadow-sm space-y-3">
-                <div className="flex items-center justify-between border-b border-[#2d4a6a]/60 pb-2">
-                  <h4 className="text-xs font-bold text-[#f5a623] uppercase tracking-wider flex items-center gap-1.5">
+              <div className={`border rounded-xl p-3.5 shadow-sm space-y-3 ${
+                isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121a2b] border-[#2d4a6a] text-white"
+              }`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${
+                  isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+                }`}>
+                  <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                    isLight ? "text-amber-700" : "text-[#f5a623]"
+                  }`}>
                     <Plus className="w-3.5 h-3.5" />
                     ইঞ্জিনিয়ারিং ও পরামর্শ সার্ভিস নির্বাচন করুন (Add Engineering Services)
                   </h4>
-                  <span className="text-[10px] text-[#8ba3c1]">Standard Market Consultancy Rates</span>
+                  <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`}>Standard Market Consultancy Rates</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
                   {/* Preset Dropdown */}
                   <div className="sm:col-span-4">
-                    <label className="block text-[10px] font-bold text-[#8ba3c1] mb-1 uppercase tracking-wider">
+                    <label className={`block text-[10px] font-bold mb-1 uppercase tracking-wider ${
+                      isLight ? "text-slate-700" : "text-[#8ba3c1]"
+                    }`}>
                       সার্ভিস ক্যাটাগরি (Preset Service)
                     </label>
                     <select
                       value={selectedPreset}
                       onChange={(e) => handlePresetChange(e.target.value)}
-                      className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-2 text-xs text-white outline-none cursor-pointer focus:border-[#00c2c7]"
+                      className={`w-full rounded-lg px-2.5 py-2 text-xs outline-none cursor-pointer border ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900 focus:border-teal-500"
+                          : "bg-[#1a2b42] border-[#2d4a6a] text-white focus:border-[#00c2c7]"
+                      }`}
                     >
                       <option value="">-- সার্ভিস নির্বাচন করুন --</option>
                       {PRESET_SERVICES.map((p) => (
-                        <option key={p.name} value={p.name} className="bg-[#152033] text-white">
+                        <option key={p.name} value={p.name} className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>
                           {p.name} ({p.nameBn})
                         </option>
                       ))}
@@ -1736,7 +1863,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
                   {/* Custom Description or Name override */}
                   <div className="sm:col-span-3">
-                    <label className="block text-[10px] font-bold text-[#8ba3c1] mb-1 uppercase tracking-wider">
+                    <label className={`block text-[10px] font-bold mb-1 uppercase tracking-wider ${
+                      isLight ? "text-slate-700" : "text-[#8ba3c1]"
+                    }`}>
                       কাস্টম বিবরণ / নাম (Custom Title)
                     </label>
                     <input
@@ -1744,19 +1873,29 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       placeholder="অথবা কাস্টম সেবার নাম লিখুন..."
                       value={customServiceName}
                       onChange={(e) => setCustomServiceName(e.target.value)}
-                      className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-[#00c2c7]"
+                      className={`w-full rounded-lg px-2.5 py-2 text-xs outline-none border ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-teal-500"
+                          : "bg-[#1a2b42] border-[#2d4a6a] text-white placeholder:text-slate-500 focus:border-[#00c2c7]"
+                      }`}
                     />
                   </div>
 
                   {/* Unit Selector */}
                   <div className="sm:col-span-1">
-                    <label className="block text-[10px] font-bold text-[#8ba3c1] mb-1 uppercase tracking-wider">
+                    <label className={`block text-[10px] font-bold mb-1 uppercase tracking-wider ${
+                      isLight ? "text-slate-700" : "text-[#8ba3c1]"
+                    }`}>
                       একক (Unit)
                     </label>
                     <select
                       value={itemUnit}
                       onChange={(e) => setItemUnit(e.target.value as VoucherUnit)}
-                      className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2 py-2 text-xs text-white outline-none focus:border-[#00c2c7]"
+                      className={`w-full rounded-lg px-2 py-2 text-xs outline-none border ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900 focus:border-teal-500"
+                          : "bg-[#1a2b42] border-[#2d4a6a] text-white focus:border-[#00c2c7]"
+                      }`}
                     >
                       <option value="sq.ft">sq.ft</option>
                       <option value="Job">Job</option>
@@ -1771,7 +1910,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
                   {/* Qty */}
                   <div className="sm:col-span-2">
-                    <label className="block text-[10px] font-bold text-[#8ba3c1] mb-1 uppercase tracking-wider">
+                    <label className={`block text-[10px] font-bold mb-1 uppercase tracking-wider ${
+                      isLight ? "text-slate-700" : "text-[#8ba3c1]"
+                    }`}>
                       পরিমাণ (Qty)
                     </label>
                     <input
@@ -1780,13 +1921,19 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       step="any"
                       value={itemQty}
                       onChange={(e) => setItemQty(parseFloat(e.target.value) || 0)}
-                      className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-2 text-xs text-white outline-none font-mono font-bold focus:border-[#00c2c7]"
+                      className={`w-full rounded-lg px-2.5 py-2 text-xs outline-none font-mono font-bold border ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900 focus:border-teal-500"
+                          : "bg-[#1a2b42] border-[#2d4a6a] text-white focus:border-[#00c2c7]"
+                      }`}
                     />
                   </div>
 
                   {/* Rate */}
                   <div className="sm:col-span-2">
-                    <label className="block text-[10px] font-bold text-[#8ba3c1] mb-1 uppercase tracking-wider">
+                    <label className={`block text-[10px] font-bold mb-1 uppercase tracking-wider ${
+                      isLight ? "text-slate-700" : "text-[#8ba3c1]"
+                    }`}>
                       দর (৳ Rate)
                     </label>
                     <div className="flex items-center gap-1.5">
@@ -1797,7 +1944,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                         placeholder="৳ দর"
                         value={itemRate || ""}
                         onChange={(e) => setItemRate(parseFloat(e.target.value) || 0)}
-                        className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-2 text-xs text-emerald-400 outline-none font-mono font-bold focus:border-[#00c2c7]"
+                        className={`w-full rounded-lg px-2.5 py-2 text-xs outline-none font-mono font-bold border ${
+                          isLight
+                            ? "bg-white border-slate-300 text-emerald-700 focus:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] text-emerald-400 focus:border-[#00c2c7]"
+                        }`}
                       />
                       <button
                         type="button"
@@ -1813,27 +1964,35 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* SECTION: VOUCHER ITEMS TABLE */}
-              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl overflow-hidden shadow-sm">
-                <div className="px-3.5 py-2.5 bg-[#152033] border-b border-[#2d4a6a] flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <div className={`border rounded-xl overflow-hidden shadow-sm ${
+                isLight ? "bg-white border-slate-200" : "bg-[#121a2b] border-[#2d4a6a]"
+              }`}>
+                <div className={`px-3.5 py-2.5 border-b flex items-center justify-between ${
+                  isLight ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-[#152033] border-[#2d4a6a] text-white"
+                }`}>
+                  <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                    isLight ? "text-slate-900" : "text-white"
+                  }`}>
                     <FileText className="w-3.5 h-3.5 text-[#00c2c7]" />
                     সার্ভিস আইটেম তালিকা ({items.length} Items Selected)
                   </h4>
-                  <span className="text-[11px] font-mono text-[#8ba3c1]">
-                    Subtotal: <strong className="text-emerald-400">৳ {subtotal.toLocaleString("en-IN")}</strong>
+                  <span className={`text-[11px] font-mono ${isLight ? "text-slate-600" : "text-[#8ba3c1]"}`}>
+                    Subtotal: <strong className={isLight ? "text-emerald-700 font-extrabold" : "text-emerald-400 font-extrabold"}>৳ {subtotal.toLocaleString("en-IN")}</strong>
                   </span>
                 </div>
 
                 {items.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 text-xs">
-                    <Receipt className="w-8 h-8 text-[#2d4a6a] mx-auto mb-2 opacity-50" />
+                  <div className={`py-8 text-center text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    <Receipt className={`w-8 h-8 mx-auto mb-2 opacity-50 ${isLight ? "text-slate-300" : "text-[#2d4a6a]"}`} />
                     কোনো সার্ভিস যোগ করা হয়নি। উপরের ড্রপডাউন থেকে সেবা নির্বাচন করে "+ Add" বাটনে ক্লিক করুন।
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-[#1a2b42]/80 text-[#8ba3c1] font-bold border-b border-[#2d4a6a] text-[11px]">
+                        <tr className={`font-bold border-b text-[11px] ${
+                          isLight ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-[#1a2b42]/80 text-[#8ba3c1] border-[#2d4a6a]"
+                        }`}>
                           <th className="py-2.5 px-3 text-center w-10">#</th>
                           <th className="py-2.5 px-3">সার্ভিস বিবরণ (Scope of Service)</th>
                           <th className="py-2.5 px-2 text-center w-20">একক (Unit)</th>
@@ -1843,10 +2002,14 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           <th className="py-2.5 px-2 text-center w-12">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#2d4a6a]/60 text-white font-medium">
+                      <tbody className={`divide-y font-medium ${
+                        isLight ? "divide-slate-200 text-slate-900" : "divide-[#2d4a6a]/60 text-white"
+                      }`}>
                         {items.map((it, idx) => (
-                          <tr key={it.id} className="hover:bg-[#1a2b42]/40 transition">
-                            <td className="py-2 px-3 text-center text-[#8ba3c1] font-mono text-[11px]">
+                          <tr key={it.id} className={`transition ${isLight ? "hover:bg-slate-50" : "hover:bg-[#1a2b42]/40"}`}>
+                            <td className={`py-2 px-3 text-center font-mono text-[11px] ${
+                              isLight ? "text-slate-500" : "text-[#8ba3c1]"
+                            }`}>
                               {idx + 1}
                             </td>
                             <td className="py-2 px-3">
@@ -1854,11 +2017,15 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 type="text"
                                 value={it.service}
                                 onChange={(e) => handleUpdateItem(it.id, { service: e.target.value })}
-                                className="bg-transparent text-white font-semibold text-xs outline-none w-full hover:bg-[#1a2b42]/60 px-1 py-0.5 rounded"
+                                className={`bg-transparent font-semibold text-xs outline-none w-full px-1 py-0.5 rounded ${
+                                  isLight ? "text-slate-900 hover:bg-slate-100" : "text-white hover:bg-[#1a2b42]/60"
+                                }`}
                               />
                             </td>
                             <td className="py-2 px-2 text-center">
-                              <span className="px-1.5 py-0.5 rounded bg-[#1a2b42] text-[10px] font-mono text-[#8ba3c1] border border-[#2d4a6a]">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+                                isLight ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-[#1a2b42] text-[#8ba3c1] border-[#2d4a6a]"
+                              }`}>
                                 {it.unit}
                               </span>
                             </td>
@@ -1871,7 +2038,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 onChange={(e) =>
                                   handleUpdateItem(it.id, { qty: parseFloat(e.target.value) || 0 })
                                 }
-                                className="bg-[#1a2b42] text-right font-mono font-bold text-xs text-white outline-none w-20 px-1.5 py-0.5 rounded border border-[#2d4a6a]"
+                                className={`text-right font-mono font-bold text-xs outline-none w-20 px-1.5 py-0.5 rounded border ${
+                                  isLight ? "bg-white border-slate-300 text-slate-900" : "bg-[#1a2b42] border-[#2d4a6a] text-white"
+                                }`}
                               />
                             </td>
                             <td className="py-2 px-3 text-right">
@@ -1883,17 +2052,23 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 onChange={(e) =>
                                   handleUpdateItem(it.id, { rate: parseFloat(e.target.value) || 0 })
                                 }
-                                className="bg-[#1a2b42] text-right font-mono font-bold text-xs text-emerald-400 outline-none w-24 px-1.5 py-0.5 rounded border border-[#2d4a6a]"
+                                className={`text-right font-mono font-bold text-xs outline-none w-24 px-1.5 py-0.5 rounded border ${
+                                  isLight ? "bg-white border-slate-300 text-emerald-700" : "bg-[#1a2b42] border-[#2d4a6a] text-emerald-400"
+                                }`}
                               />
                             </td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-emerald-400">
+                            <td className={`py-2 px-3 text-right font-mono font-bold ${
+                              isLight ? "text-emerald-700" : "text-emerald-400"
+                            }`}>
                               ৳ {it.total.toLocaleString("en-IN")}
                             </td>
                             <td className="py-2 px-2 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(it.id)}
-                                className="p-1 text-[#8ba3c1] hover:text-rose-400 rounded transition"
+                                className={`p-1 rounded transition ${
+                                  isLight ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-[#8ba3c1] hover:text-rose-400"
+                                }`}
                                 title="Remove item"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1910,9 +2085,15 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               {/* SECTION: FINANCIAL CALCULATION & PAYMENT TRACKING */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
                 {/* Terms and Payment Method (Col 7) */}
-                <div className="lg:col-span-7 bg-[#121a2b] border border-[#2d4a6a] rounded-xl p-3.5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#2d4a6a]/60 pb-2">
-                    <h4 className="text-xs font-bold text-[#00c2c7] uppercase tracking-wider flex items-center gap-1.5">
+                <div className={`lg:col-span-7 border rounded-xl p-3.5 space-y-3 ${
+                  isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#121a2b] border-[#2d4a6a] text-white"
+                }`}>
+                  <div className={`flex items-center justify-between border-b pb-2 ${
+                    isLight ? "border-slate-200" : "border-[#2d4a6a]/60"
+                  }`}>
+                    <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      isLight ? "text-teal-700" : "text-[#00c2c7]"
+                    }`}>
                       <CreditCard className="w-3.5 h-3.5" />
                       পেমেন্ট মাধ্যম ও শর্তাবলী (Payment Method & Terms)
                     </h4>
@@ -1920,35 +2101,39 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                      <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                         পেমেন্ট মাধ্যম (Payment Method)
                       </label>
                       <select
                         value={paymentMethod}
                         onChange={(e: any) => setPaymentMethod(e.target.value)}
-                        className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg px-2.5 py-1.5 text-xs text-white outline-none cursor-pointer focus:border-[#00c2c7]"
+                        className={`w-full rounded-lg px-2.5 py-1.5 text-xs outline-none cursor-pointer border ${
+                          isLight
+                            ? "bg-white border-slate-300 text-slate-900 focus:border-teal-500"
+                            : "bg-[#1a2b42] border-[#2d4a6a] text-white focus:border-[#00c2c7]"
+                        }`}
                       >
-                        <option value="Cash">Cash (নগদ)</option>
-                        <option value="bKash">bKash (বিকাশ)</option>
-                        <option value="Nagad">Nagad (নগদ)</option>
-                        <option value="Bank Transfer">Bank Transfer (ব্যাংক ট্রান্সফার)</option>
-                        <option value="Cheque">Bank Cheque (চেক)</option>
-                        <option value="Other">Other</option>
+                        <option value="Cash" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>Cash (নগদ)</option>
+                        <option value="bKash" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>bKash (বিকাশ)</option>
+                        <option value="Nagad" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>Nagad (নগদ)</option>
+                        <option value="Bank Transfer" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>Bank Transfer (ব্যাংক ট্রান্সফার)</option>
+                        <option value="Cheque" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>Bank Cheque (চেক)</option>
+                        <option value="Other" className={isLight ? "bg-white text-slate-900" : "bg-[#152033] text-white"}>Other</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                      <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                         পেমেন্ট স্ট্যাটাস (Payment Status)
                       </label>
                       <div className="flex items-center gap-2 py-1">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 ${
                             paymentStatus === "Paid"
-                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              ? (isLight ? "bg-emerald-50 text-emerald-800 border border-emerald-300" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40")
                               : paymentStatus === "Partial"
-                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                              : "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                              ? (isLight ? "bg-amber-50 text-amber-800 border border-amber-300" : "bg-amber-500/20 text-amber-400 border border-amber-500/40")
+                              : (isLight ? "bg-rose-50 text-rose-800 border border-rose-300" : "bg-rose-500/20 text-rose-400 border border-rose-500/40")
                           }`}
                         >
                           {paymentStatus === "Paid" && <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -1956,7 +2141,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           {paymentStatus === "Due" && <AlertCircle className="w-3.5 h-3.5" />}
                           <span>{paymentStatus}</span>
                         </span>
-                        <span className="text-[10px] text-[#8ba3c1]">
+                        <span className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-[#8ba3c1]"}`}>
                           {paymentStatus === "Paid"
                             ? "সম্পূর্ণ পরিশোধিত"
                             : paymentStatus === "Partial"
@@ -1968,7 +2153,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#8ba3c1] mb-1">
+                    <label className={`block text-[11px] font-semibold mb-1 ${isLight ? "text-slate-700" : "text-[#8ba3c1]"}`}>
                       পেমেন্ট ও ডেলিভারি শর্তাবলী (Terms & Conditions)
                     </label>
                     <textarea
@@ -1976,23 +2161,33 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       value={terms}
                       onChange={(e) => setTerms(e.target.value)}
                       placeholder="অফিসিয়াল নীতিমালা ও শর্ত..."
-                      className="w-full bg-[#1a2b42] border border-[#2d4a6a] rounded-lg p-2 text-xs text-slate-200 outline-none focus:border-[#00c2c7] leading-relaxed resize-none"
+                      className={`w-full rounded-lg p-2 text-xs outline-none leading-relaxed resize-none border ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-teal-500"
+                          : "bg-[#1a2b42] border-[#2d4a6a] text-slate-200 placeholder:text-slate-500 focus:border-[#00c2c7]"
+                      }`}
                     />
                   </div>
                 </div>
 
                 {/* Calculation Totals Card (Col 5) */}
-                <div className="lg:col-span-5 bg-[#152033] border border-[#2d4a6a] rounded-xl p-3.5 space-y-2.5 flex flex-col justify-between shadow-lg">
+                <div className={`lg:col-span-5 border rounded-xl p-3.5 space-y-2.5 flex flex-col justify-between shadow-lg ${
+                  isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#152033] border-[#2d4a6a] text-white"
+                }`}>
                   <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between text-slate-300 pb-1.5 border-b border-[#2d4a6a]/60">
+                    <div className={`flex items-center justify-between pb-1.5 border-b ${
+                      isLight ? "border-slate-200 text-slate-700" : "border-[#2d4a6a]/60 text-slate-300"
+                    }`}>
                       <span>সর্বমোট বিল (Subtotal):</span>
-                      <span className="font-mono font-bold text-sm text-white">
+                      <span className={`font-mono font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>
                         ৳ {subtotal.toLocaleString("en-IN")}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-slate-300 pb-1.5 border-b border-[#2d4a6a]/60">
-                      <span className="flex items-center gap-1 text-[#f5a623]">
+                    <div className={`flex items-center justify-between pb-1.5 border-b ${
+                      isLight ? "border-slate-200 text-slate-700" : "border-[#2d4a6a]/60 text-slate-300"
+                    }`}>
+                      <span className={`flex items-center gap-1 ${isLight ? "text-amber-800 font-semibold" : "text-[#f5a623]"}`}>
                         <span>বিশেষ ছাড় (Discount ৳):</span>
                       </span>
                       <div className="w-32">
@@ -2001,27 +2196,39 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           min={0}
                           value={discount}
                           onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#1a2b42] border border-[#f5a623]/40 text-right font-mono font-bold text-xs text-[#f5a623] px-2 py-1 rounded outline-none"
+                          className={`w-full text-right font-mono font-bold text-xs px-2 py-1 rounded outline-none border ${
+                            isLight
+                              ? "bg-amber-50 border-amber-300 text-amber-900"
+                              : "bg-[#1a2b42] border-[#f5a623]/40 text-[#f5a623]"
+                          }`}
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-slate-200 py-1 bg-[#1a2b42]/80 px-2 rounded-lg">
-                      <span className="font-bold text-white">ডিসকাউন্ট পরবর্তী মূল্য (Net Total):</span>
-                      <span className="font-mono font-extrabold text-base text-[#00c2c7]">
+                    <div className={`flex items-center justify-between py-1 px-2 rounded-lg ${
+                      isLight ? "bg-slate-100 text-slate-900 border border-slate-200" : "bg-[#1a2b42]/80 text-slate-200"
+                    }`}>
+                      <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>ডিসকাউন্ট পরবর্তী মূল্য (Net Total):</span>
+                      <span className={`font-mono font-extrabold text-base ${isLight ? "text-teal-700" : "text-[#00c2c7]"}`}>
                         ৳ {netTotal.toLocaleString("en-IN")}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-slate-300 pb-1.5 border-b border-[#2d4a6a]/60">
-                      <span className="text-emerald-400 font-semibold">অগ্রিম / পরিশোধিত (Paid ৳):</span>
+                    <div className={`flex items-center justify-between pb-1.5 border-b ${
+                      isLight ? "border-slate-200 text-slate-700" : "border-[#2d4a6a]/60 text-slate-300"
+                    }`}>
+                      <span className={`font-semibold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>অগ্রিম / পরিশোধিত (Paid ৳):</span>
                       <div className="w-32">
                         <input
                           type="number"
                           min={0}
                           value={paid}
                           onChange={(e) => setPaid(parseFloat(e.target.value) || 0)}
-                          className="w-full bg-[#1a2b42] border border-emerald-500/40 text-right font-mono font-bold text-xs text-emerald-400 px-2 py-1 rounded outline-none"
+                          className={`w-full text-right font-mono font-bold text-xs px-2 py-1 rounded outline-none border ${
+                            isLight
+                              ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                              : "bg-[#1a2b42] border-emerald-500/40 text-emerald-400"
+                          }`}
                         />
                       </div>
                     </div>
@@ -2029,8 +2236,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                     <div
                       className={`flex items-center justify-between p-2.5 rounded-xl border ${
                         due > 0
-                          ? "bg-rose-950/30 border-rose-500/40 text-rose-300"
-                          : "bg-emerald-950/30 border-emerald-500/40 text-emerald-300"
+                          ? (isLight ? "bg-rose-50 border-rose-300 text-rose-800" : "bg-rose-950/30 border-rose-500/40 text-rose-300")
+                          : (isLight ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-emerald-950/30 border-emerald-500/40 text-emerald-300")
                       }`}
                     >
                       <div>
@@ -2048,8 +2255,10 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   </div>
 
                   {/* Words */}
-                  <div className="text-[10px] font-mono text-[#8ba3c1] bg-[#0e1624] p-2 rounded-lg border border-[#2d4a6a]/50">
-                    <span className="font-bold text-white">কথায়:</span> {numberToBengaliWords(netTotal)}
+                  <div className={`text-[10px] font-mono p-2 rounded-lg border ${
+                    isLight ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-[#0e1624] border-[#2d4a6a]/50 text-[#8ba3c1]"
+                  }`}>
+                    <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>কথায়:</span> {numberToBengaliWords(netTotal)}
                   </div>
                 </div>
               </div>
@@ -2063,46 +2272,58 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
             <div className="voucher-list-tab space-y-4 print:hidden">
               {/* KPI STATS ROW */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="bg-[#152033] border border-[#2d4a6a] rounded-xl p-3 text-center">
-                  <div className="text-[10px] uppercase font-bold text-[#8ba3c1]">মোট ভাউচার (Vouchers)</div>
-                  <div className="text-xl font-extrabold text-white mt-1 font-mono">{stats.count} টি</div>
+                <div className={`border rounded-xl p-3 text-center ${
+                  isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#152033] border-[#2d4a6a] text-white"
+                }`}>
+                  <div className={`text-[10px] uppercase font-bold ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`}>মোট ভাউচার (Vouchers)</div>
+                  <div className={`text-xl font-extrabold mt-1 font-mono ${isLight ? "text-slate-900" : "text-white"}`}>{stats.count} টি</div>
                 </div>
 
-                <div className="bg-[#152033] border border-[#00c2c7]/30 rounded-xl p-3 text-center">
-                  <div className="text-[10px] uppercase font-bold text-[#00c2c7]">সর্বমোট বিল (Billed)</div>
-                  <div className="text-lg font-black text-[#00c2c7] mt-1 font-mono">
+                <div className={`border rounded-xl p-3 text-center ${
+                  isLight ? "bg-white border-teal-200 text-slate-900" : "bg-[#152033] border-[#00c2c7]/30 text-white"
+                }`}>
+                  <div className={`text-[10px] uppercase font-bold ${isLight ? "text-teal-700" : "text-[#00c2c7]"}`}>সর্বমোট বিল (Billed)</div>
+                  <div className={`text-lg font-black mt-1 font-mono ${isLight ? "text-teal-700" : "text-[#00c2c7]"}`}>
                     ৳ {stats.totalBilled.toLocaleString("en-IN")}
                   </div>
                 </div>
 
-                <div className="bg-[#152033] border border-emerald-500/30 rounded-xl p-3 text-center">
-                  <div className="text-[10px] uppercase font-bold text-emerald-400">মোট আদায়কৃত (Paid)</div>
-                  <div className="text-lg font-black text-emerald-400 mt-1 font-mono">
+                <div className={`border rounded-xl p-3 text-center ${
+                  isLight ? "bg-white border-emerald-200 text-slate-900" : "bg-[#152033] border-emerald-500/30 text-white"
+                }`}>
+                  <div className={`text-[10px] uppercase font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>মোট আদায়কৃত (Paid)</div>
+                  <div className={`text-lg font-black mt-1 font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     ৳ {stats.totalPaid.toLocaleString("en-IN")}
                   </div>
                 </div>
 
-                <div className="bg-[#152033] border border-rose-500/30 rounded-xl p-3 text-center">
-                  <div className="text-[10px] uppercase font-bold text-rose-400">মোট বকেয়া (Outstanding Due)</div>
-                  <div className="text-lg font-black text-rose-400 mt-1 font-mono">
+                <div className={`border rounded-xl p-3 text-center ${
+                  isLight ? "bg-white border-rose-200 text-slate-900" : "bg-[#152033] border-rose-500/30 text-white"
+                }`}>
+                  <div className={`text-[10px] uppercase font-bold ${isLight ? "text-rose-700" : "text-rose-400"}`}>মোট বকেয়া (Outstanding Due)</div>
+                  <div className={`text-lg font-black mt-1 font-mono ${isLight ? "text-rose-700" : "text-rose-400"}`}>
                     ৳ {stats.totalDue.toLocaleString("en-IN")}
                   </div>
                 </div>
               </div>
 
               {/* SEARCH & FILTER CONTROLS */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#152033] p-2.5 rounded-xl border border-[#2d4a6a]">
+              <div className={`flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-xl border ${
+                isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#152033] border-[#2d4a6a] text-white"
+              }`}>
                 <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 text-[#8ba3c1]" />
+                  <Search className={`w-4 h-4 ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`} />
                   <input
                     type="text"
                     placeholder="ভাউচার নং, ক্লায়েন্টের নাম বা মোবাইল দিয়ে খুঁজুন..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent text-white text-xs outline-none w-full"
+                    className={`bg-transparent text-xs outline-none w-full ${
+                      isLight ? "text-slate-900 placeholder:text-slate-400" : "text-white placeholder:text-slate-500"
+                    }`}
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="text-[#8ba3c1] hover:text-white">
+                    <button onClick={() => setSearchQuery("")} className={isLight ? "text-slate-500 hover:text-slate-900" : "text-[#8ba3c1] hover:text-white"}>
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -2117,6 +2338,8 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       className={`px-2.5 py-1 rounded-lg text-xs font-bold transition capitalize ${
                         statusFilter === st
                           ? "bg-[#00c2c7] text-[#0f1c2e]"
+                          : isLight
+                          ? "bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200"
                           : "bg-[#1a2b42] text-[#8ba3c1] hover:text-white border border-[#2d4a6a]"
                       }`}
                     >
@@ -2136,7 +2359,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
               </div>
 
               {/* VOUCHERS LIST TABLE */}
-              <div className="bg-[#121a2b] border border-[#2d4a6a] rounded-xl overflow-hidden shadow-sm">
+              <div className={`border rounded-xl overflow-hidden shadow-sm ${
+                isLight ? "bg-white border-slate-200" : "bg-[#121a2b] border-[#2d4a6a]"
+              }`}>
                 {filteredVouchers.length === 0 ? (
                   <div className="py-12 text-center text-slate-400 text-xs">
                     <Receipt className="w-10 h-10 text-[#2d4a6a] mx-auto mb-2 opacity-50" />
@@ -2146,7 +2371,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-[#1a2b42] text-[#8ba3c1] font-bold border-b border-[#2d4a6a] text-[11px]">
+                        <tr className={`font-bold border-b text-[11px] ${
+                          isLight ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-[#1a2b42] text-[#8ba3c1] border-[#2d4a6a]"
+                        }`}>
                           <th className="py-2.5 px-3">Voucher #</th>
                           <th className="py-2.5 px-3">তারিখ (Date)</th>
                           <th className="py-2.5 px-3">ক্লায়েন্টের নাম (Client)</th>
@@ -2158,45 +2385,45 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           <th className="py-2.5 px-3 text-center">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#2d4a6a]/60 text-white">
+                      <tbody className={`divide-y ${isLight ? "divide-slate-200 text-slate-900" : "divide-[#2d4a6a]/60 text-white"}`}>
                         {filteredVouchers.map((v) => (
-                          <tr key={v.id} className="hover:bg-[#1a2b42]/40 transition font-medium">
-                            <td className="py-2.5 px-3 font-mono font-bold text-emerald-400">
+                          <tr key={v.id} className={`transition font-medium ${isLight ? "hover:bg-slate-50" : "hover:bg-[#1a2b42]/40"}`}>
+                            <td className={`py-2.5 px-3 font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                               {v.voucherNo}
                             </td>
-                            <td className="py-2.5 px-3 text-[#8ba3c1] font-mono text-[11px]">
+                            <td className={`py-2.5 px-3 font-mono text-[11px] ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`}>
                               {v.date}
                             </td>
-                            <td className="py-2.5 px-3 font-semibold text-white">
+                            <td className={`py-2.5 px-3 font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
                               {v.clientName}
                               {v.phone && (
-                                <div className="text-[10px] text-[#8ba3c1] font-mono">{v.phone}</div>
+                                <div className={`text-[10px] font-mono ${isLight ? "text-slate-500" : "text-[#8ba3c1]"}`}>{v.phone}</div>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-slate-300">
+                            <td className={`py-2.5 px-3 ${isLight ? "text-slate-600" : "text-slate-300"}`}>
                               {v.projectName || "General Consultancy"}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono font-bold text-white">
+                            <td className={`py-2.5 px-3 text-right font-mono font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                               ৳ {v.netTotal.toLocaleString("en-IN")}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-mono text-emerald-400">
+                            <td className={`py-2.5 px-3 text-right font-mono ${isLight ? "text-emerald-700 font-semibold" : "text-emerald-400"}`}>
                               ৳ {v.paid.toLocaleString("en-IN")}
                             </td>
                             <td className="py-2.5 px-3 text-right font-mono font-bold">
                               {v.due > 0 ? (
-                                <span className="text-rose-400">৳ {v.due.toLocaleString("en-IN")}</span>
+                                <span className={isLight ? "text-rose-700" : "text-rose-400"}>৳ {v.due.toLocaleString("en-IN")}</span>
                               ) : (
-                                <span className="text-slate-500">৳ 0</span>
+                                <span className={isLight ? "text-slate-400" : "text-slate-500"}>৳ 0</span>
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-center">
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                   v.paymentStatus === "Paid"
-                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                                    ? (isLight ? "bg-emerald-50 text-emerald-800 border border-emerald-300" : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40")
                                     : v.paymentStatus === "Partial"
-                                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                                    : "bg-rose-500/20 text-rose-400 border border-rose-500/40"
+                                    ? (isLight ? "bg-amber-50 text-amber-800 border border-amber-300" : "bg-amber-500/20 text-amber-400 border border-amber-500/40")
+                                    : (isLight ? "bg-rose-50 text-rose-800 border border-rose-300" : "bg-rose-500/20 text-rose-400 border border-rose-500/40")
                                 }`}
                               >
                                 {v.paymentStatus}
@@ -2207,7 +2434,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleOpenPrint(v)}
-                                  className="p-1 text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55] rounded transition"
+                                  className={`p-1 rounded transition ${
+                                    isLight ? "text-slate-500 hover:text-teal-700 hover:bg-slate-100" : "text-[#8ba3c1] hover:text-[#00c2c7] hover:bg-[#243b55]"
+                                  }`}
                                   title="Print / View Voucher Memo"
                                 >
                                   <Printer className="w-3.5 h-3.5" />
@@ -2215,7 +2444,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleLoadVoucher(v)}
-                                  className="p-1 text-[#8ba3c1] hover:text-white hover:bg-[#243b55] rounded transition"
+                                  className={`p-1 rounded transition ${
+                                    isLight ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-[#8ba3c1] hover:text-white hover:bg-[#243b55]"
+                                  }`}
                                   title="Edit Voucher"
                                 >
                                   <Edit className="w-3.5 h-3.5" />
@@ -2223,7 +2454,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleDuplicateVoucher(v)}
-                                  className="p-1 text-[#8ba3c1] hover:text-amber-400 hover:bg-[#243b55] rounded transition"
+                                  className={`p-1 rounded transition ${
+                                    isLight ? "text-slate-500 hover:text-amber-700 hover:bg-slate-100" : "text-[#8ba3c1] hover:text-amber-400 hover:bg-[#243b55]"
+                                  }`}
                                   title="Duplicate as new Voucher"
                                 >
                                   <Copy className="w-3.5 h-3.5" />
@@ -2235,7 +2468,9 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                                       await onDeleteVoucher(v.id);
                                     }
                                   }}
-                                  className="p-1 text-[#8ba3c1] hover:text-rose-400 hover:bg-rose-500/20 rounded transition"
+                                  className={`p-1 rounded transition ${
+                                    isLight ? "text-slate-500 hover:text-rose-600 hover:bg-rose-50" : "text-[#8ba3c1] hover:text-rose-400 hover:bg-rose-500/20"
+                                  }`}
                                   title="Delete Voucher"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -2258,11 +2493,15 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
           {activeTab === "print" && printVoucher && (
             <div className="space-y-4 print:space-y-0">
               {/* Print Toolbar (Hidden during actual print) */}
-              <div className="voucher-action-toolbar print:hidden flex flex-wrap items-center justify-between gap-2.5 bg-[#152033] p-2.5 rounded-xl border border-[#2d4a6a]">
+              <div className={`voucher-action-toolbar print:hidden flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-xl border ${
+                isLight ? "bg-white border-slate-200 text-slate-900" : "bg-[#152033] border-[#2d4a6a] text-white"
+              }`}>
                 <button
                   type="button"
                   onClick={() => setActiveTab("editor")}
-                  className="flex items-center gap-1.5 text-xs text-[#8ba3c1] hover:text-white font-semibold transition"
+                  className={`flex items-center gap-1.5 text-xs font-semibold transition ${
+                    isLight ? "text-slate-600 hover:text-slate-900" : "text-[#8ba3c1] hover:text-white"
+                  }`}
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Editor</span>
@@ -2272,7 +2511,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleOpenCleanTab(printVoucher)}
-                    className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/40 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95"
+                    className={`flex items-center gap-1.5 border px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 ${
+                      isLight
+                        ? "bg-slate-100 hover:bg-slate-200 text-teal-800 border-slate-300"
+                        : "bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border-[#00c2c7]/40"
+                    }`}
                     title="Open pure isolated voucher in a new clean window"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -2282,7 +2525,11 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleDownloadHtml(printVoucher)}
-                    className="flex items-center gap-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95"
+                    className={`flex items-center gap-1.5 border px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 ${
+                      isLight
+                        ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-[#1a2b42] hover:bg-[#243b55] text-amber-300 border-amber-500/40"
+                    }`}
                     title="Download voucher as standalone offline HTML memo"
                   >
                     <Download className="w-3.5 h-3.5" />

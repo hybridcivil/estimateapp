@@ -211,8 +211,19 @@ body.light-theme,
 /* Root app container and shell backgrounds */
 html.light .bg-\[\#0f1c2e\],
 html.light [class*="bg-[#0f1c2e]"],
-body.light-theme [class*="bg-[#0f1c2e]"] {
+html.light .bg-\[\#0f172a\],
+html.light [class*="bg-[#0f172a]"],
+body.light-theme [class*="bg-[#0f1c2e]"],
+body.light-theme [class*="bg-[#0f172a]"] {
   background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+html.light .bg-\[\#162238\],
+html.light [class*="bg-[#162238]"],
+body.light-theme [class*="bg-[#162238]"] {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
   color: #0f172a !important;
 }
 
@@ -404,8 +415,22 @@ body.light-theme [class*="text-[#f1f5f9]"] {
 }
 
 html.light .text-white,
-body.light-theme .text-white {
+body.light-theme .text-white,
+html.light .text-slate-100,
+body.light-theme .text-slate-100,
+html.light .text-slate-200,
+body.light-theme .text-slate-200 {
   color: #0f172a !important;
+}
+
+html.light .text-slate-300,
+body.light-theme .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-400,
+body.light-theme .text-slate-400 {
+  color: #64748b !important;
 }
 
 html.light .text-\[\#8ba3c1\],
@@ -739,10 +764,10 @@ body.light-theme [class*="hover:bg-[#2d4a6a]"]:hover {
 /* ----------------------------------------------------
    Form inputs, Selects, and Textareas in Light Mode
    ---------------------------------------------------- */
-html.light input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+html.light input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):not(.bg-transparent),
 html.light select,
 html.light textarea,
-body.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+body.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]):not(.bg-transparent),
 body.light-theme select,
 body.light-theme textarea {
   background-color: #ffffff !important;
@@ -750,6 +775,14 @@ body.light-theme textarea {
   border-color: #94a3b8 !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light input.bg-transparent,
+body.light-theme input.bg-transparent {
+  background-color: transparent !important;
+  color: #0f172a !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 html.light input:focus,
@@ -830,11 +863,41 @@ body.light-theme .bg-black\/85 {
 }
 
 html.light .report-modal-card,
-body.light-theme .report-modal-card {
+body.light-theme .report-modal-card,
+html.light .voucher-modal-card,
+body.light-theme .voucher-modal-card {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+html.light .voucher-modal-header,
+body.light-theme .voucher-modal-header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.light [class*="bg-rose-950"],
+body.light-theme [class*="bg-rose-950"] {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
+}
+
+html.light [class*="bg-emerald-950"],
+body.light-theme [class*="bg-emerald-950"] {
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+  color: #166534 !important;
+}
+
+html.light [class*="bg-purple-950"],
+body.light-theme [class*="bg-purple-950"] {
+  background-color: #faf5ff !important;
+  border-color: #e9d5ff !important;
+  color: #6b21a8 !important;
 }
 
 /* Table headers & cells */
