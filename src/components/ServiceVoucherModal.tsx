@@ -184,7 +184,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(v.voucherNo)} - ${escapeHtml(v.clientName || "Client")} - ${escapeHtml(v.companyName || "HYBRID CIVIL")} Service Voucher</title>
+  <title>${escapeHtml(v.voucherNo)} - ${escapeHtml(v.clientName || "Client")} - ${escapeHtml(v.companyName || "Dolphin Box")} Service Voucher</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -461,7 +461,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
 <body>
   <div class="action-bar no-print">
     <div>
-      <strong>${escapeHtml(v.companyName || "HYBRID CIVIL")} • Official Voucher</strong> - <span>${escapeHtml(v.voucherNo)}</span>
+      <strong>${escapeHtml(v.companyName || "Dolphin Box")} • Official Voucher</strong> - <span>${escapeHtml(v.voucherNo)}</span>
     </div>
     <div style="display: flex; gap: 8px;">
       <button class="action-btn" onclick="window.print()">
@@ -476,7 +476,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
   <div class="paper-sheet">
     <div class="header-box">
       <div>
-        <h1 class="brand-title">${escapeHtml(v.companyName || "HYBRID CIVIL")}</h1>
+        <h1 class="brand-title">${escapeHtml(v.companyName || "Dolphin Box")}</h1>
         <div class="brand-tag">${escapeHtml(v.companyTagline || "Engineering & Consultancy")}</div>
         <div class="brand-sub">
           ${escapeHtml(v.companyServices || "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation")}
@@ -584,7 +584,7 @@ export function generateVoucherStandaloneHtml(v: ServiceVoucher, autoPrint = fal
       <div>
         <div class="sign-line"></div>
         <div style="font-weight: 700; color: #0f172a;">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
-        <div style="font-size: 10px; color: #64748b;">${escapeHtml(v.companyName || "HYBRID CIVIL")} • ${escapeHtml(v.companyTagline || "Engineering & Consultancy")}</div>
+        <div style="font-size: 10px; color: #64748b;">${escapeHtml(v.companyName || "Dolphin Box")} • ${escapeHtml(v.companyTagline || "Engineering & Consultancy")}</div>
       </div>
     </div>
 
@@ -606,7 +606,7 @@ export const VoucherPrintDocument: React.FC<{ voucher: ServiceVoucher }> = ({ vo
       <div className="border-b-2 border-slate-900 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black text-slate-950 tracking-tight leading-none">
-            {voucher.companyName || "HYBRID CIVIL"}
+            {voucher.companyName || "Dolphin Box"}
           </h1>
           <div className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">
             {voucher.companyTagline || "Engineering & Consultancy"}
@@ -785,7 +785,7 @@ export const VoucherPrintDocument: React.FC<{ voucher: ServiceVoucher }> = ({ vo
           <div className="w-44 border-b border-dashed border-slate-400 mx-auto mb-1.5 pb-6"></div>
           <div className="font-bold text-slate-900">কর্তৃপক্ষের স্বাক্ষর ও সিল (Authorized Seal)</div>
           <div className="text-[10px] text-slate-500">
-            {voucher.companyName || "HYBRID CIVIL"} • {voucher.companyTagline || "Engineering & Consultancy"}
+            {voucher.companyName || "Dolphin Box"} • {voucher.companyTagline || "Engineering & Consultancy"}
           </div>
         </div>
       </div>
@@ -844,7 +844,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
       if (raw) {
         const parsed = JSON.parse(raw);
         return {
-          name: parsed.name || "HYBRID CIVIL",
+          name: parsed.name || "Dolphin Box",
           tagline: parsed.tagline || "Engineering & Consultancy",
           services:
             parsed.services ||
@@ -856,7 +856,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
       // ignore
     }
     return {
-      name: "HYBRID CIVIL",
+      name: "Dolphin Box",
       tagline: "Engineering & Consultancy",
       services:
         "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation",
@@ -865,7 +865,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   };
 
   // Firm / Consultancy Header State (editable per voucher and customizable per user)
-  const [companyName, setCompanyName] = useState<string>("HYBRID CIVIL");
+  const [companyName, setCompanyName] = useState<string>("Dolphin Box");
   const [companyTagline, setCompanyTagline] = useState<string>("Engineering & Consultancy");
   const [companyServices, setCompanyServices] = useState<string>(
     "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"
@@ -879,7 +879,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
       localStorage.setItem(
         `voucher_company_pref_${userStorageKey}`,
         JSON.stringify({
-          name: companyName.trim() || "HYBRID CIVIL",
+          name: companyName.trim() || "Dolphin Box",
           tagline: companyTagline.trim() || "Engineering & Consultancy",
           services:
             companyServices.trim() ||
@@ -895,7 +895,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
   };
 
   const handleResetCompanyToDefault = () => {
-    setCompanyName("HYBRID CIVIL");
+    setCompanyName("Dolphin Box");
     setCompanyTagline("Engineering & Consultancy");
     setCompanyServices(
       "Structural Analysis & Design • Architectural Planning • Geotechnical Soil Test • Digital Land Survey • BOQ & Estimation"
@@ -1210,7 +1210,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
     document.body.classList.add("voucher-print-active");
     const originalTitle = document.title;
     const client = (v.clientName || "Client").trim();
-    const firm = (v.companyName || "HYBRID CIVIL").trim();
+    const firm = (v.companyName || "Dolphin Box").trim();
     document.title = `${v.voucherNo} - ${client} - ${firm} Service Voucher`;
 
     const cleanup = () => {
@@ -1306,7 +1306,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-extrabold text-base sm:text-lg text-white tracking-wide">
-                  HYBRID CIVIL • SERVICE VOUCHER
+                  DOLPHIN BOX • SERVICE VOUCHER
                 </h3>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   Business Billing
@@ -1480,7 +1480,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                       ফার্ম / কনসালটেন্সি নাম ও ব্র্যান্ডিং (Firm &amp; Consultancy Header)
                     </h4>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {companyName || "HYBRID CIVIL"}
+                      {companyName || "Dolphin Box"}
                     </span>
                   </div>
 
@@ -1502,7 +1502,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs bg-[#162238] px-3 py-2 rounded-lg border border-[#2d4a6a]/60">
                     <div className="space-y-0.5">
                       <div className="font-bold text-white text-sm flex items-center gap-2">
-                        <span>{companyName || "HYBRID CIVIL"}</span>
+                        <span>{companyName || "Dolphin Box"}</span>
                         <span className="text-xs font-medium text-[#8ba3c1]">
                           • {companyTagline || "Engineering & Consultancy"}
                         </span>
@@ -1538,7 +1538,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           <Briefcase className="w-3.5 h-3.5 text-[#8ba3c1] mr-1.5 shrink-0" />
                           <input
                             type="text"
-                            placeholder="যেমন: HYBRID CIVIL বা আপনার কনসালটেন্সি নাম"
+                            placeholder="যেমন: Dolphin Box বা আপনার কনসালটেন্সি নাম"
                             value={companyName}
                             onChange={(e) => setCompanyName(e.target.value)}
                             className="bg-transparent text-white text-xs font-bold outline-none w-full"
@@ -1609,7 +1609,7 @@ export const ServiceVoucherModal: React.FC<ServiceVoucherModalProps> = ({
                           type="button"
                           onClick={handleResetCompanyToDefault}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#1a2b42] hover:bg-[#243b55] text-[#8ba3c1] hover:text-white border border-[#2d4a6a] text-xs font-medium transition"
-                          title="HYBRID CIVIL ডিফল্টে রিসেট করুন"
+                          title="Dolphin Box ডিফল্টে রিসেট করুন"
                         >
                           <RotateCcw className="w-3 h-3" />
                           <span>রিসেট (Reset)</span>
