@@ -488,173 +488,176 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs">
-      <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#121c2d] border border-[#2d4a6a] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-3 md:p-4 bg-black/80 backdrop-blur-xs">
+      <div className="relative w-full max-w-6xl h-[98vh] sm:h-auto sm:max-h-[92vh] bg-[#121c2d] border border-[#2d4a6a] rounded-xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-white animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-[#24374e] bg-gradient-to-r from-[#17263c] to-[#121c2d] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
-              <Shield className="w-5 h-5" />
+        <div className="px-3 py-3 sm:px-5 sm:py-3.5 border-b border-[#24374e] bg-gradient-to-r from-[#17263c] to-[#121c2d] flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <Shield className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-white leading-tight truncate">
                   Admin System Control Center
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-bold uppercase tracking-wider">
+                <span className="text-[9px] sm:text-[10px] font-mono px-1.5 sm:px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 font-bold uppercase tracking-wider">
                   Super Admin
                 </span>
               </div>
-              <p className="text-xs text-[#8ba3c1]">
-                Manage all registered engineers, cloud projects, and system access
+              <p className="text-[10px] sm:text-xs text-[#8ba3c1] truncate hidden sm:block">
+                Manage all registered engineers, cloud projects, subscriptions, and notifications
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button
               onClick={loadData}
               disabled={loading}
-              className="p-2 text-[#8ba3c1] hover:text-white hover:bg-[#1a2b42] rounded-lg transition"
+              className="p-1.5 sm:p-2 text-[#8ba3c1] hover:text-white hover:bg-[#1a2b42] rounded-lg transition cursor-pointer"
               title="Refresh Data"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-[#00c2c7]" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? "animate-spin text-[#00c2c7]" : ""}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-[#8ba3c1] hover:text-white hover:bg-[#1a2b42] rounded-lg transition"
+              className="p-1.5 sm:p-2 text-[#8ba3c1] hover:text-white hover:bg-[#1a2b42] rounded-lg transition cursor-pointer"
               title="Close Admin Panel"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
-        {/* Global Stats Summary Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-[#0e1624] border-b border-[#24374e]">
-          <div className="bg-[#152033] p-3 rounded-xl border border-[#24374e]">
-            <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-1">
-              <span>Total System Projects</span>
+        {/* Global Stats Summary Bar - fully responsive 2 to 4 cols */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 p-2.5 sm:p-3.5 bg-[#0e1624] border-b border-[#24374e] shrink-0 text-xs">
+          <div className="bg-[#152033] p-2 sm:p-3 rounded-lg sm:rounded-xl border border-[#24374e]">
+            <div className="flex items-center justify-between text-[11px] text-[#8ba3c1] mb-0.5 sm:mb-1">
+              <span>System Projects</span>
               <FolderKanban className="w-3.5 h-3.5 text-[#00c2c7]" />
             </div>
-            <div className="text-xl font-bold font-mono text-white">{allProjects.length}</div>
+            <div className="text-base sm:text-lg font-bold font-mono text-white">{allProjects.length}</div>
           </div>
 
-          <div className="bg-[#152033] p-3 rounded-xl border border-[#24374e]">
-            <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-1">
+          <div className="bg-[#152033] p-2 sm:p-3 rounded-lg sm:rounded-xl border border-[#24374e]">
+            <div className="flex items-center justify-between text-[11px] text-[#8ba3c1] mb-0.5 sm:mb-1">
               <span>Registered Users</span>
               <Users className="w-3.5 h-3.5 text-[#38bdf8]" />
             </div>
             <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-xl font-bold font-mono text-white">{allUsers.length}</span>
-              <span className="text-[10px] text-[#8ba3c1] font-mono">
-                ({emailPasswordUsers.length} Email/Pass · {googleUsers.length} Google)
+              <span className="text-base sm:text-lg font-bold font-mono text-white">{allUsers.length}</span>
+              <span className="text-[9px] text-[#8ba3c1] font-mono hidden sm:inline">
+                ({emailPasswordUsers.length} Email · {googleUsers.length} Google)
               </span>
             </div>
           </div>
 
-          <div className="bg-[#152033] p-3 rounded-xl border border-[#24374e]">
-            <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-1">
+          <div className="bg-[#152033] p-2 sm:p-3 rounded-lg sm:rounded-xl border border-[#24374e]">
+            <div className="flex items-center justify-between text-[11px] text-[#8ba3c1] mb-0.5 sm:mb-1">
               <span>System Valuation</span>
               <DollarSign className="w-3.5 h-3.5 text-[#2ecc71]" />
             </div>
-            <div className="text-xl font-bold font-mono text-[#2ecc71]">
+            <div className="text-base sm:text-lg font-bold font-mono text-[#2ecc71] truncate">
               ৳ {totalCostAll.toLocaleString("en-IN")}
             </div>
           </div>
 
-          <div className="bg-[#152033] p-3 rounded-xl border border-[#24374e]">
-            <div className="flex items-center justify-between text-xs text-[#8ba3c1] mb-1">
+          <div className="bg-[#152033] p-2 sm:p-3 rounded-lg sm:rounded-xl border border-[#24374e]">
+            <div className="flex items-center justify-between text-[11px] text-[#8ba3c1] mb-0.5 sm:mb-1">
               <span>Root Administrator</span>
               <Shield className="w-3.5 h-3.5 text-amber-400" />
             </div>
-            <div className="text-xs font-mono font-bold text-amber-400 truncate" title={currentUser?.email || appUser?.email || BOOTSTRAP_ADMIN_EMAIL}>
+            <div className="text-[11px] font-mono font-bold text-amber-400 truncate" title={currentUser?.email || appUser?.email || BOOTSTRAP_ADMIN_EMAIL}>
               {currentUser?.email || appUser?.email || BOOTSTRAP_ADMIN_EMAIL}
             </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center justify-between px-5 pt-3 border-b border-[#24374e] bg-[#121c2d] overflow-x-auto">
-          <div className="flex gap-3 sm:gap-4 shrink-0">
-            <button
-              onClick={() => setActiveTab("projects")}
-              className={`pb-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "projects"
-                  ? "border-[#00c2c7] text-[#00c2c7]"
-                  : "border-transparent text-[#8ba3c1] hover:text-white"
-              }`}
-            >
-              <FolderKanban className="w-4 h-4" />
-              <span>All Projects ({allProjects.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("users")}
-              className={`pb-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "users"
-                  ? "border-[#00c2c7] text-[#00c2c7]"
-                  : "border-transparent text-[#8ba3c1] hover:text-white"
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              <span>Registered Engineers & Subscriptions ({allUsers.length})</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("notifications")}
-              className={`pb-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "notifications"
-                  ? "border-amber-400 text-amber-400"
-                  : "border-transparent text-[#8ba3c1] hover:text-white"
-              }`}
-            >
-              <Send className="w-4 h-4 text-amber-400" />
-              <span>Send Notice & Reminders</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("notices_history")}
-              className={`pb-2.5 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === "notices_history"
-                  ? "border-[#00c2c7] text-[#00c2c7]"
-                  : "border-transparent text-[#8ba3c1] hover:text-white"
-              }`}
-            >
-              <Bell className="w-4 h-4" />
-              <span>Notices History ({allNotifications.length})</span>
-            </button>
-          </div>
-
-          {activeTab === "projects" && (
-            <div className="flex items-center gap-2 pb-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ba3c1]" />
-                <input
-                  type="text"
-                  placeholder="Search project or owner..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white placeholder-[#8ba3c1] outline-none w-48 sm:w-64"
-                />
-              </div>
-
-              {allUsers.length > 0 && (
-                <select
-                  value={userFilter}
-                  onChange={(e) => setUserFilter(e.target.value)}
-                  className="py-1 px-2 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none cursor-pointer"
-                >
-                  <option value="all">All Owners ({allProjects.length})</option>
-                  {allUsers.map((u) => {
-                    const count = allProjects.filter((p) => p.ownerId === u.uid || p.ownerEmail === u.email).length;
-                    return (
-                      <option key={u.uid} value={u.email || u.uid}>
-                        {u.displayName || u.email || u.uid} ({count} {count === 1 ? "project" : "projects"})
-                      </option>
-                    );
-                  })}
-                </select>
-              )}
+        {/* Navigation Tabs - Mobile scrollable pill-bar with touch scrolling */}
+        <div className="px-3 sm:px-5 pt-2 sm:pt-3 border-b border-[#24374e] bg-[#121c2d] shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 pb-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 shrink-0">
+              <button
+                onClick={() => setActiveTab("projects")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  activeTab === "projects"
+                    ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                    : "bg-[#152033] text-[#8ba3c1] hover:text-white border border-[#24374e]"
+                }`}
+              >
+                <FolderKanban className="w-3.5 h-3.5" />
+                <span>Projects ({allProjects.length})</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("users")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  activeTab === "users"
+                    ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                    : "bg-[#152033] text-[#8ba3c1] hover:text-white border border-[#24374e]"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Engineers & Subscriptions ({allUsers.length})</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("notifications")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  activeTab === "notifications"
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    : "bg-[#152033] text-amber-400 hover:text-amber-300 border border-amber-500/30"
+                }`}
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Notices</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("notices_history")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  activeTab === "notices_history"
+                    ? "bg-[#00c2c7] text-[#0f1c2e] shadow-sm"
+                    : "bg-[#152033] text-[#8ba3c1] hover:text-white border border-[#24374e]"
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>History ({allNotifications.length})</span>
+              </button>
             </div>
-          )}
+
+            {/* Quick search/filter when in projects tab */}
+            {activeTab === "projects" && (
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:w-56">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8ba3c1]" />
+                  <input
+                    type="text"
+                    placeholder="Search project or owner..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white placeholder-[#8ba3c1] outline-none"
+                  />
+                </div>
+
+                {allUsers.length > 0 && (
+                  <select
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                    className="py-1 px-2 bg-[#1a2b42] border border-[#2d4a6a] rounded-lg text-xs text-white outline-none cursor-pointer max-w-[140px] sm:max-w-[180px] truncate"
+                  >
+                    <option value="all">All Owners ({allProjects.length})</option>
+                    {allUsers.map((u) => {
+                      const count = allProjects.filter((p) => p.ownerId === u.uid || p.ownerEmail === u.email).length;
+                      return (
+                        <option key={u.uid} value={u.email || u.uid}>
+                          {u.displayName || u.email || u.uid} ({count})
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content Body */}
@@ -749,55 +752,55 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Action Bar */}
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#24374e]">
+                      {/* Action Bar - Mobile responsive flex-wrap */}
+                      <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-[#24374e] flex-wrap">
                         <button
                           onClick={() => handleOpenAssignModal(p)}
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-[#17273c] hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] border border-[#00c2c7]/40 rounded-lg text-xs font-semibold transition cursor-pointer"
                           title="Assign this project to an engineer for editing"
                         >
                           <UserPlus className="w-3 h-3" />
-                          <span>{p.assignedTo ? "Reassign" : "Assign to Engineer"}</span>
+                          <span>{p.assignedTo ? "Reassign" : "Assign"}</span>
                         </button>
 
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 ml-auto">
                           <button
                             onClick={() => {
                               onSelectProject(p);
                               onClose();
                             }}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-[#00c2c7]/20 hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] rounded-lg text-xs font-semibold transition cursor-pointer"
+                            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-[#00c2c7]/20 hover:bg-[#00c2c7] text-[#00c2c7] hover:text-[#0f1c2e] rounded-lg text-xs font-semibold transition cursor-pointer"
                             title="Open this user's project in main workspace"
                           >
                             <ExternalLink className="w-3 h-3" />
                             <span>Inspect & Edit</span>
                           </button>
 
-                        {deleteConfirmId === p.id ? (
-                          <div className="flex items-center gap-1">
+                          {deleteConfirmId === p.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDelete(p.id)}
+                                disabled={isDeleting}
+                                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="px-2 py-1 bg-[#24374e] hover:bg-[#2d4a6a] text-xs text-[#8ba3c1] rounded-lg cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleDelete(p.id)}
-                              disabled={isDeleting}
-                              className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition"
+                              onClick={() => setDeleteConfirmId(p.id)}
+                              className="p-1.5 text-[#ff4d6d] hover:bg-[#ff4d6d]/20 rounded-lg transition cursor-pointer"
+                              title="Delete this project as Admin"
                             >
-                              Confirm
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="px-2 py-1 bg-[#24374e] hover:bg-[#2d4a6a] text-xs text-[#8ba3c1] rounded-lg"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeleteConfirmId(p.id)}
-                            className="p-1.5 text-[#ff4d6d] hover:bg-[#ff4d6d]/20 rounded-lg transition"
-                            title="Delete this project as Admin"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                          )}
                         </div>
                       </div>
                     </div>
@@ -879,18 +882,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
               )}
 
-              {/* Engineers Table */}
-              <div className="bg-[#152033] border border-[#24374e] rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs">
+              {/* Desktop Table View (hidden on mobile, visible md+) */}
+              <div className="hidden md:block bg-[#152033] border border-[#24374e] rounded-xl overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[760px]">
                   <thead className="bg-[#0e1624] text-[#8ba3c1] uppercase font-mono text-[10px] border-b border-[#24374e]">
                     <tr>
-                      <th className="py-2.5 px-4">User / Engineer</th>
-                      <th className="py-2.5 px-4">Login Method</th>
-                      <th className="py-2.5 px-4">Subscription Plan & Status</th>
-                      <th className="py-2.5 px-4">Role</th>
-                      <th className="py-2.5 px-4">Projects</th>
-                      <th className="py-2.5 px-4">Last Activity</th>
-                      <th className="py-2.5 px-4 text-right">Actions</th>
+                      <th className="py-2.5 px-3">User / Engineer</th>
+                      <th className="py-2.5 px-3">Login</th>
+                      <th className="py-2.5 px-3">Subscription</th>
+                      <th className="py-2.5 px-3">Role</th>
+                      <th className="py-2.5 px-3">Projects</th>
+                      <th className="py-2.5 px-3">Activity</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#24374e]">
@@ -902,9 +905,6 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       </tr>
                     ) : (
                       filteredUsers.map((u) => {
-                        const userProjs = allProjects.filter(
-                          (p) => p.ownerId === u.uid || p.ownerEmail === u.email
-                        );
                         const isBootstrap =
                           u.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
                         const isEmailPass =
@@ -912,7 +912,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                         return (
                           <tr key={u.uid} className="hover:bg-[#1a2b42]/50 transition">
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-3">
                               <div className="flex items-center gap-2">
                                 {u.photoURL ? (
                                   <img
@@ -925,35 +925,35 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                     {(u.displayName || u.email || "E")[0].toUpperCase()}
                                   </div>
                                 )}
-                                <div className="flex flex-col">
-                                  <span className="font-semibold text-white">
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-semibold text-white truncate max-w-[130px]">
                                     {u.displayName || "Civil Engineer"}
                                   </span>
-                                  <span className="text-[10px] text-[#8ba3c1] font-mono">
-                                    {u.uid}
+                                  <span className="text-[10px] text-[#8ba3c1] font-mono truncate max-w-[130px]" title={u.email || u.uid}>
+                                    {u.email || u.uid}
                                   </span>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-3">
                               {isEmailPass ? (
-                                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                                   <Key className="w-2.5 h-2.5 text-emerald-400" />
                                   <span>Email</span>
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40">
                                   <Globe className="w-2.5 h-2.5 text-blue-400" />
                                   <span>Google</span>
                                 </span>
                               )}
                             </td>
                             {/* Subscription Status Column */}
-                            <td className="py-2.5 px-4">
-                              <div className="flex flex-col gap-1 items-start">
-                                <div className="flex items-center gap-1.5">
+                            <td className="py-2.5 px-3">
+                              <div className="flex flex-col gap-0.5 items-start">
+                                <div className="flex items-center gap-1 flex-wrap">
                                   <span
-                                    className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase ${
+                                    className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full border uppercase ${
                                       u.subscription?.plan === "enterprise"
                                         ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
                                         : u.subscription?.plan === "pro"
@@ -968,7 +968,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   </span>
 
                                   <span
-                                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-bold capitalize ${
+                                    className={`text-[9px] font-mono px-1 py-0.2 rounded font-bold capitalize ${
                                       u.subscription?.status === "active"
                                         ? "bg-emerald-500/20 text-emerald-400"
                                         : u.subscription?.status === "suspended"
@@ -980,35 +980,35 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   </span>
                                 </div>
 
-                                <div className="text-[10px] font-mono text-[#8ba3c1]">
+                                <div className="text-[9px] font-mono text-[#8ba3c1]">
                                   {u.subscription?.validUntil ? (
                                     <span>
                                       মেয়াদ: {new Date(u.subscription.validUntil).toLocaleDateString()}
                                     </span>
                                   ) : (
-                                    <span className="text-emerald-400/80">লাইফটাইম এক্সেস</span>
+                                    <span className="text-emerald-400/80">লাইফটাইম</span>
                                   )}
                                 </div>
                               </div>
                             </td>
-                            <td className="py-2.5 px-4">
+                            <td className="py-2.5 px-3">
                               {isBootstrap ? (
                                 <span
-                                  className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs"
+                                  className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-xs"
                                   title="Permanent System Super Admin"
                                 >
                                   <Shield className="w-3 h-3 text-amber-400" />
                                   <span>Super Admin</span>
                                 </span>
                               ) : (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
                                   <div className="relative inline-block">
                                     <select
                                       value={u.role === "viewer" ? "viewer" : u.role === "admin" ? "admin" : "editor"}
                                       disabled={updatingUserId === u.uid}
                                       onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
                                       aria-label={`Role for ${u.displayName || u.email}`}
-                                      className={`text-[11px] font-bold py-1 pl-2.5 pr-6 rounded-lg cursor-pointer transition border appearance-none outline-none font-sans ${
+                                      className={`text-[10px] font-bold py-1 pl-2 pr-5 rounded-lg cursor-pointer transition border appearance-none outline-none font-sans ${
                                         u.role === "viewer"
                                           ? "bg-purple-950/60 text-purple-300 border-purple-500/50 hover:border-purple-400"
                                           : u.role === "admin"
@@ -1017,26 +1017,26 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                       }`}
                                     >
                                       <option value="editor" className="bg-[#152033] text-[#00c2c7]">
-                                        Editor (Full Edit)
+                                        Editor
                                       </option>
                                       <option value="viewer" className="bg-[#152033] text-purple-300">
-                                        Viewer (Read-Only)
+                                        Viewer
                                       </option>
                                       <option value="admin" className="bg-[#152033] text-amber-300">
-                                        Admin (Supervisor)
+                                        Admin
                                       </option>
                                     </select>
-                                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[#8ba3c1]">
+                                    <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[7px] text-[#8ba3c1]">
                                       ▼
                                     </span>
                                   </div>
                                   {updatingUserId === u.uid && (
-                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#00c2c7]" />
+                                    <RefreshCw className="w-3 h-3 animate-spin text-[#00c2c7]" />
                                   )}
                                 </div>
                               )}
                             </td>
-                            <td className="py-2.5 px-4 font-mono text-xs">
+                            <td className="py-2.5 px-3 font-mono text-xs">
                               {(() => {
                                 const ownedProjs = allProjects.filter(
                                   (p) => p.ownerId === u.uid || p.ownerEmail === u.email
@@ -1045,58 +1045,54 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                   (p) => p.assignedTo === u.uid || p.assignedToEmail === u.email
                                 );
                                 return (
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1">
                                     <span className="font-bold text-white">{ownedProjs.length}</span>
                                     {assignedProjs.length > 0 && (
-                                      <span className="text-[10px] text-[#00c2c7] font-semibold bg-[#00c2c7]/15 px-1.5 py-0.2 rounded border border-[#00c2c7]/30">
-                                        +{assignedProjs.length} assigned
+                                      <span className="text-[9px] text-[#00c2c7] font-semibold bg-[#00c2c7]/15 px-1 py-0.2 rounded border border-[#00c2c7]/30">
+                                        +{assignedProjs.length}
                                       </span>
                                     )}
                                   </div>
                                 );
                               })()}
                             </td>
-                            <td className="py-2.5 px-4 text-[#8ba3c1] font-mono text-[11px]">
+                            <td className="py-2.5 px-3 text-[#8ba3c1] font-mono text-[10px]">
                               {u.lastLoginAt
                                 ? new Date(u.lastLoginAt).toLocaleDateString()
-                                : "Unknown"}
+                                : "—"}
                             </td>
-                            <td className="py-2.5 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                {/* Edit Subscription Button */}
+                            <td className="py-2.5 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1 flex-wrap">
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditSub(u)}
-                                  className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded text-[11px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
-                                  title="Manage subscription plan, validity, and limits"
+                                  className="px-1.5 py-1 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                  title="Manage subscription"
                                 >
-                                  <CreditCard className="w-3 h-3" />
-                                  <span>Subscription</span>
+                                  <CreditCard className="w-2.5 h-2.5" />
+                                  <span>Plan</span>
                                 </button>
-
-                                {/* Send Notification directly to this engineer */}
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setNotifTargetUid(u.uid);
                                     setActiveTab("notifications");
                                   }}
-                                  className="px-2 py-1 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-slate-950 border border-pink-500/40 rounded text-[11px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
+                                  className="px-1.5 py-1 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-slate-950 border border-pink-500/40 rounded text-[10px] font-bold transition cursor-pointer flex items-center gap-1 shadow-xs"
                                   title={`Send notification to ${u.displayName || u.email}`}
                                 >
-                                  <Send className="w-3 h-3" />
+                                  <Send className="w-2.5 h-2.5" />
                                   <span>Notice</span>
                                 </button>
-
                                 <button
                                   onClick={() => {
                                     setQuickAssignUser(u);
                                     setQuickAssignProjectId(allProjects[0]?.id || "");
                                   }}
-                                  className="px-2 py-1 bg-[#152a3d] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] border border-[#00c2c7]/40 rounded text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
-                                  title={`Assign a project to ${u.displayName || u.email} for editing`}
+                                  className="px-1.5 py-1 bg-[#152a3d] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] border border-[#00c2c7]/40 rounded text-[10px] font-semibold transition cursor-pointer flex items-center gap-0.5"
+                                  title={`Assign project to ${u.displayName || u.email}`}
                                 >
-                                  <UserPlus className="w-3 h-3" />
+                                  <UserPlus className="w-2.5 h-2.5" />
                                   <span>Assign</span>
                                 </button>
                                 <button
@@ -1104,7 +1100,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                     setUserFilter(u.email || u.uid);
                                     setActiveTab("projects");
                                   }}
-                                  className="px-2 py-1 bg-[#1a2b42] hover:bg-[#2d4a6a] text-white rounded text-[11px] font-semibold transition cursor-pointer"
+                                  className="px-1.5 py-1 bg-[#1a2b42] hover:bg-[#2d4a6a] text-white rounded text-[10px] font-semibold transition cursor-pointer"
                                 >
                                   View
                                 </button>
@@ -1117,55 +1113,220 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Engineer Card View (visible on screens smaller than md) */}
+              <div className="md:hidden space-y-2.5">
+                {filteredUsers.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-[#8ba3c1] bg-[#152033] rounded-xl border border-[#24374e]">
+                    No registered engineers found.
+                  </div>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const isBootstrap =
+                      u.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
+                    const isEmailPass =
+                      u.authProvider === "email_password" || (!u.photoURL && u.authProvider !== "google");
+                    const ownedProjs = allProjects.filter(
+                      (p) => p.ownerId === u.uid || p.ownerEmail === u.email
+                    );
+                    const assignedProjs = allProjects.filter(
+                      (p) => p.assignedTo === u.uid || p.assignedToEmail === u.email
+                    );
+
+                    return (
+                      <div
+                        key={u.uid}
+                        className="bg-[#152033] border border-[#24374e] rounded-xl p-3 space-y-2.5 shadow-sm"
+                      >
+                        {/* Top: Photo, Name, Email, Auth Badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {u.photoURL ? (
+                              <img
+                                src={u.photoURL}
+                                alt={u.displayName || "User"}
+                                className="w-8 h-8 rounded-full border border-[#2d4a6a] shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center font-mono border border-emerald-500/30 shrink-0 text-xs">
+                                {(u.displayName || u.email || "E")[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-white text-xs truncate">
+                                {u.displayName || "Civil Engineer"}
+                              </h4>
+                              <p className="text-[10px] text-[#8ba3c1] font-mono truncate">
+                                {u.email || u.uid}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isEmailPass ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+                              <Key className="w-2.5 h-2.5 text-emerald-400" />
+                              <span>Email</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 shrink-0">
+                              <Globe className="w-2.5 h-2.5 text-blue-400" />
+                              <span>Google</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Middle: Subscription Badge & Expiry + Role Selector */}
+                        <div className="grid grid-cols-2 gap-2 bg-[#0e1624] p-2 rounded-lg border border-[#24374e] text-[10px]">
+                          <div>
+                            <span className="text-[#8ba3c1] block text-[9px]">Subscription:</span>
+                            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                              <span
+                                className={`font-mono font-bold px-1.5 py-0.2 rounded border uppercase text-[9px] ${
+                                  u.subscription?.plan === "enterprise"
+                                    ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
+                                    : u.subscription?.plan === "pro"
+                                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                    : u.subscription?.plan === "trial"
+                                    ? "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                                    : "bg-slate-700/40 text-slate-300 border-slate-600/40"
+                                }`}
+                              >
+                                {u.subscription?.plan || "Free"}
+                              </span>
+                              <span className="text-emerald-400 font-bold capitalize text-[9px]">
+                                {u.subscription?.status || "active"}
+                              </span>
+                            </div>
+                            <span className="text-[9px] text-[#8ba3c1] block mt-0.5 font-mono">
+                              {u.subscription?.validUntil
+                                ? `মেয়াদ: ${new Date(u.subscription.validUntil).toLocaleDateString()}`
+                                : "লাইফটাইম"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[#8ba3c1] block text-[9px]">Role & Access:</span>
+                            {isBootstrap ? (
+                              <span className="inline-flex items-center gap-1 font-bold text-amber-400 mt-1">
+                                <Shield className="w-3 h-3" />
+                                <span>Super Admin</span>
+                              </span>
+                            ) : (
+                              <select
+                                value={u.role === "viewer" ? "viewer" : u.role === "admin" ? "admin" : "editor"}
+                                disabled={updatingUserId === u.uid}
+                                onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                                className="w-full mt-1 text-[10px] font-bold py-1 px-1.5 rounded bg-[#152033] border border-[#2d4a6a] text-white outline-none cursor-pointer"
+                              >
+                                <option value="editor">Editor (Full Edit)</option>
+                                <option value="viewer">Viewer (Read-Only)</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            )}
+                            <div className="text-[9px] text-[#8ba3c1] font-mono mt-0.5">
+                              Projects: {ownedProjs.length} owned {assignedProjs.length > 0 ? `(+${assignedProjs.length} assigned)` : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bottom Actions - 4 Touch Buttons */}
+                        <div className="grid grid-cols-4 gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditSub(u)}
+                            className="py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-lg text-[10px] font-bold transition cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                          >
+                            <CreditCard className="w-3 h-3" />
+                            <span>Plan</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNotifTargetUid(u.uid);
+                              setActiveTab("notifications");
+                            }}
+                            className="py-1.5 bg-pink-500/20 hover:bg-pink-500 text-pink-300 hover:text-slate-950 border border-pink-500/40 rounded-lg text-[10px] font-bold transition cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>Notice</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickAssignUser(u);
+                              setQuickAssignProjectId(allProjects[0]?.id || "");
+                            }}
+                            className="py-1.5 bg-[#152a3d] hover:bg-[#00c2c7] hover:text-[#0f1c2e] text-[#00c2c7] border border-[#00c2c7]/40 rounded-lg text-[10px] font-semibold transition cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            <span>Assign</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUserFilter(u.email || u.uid);
+                              setActiveTab("projects");
+                            }}
+                            className="py-1.5 bg-[#1a2b42] hover:bg-[#2d4a6a] text-white rounded-lg text-[10px] font-semibold transition cursor-pointer flex flex-col items-center justify-center gap-0.5"
+                          >
+                            <FolderKanban className="w-3 h-3 text-[#f5a623]" />
+                            <span>View</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           ) : activeTab === "notifications" ? (
             /* Send Notifications & Announcements Tab */
-            <div className="space-y-4 max-w-4xl mx-auto">
+            <div className="space-y-3 sm:space-y-4 max-w-4xl mx-auto">
               {/* Preset 1-Click Templates */}
-              <div className="bg-[#0e1624] p-4 rounded-xl border border-[#24374e] space-y-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
-                  <Sparkles className="w-4 h-4" />
+              <div className="bg-[#0e1624] p-3 sm:p-4 rounded-xl border border-[#24374e] space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span>১-ক্লিক দ্রুত নোটিশ টেমপ্লেট (Preset Quick Templates):</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     onClick={() => handleApplyPresetTemplate("sub_reminder")}
-                    className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2 sm:px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-lg text-[11px] sm:text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <CreditCard className="w-3.5 h-3.5" />
+                    <CreditCard className="w-3 h-3 text-amber-400" />
                     <span>সাবস্ক্রিপশন নবায়ন রিমাইন্ডার</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPresetTemplate("sub_active")}
-                    className="px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2 sm:px-2.5 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 rounded-lg text-[11px] sm:text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>সাবস্ক্রিপশন সক্রিয়করণ অভিনন্দন</span>
+                    <CheckCircle className="w-3 h-3 text-emerald-400" />
+                    <span>সাবস্ক্রিপশন সক্রিয়করণ অভিনন্দন</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPresetTemplate("rates_update")}
-                    className="px-2.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2 sm:px-2.5 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 rounded-lg text-[11px] sm:text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>মেটেরিয়াল রেট আপডেট নোটিশ</span>
+                    <AlertCircle className="w-3 h-3 text-rose-400" />
+                    <span>মেটেরিয়াল রেট আপডেট নোটিশ</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPresetTemplate("guide")}
-                    className="px-2.5 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2 sm:px-2.5 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 rounded-lg text-[11px] sm:text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <BookOpen className="w-3.5 h-3.5" />
+                    <BookOpen className="w-3 h-3 text-blue-400" />
                     <span>ব্যবহার নির্দেশিকা ও টিপস</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleApplyPresetTemplate("thanks")}
-                    className="px-2.5 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+                    className="px-2 sm:px-2.5 py-1.5 bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 rounded-lg text-[11px] sm:text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <HeartHandshake className="w-3.5 h-3.5" />
+                    <HeartHandshake className="w-3 h-3 text-pink-400" />
                     <span>ধন্যবাদ ও শুভেচ্ছা বার্তা</span>
                   </button>
                 </div>
@@ -1188,12 +1349,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               {/* Notification Creation Form */}
               <form
                 onSubmit={handleSendNotificationSubmit}
-                className="bg-[#152033] p-5 rounded-xl border border-[#24374e] space-y-4"
+                className="bg-[#152033] p-3 sm:p-5 rounded-xl border border-[#24374e] space-y-3 sm:space-y-4"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                   {/* Target Engineer / Broadcast */}
                   <div>
-                    <label className="block text-xs font-bold text-white mb-1.5">
+                    <label className="block text-xs font-bold text-white mb-1">
                       প্রাপক নির্বাচন (Target Recipient):
                     </label>
                     <select
@@ -1212,7 +1373,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                   {/* Notification Type */}
                   <div>
-                    <label className="block text-xs font-bold text-white mb-1.5">
+                    <label className="block text-xs font-bold text-white mb-1">
                       বার্তার ধরন (Category):
                     </label>
                     <select
@@ -1229,8 +1390,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   </div>
 
                   {/* Priority */}
-                  <div>
-                    <label className="block text-xs font-bold text-white mb-1.5">
+                  <div className="sm:col-span-2 lg:col-span-1">
+                    <label className="block text-xs font-bold text-white mb-1">
                       জরুরিতা লেভেল (Priority):
                     </label>
                     <select
@@ -1406,14 +1567,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#24374e] bg-[#0e1624] flex items-center justify-between text-xs text-[#8ba3c1]">
-          <div className="flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-            <span>Admin privileges allow supervisory oversight and assigning any project to any user for editing.</span>
+        <div className="px-3 py-2.5 sm:px-5 sm:py-3 border-t border-[#24374e] bg-[#0e1624] flex items-center justify-between text-xs text-[#8ba3c1] gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="truncate text-[10px] sm:text-xs">
+              Super Admin panel enables project supervisory assignment, subscription control, and engineer notifications.
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white rounded-lg font-semibold transition"
+            className="px-3 sm:px-4 py-1.5 bg-[#243b55] hover:bg-[#2d4a6a] text-white text-xs rounded-lg font-semibold transition shrink-0 cursor-pointer"
           >
             Close
           </button>
