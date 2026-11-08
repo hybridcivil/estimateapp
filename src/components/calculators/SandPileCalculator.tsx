@@ -156,8 +156,9 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
     setPileDiameter(10);
     setPileSpacing(48);
     setPileLength(20);
-    setCostPerFoot(30);
-    setCostPerCft(45);
+    setCostPerFoot(activeProject?.rates?.sandPileCostPerFt || 30);
+    setCostPerCft(activeProject?.rates?.sylhetSandRate || 110);
+    setSandType("Sylhet Sand (FM 2.5)");
     setCompactionPct(15);
     if (onClearLoadedEstimate) onClearLoadedEstimate();
   };
@@ -650,7 +651,7 @@ export const SandPileCalculator: React.FC<SandPileCalculatorProps> = ({
                       </div>
 
                       <div className="flex justify-between items-center text-xs">
-                        <span className="text-[#8ba3c1]">Sand Material Cost ({costPerCft} ৳/cft):</span>
+                        <span className="text-[#8ba3c1]">{sandType.includes("Sylhet") ? "Sylhet Sand Cost" : "Sand Cost"} ({costPerCft} ৳/cft):</span>
                         <span className="font-mono font-bold text-white">৳ {results.totalSandCost.toLocaleString("en-IN")}</span>
                       </div>
 

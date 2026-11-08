@@ -397,10 +397,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const sCft = s.multipliedSandCft || s.sandCft || s.sandVolume || s.sandVol || s.totalSand || s.totalSandCft || 0;
     totalSandCft += sCft;
 
-    // Sand split: 1/3 local + 2/3 sylhet for casting; 100% local for brick, tiles, and sand pile
+    // Sand split: 1/3 local + 2/3 sylhet for casting; 100% sylhet for sand pile (FM 2.5); 100% local for brick & tiles
     const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(e.type);
-    const localPortion = isCasting ? sCft * (1 / 3) : sCft;
-    const sylhetPortion = isCasting ? sCft * (2 / 3) : 0;
+    const isSandPile = e.type === "sand_pile";
+    const localPortion = isSandPile ? 0 : (isCasting ? sCft * (1 / 3) : sCft);
+    const sylhetPortion = isSandPile ? sCft : (isCasting ? sCft * (2 / 3) : 0);
     totalLocalSandCft += localPortion;
     totalSylhetSandCft += sylhetPortion;
 

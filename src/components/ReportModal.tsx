@@ -655,7 +655,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-center font-mono" style="color: #64748b;">2</td>
           <td class="font-bold">
             Sylhet Coarse Sand (সিলেট বালু FM 2.2-2.5)
-            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Coarse aggregate sand for structural RCC casting (2/3 sand volume)</div>
+            <div style="font-size: 8px; font-weight: normal; color: #64748b;">Coarse sand for structural RCC casting (2/3 sand volume) & Sand Compaction Piles (100% Sylhet Sand)</div>
           </td>
           <td class="text-center">cft</td>
           <td class="text-right font-mono">৳ ${defaultSylhetSandRate}</td>
@@ -821,9 +821,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <td class="text-right font-mono font-bold">${a.cementBags > 0 ? a.cementBags.toLocaleString() : "—"}</td>
           <td class="text-right font-mono">${
             a.sandCft > 0
-              ? a.sylhetSandCft > 0
+              ? a.sylhetSandCft > 0 && a.localSandCft > 0
                 ? `<span style="color:#007791;font-weight:700;">${Math.round(a.sylhetSandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Syl</span><br><span style="color:#1e293b;font-weight:600;">${Math.round(a.localSandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Loc</span>`
-                : `<span style="color:#1e293b;font-weight:600;">${Math.round(a.localSandCft || a.sandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Loc</span>`
+                : a.sylhetSandCft > 0
+                  ? `<span style="color:#007791;font-weight:700;">${Math.round(a.sylhetSandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Syl</span>`
+                  : `<span style="color:#1e293b;font-weight:600;">${Math.round(a.localSandCft || a.sandCft).toLocaleString()}</span><span style="font-size:7.5px;color:#64748b"> Loc</span>`
               : "—"
           }</td>
           <td class="text-right font-mono">${a.stoneAggCft > 0 ? Math.round(a.stoneAggCft).toLocaleString() : (a.picketAggCft > 0 ? `${Math.round(a.picketAggCft)} Khoa` : "—")}</td>
@@ -1050,7 +1052,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           <th style="width: 95px">Grid Spacing</th>
           <th style="width: 90px">Size (Dia × L)</th>
           <th class="text-center" style="width: 50px">Nos</th>
-          <th class="text-right" style="width: 75px">Sand Vol (cft)</th>
+          <th class="text-right" style="width: 85px">Sylhet Sand (cft)</th>
           <th class="text-right" style="width: 80px">Sand Cost</th>
           <th class="text-right" style="width: 80px">Rig Boring Cost</th>
           <th class="text-right" style="width: 90px">Total Cost (BDT)</th>
@@ -1714,7 +1716,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     // 4C. Sand Compaction Piles (SCP) Breakdown
     if (sandPiles.length > 0) {
       csv += `4C. SAND COMPACTION PILES (SCP) SCHEDULE\n`;
-      csv += `SL,Pile Mark,Land Area (sq.ft),Grid Spacing,Dimensions,Total Piles,Sand Vol (cft),Sand Cost (BDT),Boring Cost (BDT),Total Cost (BDT)\n`;
+      csv += `SL,Pile Mark,Land Area (sq.ft),Grid Spacing,Dimensions,Total Piles,Sylhet Sand (cft),Sand Cost (BDT),Boring Cost (BDT),Total Cost (BDT)\n`;
       sandPiles.forEach((sp) => {
         csv += `${sp.sl},"${sp.name}",${sp.landArea},"${sp.spacing}","${sp.dimensions}",${sp.numPiles},${sp.sandCft},${sp.sandCost},${sp.boringCost},${sp.cost}\n`;
       });
@@ -2308,7 +2310,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                       <td style={{ padding: cellPaddingCss }} className="font-semibold text-white print:text-slate-900">
                         Sylhet Coarse Sand (সিলেট বালু FM 2.2-2.5)
                         <div className="text-[9px] font-normal text-[#8ba3c1] print:text-slate-500">
-                          Coarse sand for structural RCC casting (2/3 sand volume)
+                          Coarse sand for structural RCC casting (2/3 sand volume) & Sand Compaction Piles (100% Sylhet Sand)
                         </div>
                       </td>
                       <td style={{ padding: cellPaddingCss }} className="text-center text-[#8ba3c1] print:text-slate-600 font-medium">cft</td>
@@ -2531,7 +2533,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         </td>
                         <td style={{ padding: cellPaddingCss }} className="text-right font-mono text-[#8ba3c1] print:text-slate-700">
                           {a.sandCft > 0 ? (
-                            a.sylhetSandCft > 0 ? (
+                            a.sylhetSandCft > 0 && a.localSandCft > 0 ? (
                               <div className="leading-tight">
                                 <div>
                                   <span className="font-bold text-[#00c2c7] print:text-teal-700">{Math.round(a.sylhetSandCft).toLocaleString()}</span>
@@ -2541,6 +2543,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                                   <span>{Math.round(a.localSandCft).toLocaleString()}</span>
                                   <span className="text-[8px] text-[#8ba3c1] print:text-slate-500 ml-0.5">Loc</span>
                                 </div>
+                              </div>
+                            ) : a.sylhetSandCft > 0 ? (
+                              <div>
+                                <span className="font-bold text-[#00c2c7] print:text-teal-700">{Math.round(a.sylhetSandCft).toLocaleString()}</span>
+                                <span className="text-[8px] text-[#8ba3c1] print:text-slate-500 ml-0.5">Syl</span>
                               </div>
                             ) : (
                               <div>
@@ -2839,7 +2846,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                         <th style={{ padding: cellPaddingCss, width: "95px" }}>Grid Spacing</th>
                         <th style={{ padding: cellPaddingCss, width: "90px" }}>Size (Dia × L)</th>
                         <th style={{ padding: cellPaddingCss, width: "50px" }} className="text-center">Nos</th>
-                        <th style={{ padding: cellPaddingCss, width: "75px" }} className="text-right">Sand Vol (cft)</th>
+                        <th style={{ padding: cellPaddingCss, width: "85px" }} className="text-right">Sylhet Sand (cft)</th>
                         <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Sand Cost</th>
                         <th style={{ padding: cellPaddingCss, width: "80px" }} className="text-right">Rig Boring</th>
                         <th style={{ padding: cellPaddingCss, width: "90px" }} className="text-right">Total Cost (BDT)</th>

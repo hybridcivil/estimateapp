@@ -420,10 +420,12 @@ export function computeFullProjectBreakdown(
 
     // Casting vs non-casting sand split:
     // Structural concrete casting elements use 1/3 Local Sand and 2/3 Sylhet Sand
-    // Masonry brickwork, plaster, tiles bedding, and sand piles use 100% Local Sand
+    // Sand Compaction Piles (SCP) use 100% Sylhet Coarse Sand (FM 2.2-2.5) for ground compaction
+    // Masonry brickwork, plaster, and tiles bedding use 100% Local Sand
     const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(est.type);
-    const localSandPortion = isCasting ? sCft * (1 / 3) : sCft;
-    const sylhetSandPortion = isCasting ? sCft * (2 / 3) : 0;
+    const isSandPile = est.type === "sand_pile";
+    const localSandPortion = isSandPile ? 0 : (isCasting ? sCft * (1 / 3) : sCft);
+    const sylhetSandPortion = isSandPile ? sCft : (isCasting ? sCft * (2 / 3) : 0);
 
     // Accumulate to allocation map
     const allocKey = allocationMap[est.type] ? est.type : "other";
@@ -553,7 +555,7 @@ export function computeFullProjectBreakdown(
       const pDia = s.pileDiameter || d.pileDiameter || 10;
       const pSpacing = s.pileSpacing || d.pileSpacing || 48;
       const lArea = d.landArea || Math.round(pNos * Math.pow(pSpacing / 12, 2));
-      const sCost = s.totalSandCost || Math.round((s.sandCft || 0) * (d.costPerCft || defaultRates.sandRate || 45));
+      const sCost = s.totalSandCost || Math.round((s.sandCft || 0) * (d.costPerCft || defaultRates.sylhetSandRate || defaultRates.sandRate || 110));
       const boringCost = s.totalPileCost || Math.round(pNos * pLen * (d.costPerFoot || 30));
       totalBoringCost += boringCost;
 
@@ -1192,13 +1194,15 @@ export function extractItemMaterials(
     : (s.cementCost !== undefined ? Math.round(s.cementCost) : Math.round(cementBags * cementRate));
 
   // Sand (cft): Casting elements use 1/3 Local Sand and 2/3 Sylhet Sand.
-  // Brickwork, plaster, tiles bedding, and sand piles use 100% Local Sand.
+  // Sand Compaction Piles (SCP) use 100% Sylhet Sand (FM 2.5).
+  // Brickwork, plaster, and tiles bedding use 100% Local Sand.
   const isCasting = ["beam", "column", "footing", "slab", "stair", "situ_pile"].includes(est.type);
+  const isSandPile = est.type === "sand_pile";
   const sandCft = Number(
     (s.multipliedSandCft || s.sandVolume || s.sandVol || s.sandCft || s.totalSand || s.totalSandCft || s.totalVolume || 0).toFixed(1)
   );
-  const localSandCft = Number((isCasting ? sandCft * (1 / 3) : sandCft).toFixed(1));
-  const sylhetSandCft = Number((isCasting ? sandCft * (2 / 3) : 0).toFixed(1));
+  const localSandCft = Number((isSandPile ? 0 : (isCasting ? sandCft * (1 / 3) : sandCft)).toFixed(1));
+  const sylhetSandCft = Number((isSandPile ? sandCft : (isCasting ? sandCft * (2 / 3) : 0)).toFixed(1));
   const localSandCost = Math.round(localSandCft * localSandRate);
   const sylhetSandCost = Math.round(sylhetSandCft * sylhetSandRate);
   const sandCost = localSandCost + sylhetSandCost;
@@ -1345,7 +1349,7 @@ export function extractItemMaterials(
   } else if (est.type === "sand_pile") {
     specs.push(`${pilesCount} Sand Compaction Piles (Foundation 1x), ${pileDiameterIn}" dia, ${pileLengthFt}ft depth`);
     specs.push(`Total Compaction: ${boringRft} rft`);
-    specs.push(`Sand Volume: ${sandCft} cft (${Math.ceil(sandCft / 500)} Truckloads)`);
+    specs.push(`Sylhet Sand Volume (FM 2.5): ${sandCft} cft (${Math.ceil(sandCft / 500)} Truckloads)`);
   } else if (est.type === "slab") {
     itemCount = Array.isArray(d.slabs) ? d.slabs.reduce((sum: number, sl: any) => sum + (sl.nos || 1), 0) * mult : mult;
     mixRatio = d.slabs?.[0]?.mixRatio || "1:1.5:3";
