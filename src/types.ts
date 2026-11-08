@@ -61,6 +61,39 @@ export interface GlobalMaterialRates {
 
 export type UserRole = "admin" | "editor" | "viewer" | "engineer";
 
+export type SubscriptionPlan = "free" | "trial" | "pro" | "enterprise";
+export type SubscriptionStatus = "active" | "expired" | "suspended" | "pending";
+
+export interface UserSubscription {
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  validUntil?: string; // ISO date string (e.g. 2026-12-31) or undefined for lifetime
+  maxProjects?: number; // e.g. Free: 3, Pro: 50, Enterprise: 999
+  features?: string[]; // e.g. ["estimates", "vouchers", "pdf_export", "all_calculators", "cloud_backup"]
+  billingNotes?: string; // Internal admin note (e.g. "bKash TrxID #88291, 1 Year Plan")
+  updatedAt?: string;
+  updatedBy?: string; // Admin email
+}
+
+export type NotificationType = "subscription" | "notice" | "thanks" | "guide" | "general";
+export type NotificationPriority = "normal" | "high" | "urgent";
+
+export interface AppNotification {
+  id: string;
+  recipientUid: string; // "all" for broadcast, or specific engineer UID / email key
+  recipientEmail?: string | null;
+  recipientName?: string | null;
+  type: NotificationType;
+  title: string;
+  message: string;
+  actionUrl?: string; // e.g. "subscription", "voucher", "estimates", "rate_list"
+  actionLabel?: string;
+  priority: NotificationPriority;
+  readBy: string[]; // List of user UIDs who marked read
+  createdAt: string;
+  createdBy: string; // Admin email / name
+}
+
 export interface AppUser {
   uid: string;
   email: string | null;
@@ -69,8 +102,10 @@ export interface AppUser {
   role: UserRole;
   authProvider?: "google" | "email_password";
   password?: string;
+  phone?: string;
   createdAt?: string;
   lastLoginAt?: string;
+  subscription?: UserSubscription;
 }
 
 export interface Project {

@@ -13,8 +13,9 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "projects.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
 
-import { Project, ProjectEstimateItem, AppUser } from "./src/types";
+import { Project, ProjectEstimateItem, AppUser, AppNotification, UserSubscription } from "./src/types";
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -25,6 +26,9 @@ function ensureDataFile() {
   }
   if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2), "utf-8");
+  }
+  if (!fs.existsSync(NOTIFICATIONS_FILE)) {
+    fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify([], null, 2), "utf-8");
   }
 }
 
@@ -42,6 +46,22 @@ function readUsers(): AppUser[] {
 function writeUsers(users: AppUser[]) {
   ensureDataFile();
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+}
+
+function readNotifications(): AppNotification[] {
+  ensureDataFile();
+  try {
+    const raw = fs.readFileSync(NOTIFICATIONS_FILE, "utf-8");
+    const list: AppNotification[] = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeNotifications(notifications: AppNotification[]) {
+  ensureDataFile();
+  fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(notifications, null, 2), "utf-8");
 }
 
 function readProjects(): Project[] {
@@ -245,6 +265,169 @@ app.patch("/api/users/:uid/role", (req, res) => {
       return;
     }
     res.status(404).json({ error: "User not found" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user subscription (Plan, Status, ValidUntil, MaxProjects, Features, BillingNotes)
+app.patch("/api/users/:uid/subscription", (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { plan, status, validUntil, maxProjects, features, billingNotes, updatedBy } = req.body;
+    const storedUsers = readUsers();
+    const idx = storedUsers.findIndex(
+      (u) => u.uid === uid || (u.email && u.email.toLowerCase() === uid.toLowerCase())
+    );
+
+    if (idx !== -1) {
+      const existingSub: UserSubscription = storedUsers[idx].subscription || {
+        plan: "pro",
+        status: "active",
+        validUntil: undefined,
+        maxProjects: 50,
+        features: ["estimates", "vouchers", "pdf_export", "all_calculators", "cloud_backup"],
+      };
+
+      const updatedSub: UserSubscription = {
+        ...existingSub,
+        ...(plan ? { plan } : {}),
+        ...(status ? { status } : {}),
+        ...(validUntil !== undefined ? { validUntil } : {}),
+        ...(maxProjects !== undefined ? { maxProjects: Number(maxProjects) } : {}),
+        ...(Array.isArray(features) ? { features } : {}),
+        ...(billingNotes !== undefined ? { billingNotes } : {}),
+        updatedAt: new Date().toISOString(),
+        updatedBy: updatedBy || "Admin",
+      };
+
+      storedUsers[idx].subscription = updatedSub;
+      storedUsers[idx].lastLoginAt = new Date().toISOString();
+      writeUsers(storedUsers);
+      res.json({ success: true, user: storedUsers[idx] });
+      return;
+    }
+
+    res.status(404).json({ error: "User not found" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifications: Get list of notifications (filtered for user or admin)
+app.get("/api/notifications", (req, res) => {
+  try {
+    const uid = req.query.uid as string | undefined;
+    const email = (req.query.email as string | undefined)?.trim().toLowerCase();
+    const isAdminQuery = req.query.admin === "true";
+
+    const allNotices = readNotifications();
+    allNotices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (isAdminQuery) {
+      res.json(allNotices);
+      return;
+    }
+
+    if (!uid && !email) {
+      // General broadcast notices
+      const publicNotices = allNotices.filter((n) => n.recipientUid === "all");
+      res.json(publicNotices);
+      return;
+    }
+
+    // Filter notices targeted to this user or broadcast to all
+    const userNotices = allNotices.filter((n) => {
+      if (n.recipientUid === "all") return true;
+      if (uid && n.recipientUid === uid) return true;
+      if (email && n.recipientEmail && n.recipientEmail.trim().toLowerCase() === email) return true;
+      return false;
+    });
+
+    res.json(userNotices);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifications: Admin creates and sends notification
+app.post("/api/notifications", (req, res) => {
+  try {
+    const { recipientUid, recipientEmail, recipientName, type, title, message, actionUrl, actionLabel, priority, createdBy } = req.body;
+    if (!title || !message) {
+      res.status(400).json({ error: "Title and message are required." });
+      return;
+    }
+
+    const newNotice: AppNotification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      recipientUid: recipientUid || "all",
+      recipientEmail: recipientEmail || null,
+      recipientName: recipientName || null,
+      type: type || "notice",
+      title: title.trim(),
+      message: message.trim(),
+      actionUrl: actionUrl || undefined,
+      actionLabel: actionLabel || undefined,
+      priority: priority || "normal",
+      readBy: [],
+      createdAt: new Date().toISOString(),
+      createdBy: createdBy || "Admin",
+    };
+
+    const allNotices = readNotifications();
+    allNotices.unshift(newNotice);
+    writeNotifications(allNotices);
+
+    res.status(201).json({ success: true, notification: newNotice });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifications: Mark notification as read by user UID
+app.patch("/api/notifications/:id/read", (req, res) => {
+  try {
+    const { id } = req.params;
+    const { uid } = req.body;
+    if (!uid) {
+      res.status(400).json({ error: "User UID is required." });
+      return;
+    }
+
+    const allNotices = readNotifications();
+    const idx = allNotices.findIndex((n) => n.id === id);
+    if (idx !== -1) {
+      if (!Array.isArray(allNotices[idx].readBy)) {
+        allNotices[idx].readBy = [];
+      }
+      if (!allNotices[idx].readBy.includes(uid)) {
+        allNotices[idx].readBy.push(uid);
+        writeNotifications(allNotices);
+      }
+      res.json({ success: true, notification: allNotices[idx] });
+      return;
+    }
+
+    res.status(404).json({ error: "Notification not found" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notifications: Admin deletes a notification
+app.delete("/api/notifications/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    let allNotices = readNotifications();
+    const beforeLen = allNotices.length;
+    allNotices = allNotices.filter((n) => n.id !== id);
+    if (allNotices.length !== beforeLen) {
+      writeNotifications(allNotices);
+      res.json({ success: true });
+      return;
+    }
+    res.status(404).json({ error: "Notification not found" });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -16,6 +16,8 @@ import {
   ChevronDown,
   Eye,
   Receipt,
+  Bell,
+  CreditCard,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -33,6 +35,8 @@ interface HeaderProps {
   onOpenAuthModal?: () => void;
   onOpenServiceVoucher?: () => void;
   voucherCount?: number;
+  onOpenNotifications?: () => void;
+  unreadNotificationCount?: number;
   viewMode: "auto" | "web" | "app";
   onSetViewMode: (mode: "auto" | "web" | "app") => void;
 }
@@ -50,6 +54,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuthModal,
   onOpenServiceVoucher,
   voucherCount,
+  onOpenNotifications,
+  unreadNotificationCount = 0,
   viewMode,
   onSetViewMode,
 }) => {
@@ -324,12 +330,29 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
+          {/* Notifications Center Bell Icon */}
+          {onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1.5 sm:px-2.5 sm:py-1.5 bg-[#1a2b42] hover:bg-[#243b55] text-amber-400 border border-[#2d4a6a] hover:border-amber-400/50 rounded-lg font-bold text-[11px] transition active:scale-95 shadow-sm cursor-pointer flex items-center gap-1.5"
+              title="নোটিফিকেশন ও নোটিশ সেন্টার (Notifications & Announcements)"
+            >
+              <Bell className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Notice</span>
+              {unreadNotificationCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-rose-500 text-white font-black animate-pulse">
+                  {unreadNotificationCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Admin Control Center Button (Only visible to Admin) */}
           {isAdmin && onOpenAdminPanel && (
             <button
               onClick={onOpenAdminPanel}
               className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition active:scale-95 shadow-sm cursor-pointer"
-              title="Open System Admin Control Center"
+              title="Open System Admin Control Center (সাবস্ক্রিপশন ও নোটিফিকেশন কন্ট্রোল)"
             >
               <Shield className="w-3.5 h-3.5" />
               <span className="hidden lg:inline">Admin Control</span>
@@ -402,7 +425,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="text-[10px] text-[#8ba3c1] font-mono truncate">
                           {currentUser?.email || appUser?.email}
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-1 flex flex-wrap gap-1">
                           {isAdmin ? (
                             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40">
                               <Shield className="w-2.5 h-2.5" />
@@ -419,9 +442,70 @@ export const Header: React.FC<HeaderProps> = ({
                               Editor Workspace
                             </span>
                           )}
+
+                          {/* Subscription Status Badge */}
+                          {appUser?.subscription && (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase font-mono ${
+                                appUser.subscription.status === "active"
+                                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40"
+                                  : appUser.subscription.status === "suspended"
+                                  ? "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                                  : "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                              }`}
+                              title={
+                                appUser.subscription.validUntil
+                                  ? `Valid until: ${new Date(appUser.subscription.validUntil).toLocaleDateString()}`
+                                  : "Lifetime access"
+                              }
+                            >
+                              <CreditCard className="w-2.5 h-2.5" />
+                              <span>{appUser.subscription.plan} Plan</span>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
+
+                    {/* Subscription Details in Dropdown */}
+                    {appUser?.subscription && (
+                      <div className="bg-[#0e1624] p-2 rounded-lg border border-[#24374e] text-[10px] space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#8ba3c1]">Subscription:</span>
+                          <span className="font-bold text-white capitalize">{appUser.subscription.plan}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[#8ba3c1]">Status:</span>
+                          <span
+                            className={`font-bold capitalize ${
+                              appUser.subscription.status === "active"
+                                ? "text-emerald-400"
+                                : "text-amber-400"
+                            }`}
+                          >
+                            {appUser.subscription.status}
+                          </span>
+                        </div>
+                        {appUser.subscription.validUntil && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#8ba3c1]">Expiry:</span>
+                            <span className="font-mono text-slate-300">
+                              {new Date(appUser.subscription.validUntil).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
+                        {typeof appUser.subscription.maxProjects === "number" && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#8ba3c1]">Max Projects:</span>
+                            <span className="font-mono text-[#00c2c7]">
+                              {appUser.subscription.maxProjects >= 999
+                                ? "Unlimited"
+                                : appUser.subscription.maxProjects}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Actions inside dropdown */}
                     <div className="space-y-1">

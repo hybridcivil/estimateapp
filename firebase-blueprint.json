@@ -296,6 +296,77 @@
         }
       },
       "required": ["id", "voucherNo", "date", "clientName", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System notices, subscription alerts, guides, and thank-you messages sent to engineers",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique notification identifier",
+          "maxLength": 128
+        },
+        "recipientUid": {
+          "type": "string",
+          "description": "Target engineer UID or 'all' for broadcast",
+          "maxLength": 128
+        },
+        "recipientEmail": {
+          "type": "string",
+          "description": "Target engineer email address",
+          "maxLength": 200
+        },
+        "recipientName": {
+          "type": "string",
+          "description": "Target engineer display name",
+          "maxLength": 200
+        },
+        "type": {
+          "type": "string",
+          "description": "Notification category",
+          "enum": ["subscription", "notice", "thanks", "guide", "general"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Notification title or subject",
+          "maxLength": 200
+        },
+        "message": {
+          "type": "string",
+          "description": "Notification body content in Bengali or English",
+          "maxLength": 5000
+        },
+        "actionUrl": {
+          "type": "string",
+          "description": "Optional button action link or hash route",
+          "maxLength": 500
+        },
+        "actionLabel": {
+          "type": "string",
+          "description": "Optional action button text",
+          "maxLength": 100
+        },
+        "priority": {
+          "type": "string",
+          "description": "Urgency priority level",
+          "enum": ["low", "normal", "high", "urgent"]
+        },
+        "readBy": {
+          "type": "array",
+          "description": "List of user UIDs who have marked this notification as read"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Admin email who created the notification",
+          "maxLength": 200
+        }
+      },
+      "required": ["id", "recipientUid", "type", "title", "message", "createdAt"]
     }
   },
   "firestore": {
@@ -305,7 +376,7 @@
     },
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profile records containing account info and roles"
+      "description": "User profile records containing account info, subscription status and roles"
     },
     "/admins/{adminId}": {
       "schema": "Admin",
@@ -314,6 +385,10 @@
     "/service_vouchers/{voucherId}": {
       "schema": "ServiceVoucher",
       "description": "Collection of engineering consultancy service vouchers and billing invoices strictly isolated and confidential per user"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of system notices, subscription updates, guides and announcements"
     }
   }
 }

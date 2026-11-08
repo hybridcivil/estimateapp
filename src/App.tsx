@@ -12,7 +12,11 @@ import {
   fetchServiceVouchers,
   saveServiceVoucher,
   deleteServiceVoucher,
+  fetchNotifications,
+  markNotificationRead,
+  deleteNotification,
 } from "./services/api";
+import { AppNotification } from "./types";
 
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
@@ -21,6 +25,7 @@ import { NewProjectModal } from "./components/NewProjectModal";
 import { ReportModal } from "./components/ReportModal";
 import { SplashScreen } from "./components/SplashScreen";
 import { ServiceVoucherModal } from "./components/ServiceVoucherModal";
+import { NotificationCenterModal } from "./components/NotificationCenterModal";
 
 import { BeamCalculator } from "./components/calculators/BeamCalculator";
 import { ColumnCalculator } from "./components/calculators/ColumnCalculator";
@@ -85,6 +90,54 @@ function MainAppContent() {
   // Service Voucher & Business Invoicing State
   const [isServiceVoucherModalOpen, setIsServiceVoucherModalOpen] = useState(false);
   const [serviceVouchers, setServiceVouchers] = useState<ServiceVoucher[]>([]);
+
+  // Notifications & Announcements State
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  const loadNotifications = useCallback(async () => {
+    const uid = currentUser?.uid || appUser?.uid;
+    const email = currentUser?.email || appUser?.email;
+    try {
+      const list = await fetchNotifications(uid, email, isAdmin);
+      setNotifications(list);
+    } catch (err) {
+      console.warn("Failed to load notifications", err);
+    }
+  }, [currentUser?.uid, appUser?.uid, currentUser?.email, appUser?.email, isAdmin]);
+
+  const handleMarkNotificationRead = async (id: string) => {
+    const uid = currentUser?.uid || appUser?.uid;
+    if (!uid) return;
+    await markNotificationRead(id, uid);
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === id ? { ...n, readBy: [...(n.readBy || []), uid] } : n
+      )
+    );
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    const uid = currentUser?.uid || appUser?.uid;
+    if (!uid) return;
+    const unread = notifications.filter((n) => !(n.readBy && n.readBy.includes(uid)));
+    for (const notif of unread) {
+      await markNotificationRead(notif.id, uid);
+    }
+    setNotifications((prev) =>
+      prev.map((n) => ({
+        ...n,
+        readBy: n.readBy?.includes(uid) ? n.readBy : [...(n.readBy || []), uid],
+      }))
+    );
+    showToast("সব নোটিফিকেশন পড়া হিসেবে চিহ্নিত হয়েছে", "info");
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    await deleteNotification(id);
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    showToast("নোটিশ মুছে ফেলা হয়েছে", "info");
+  };
 
   const loadServiceVouchers = useCallback(async () => {
     const userToUse = appUser || (currentUser ? { uid: currentUser.uid, email: currentUser.email || "" } : null);
@@ -206,15 +259,16 @@ function MainAppContent() {
     }
   }, [appUser, currentUser, isAdmin]);
 
-  // Trigger project loading when entering loading_workspace or when user ID/email changes
+  // Trigger project, vouchers, and notifications loading when user ID/email changes
   useEffect(() => {
     setProjects([]);
     setActiveProject(null);
     if (appUser || currentUser) {
       loadProjects();
       loadServiceVouchers();
+      loadNotifications();
     }
-  }, [loadProjects, loadServiceVouchers, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
+  }, [loadProjects, loadServiceVouchers, loadNotifications, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
 
   // Project management handlers
   const handleCreateProject = async (data: {
@@ -564,6 +618,17 @@ function MainAppContent() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenServiceVoucher={() => setIsServiceVoucherModalOpen(true)}
         voucherCount={serviceVouchers.length}
+        onOpenNotifications={() => setIsNotificationCenterOpen(true)}
+        unreadNotificationCount={
+          notifications.filter(
+            (n) =>
+              !(
+                n.readBy &&
+                (currentUser?.uid || appUser?.uid) &&
+                n.readBy.includes(currentUser?.uid || appUser?.uid || "")
+              )
+          ).length
+        }
         viewMode={viewMode}
         onSetViewMode={handleSetViewMode}
       />
@@ -790,6 +855,18 @@ function MainAppContent() {
         onDeleteVoucher={handleDeleteServiceVoucher}
         currentUserEmail={currentUser?.email || appUser?.email || undefined}
         currentUserId={currentUser?.uid || appUser?.uid || undefined}
+      />
+
+      {/* Engineer Notification Center Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        notifications={notifications}
+        currentUserId={currentUser?.uid || appUser?.uid || undefined}
+        onMarkAsRead={handleMarkNotificationRead}
+        onMarkAllAsRead={handleMarkAllNotificationsRead}
+        onDeleteNotification={handleDeleteNotification}
+        isAdmin={isAdmin}
       />
 
 

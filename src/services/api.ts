@@ -1,4 +1,4 @@
-import { Project, ProjectEstimateItem, AppUser, UserRole, ServiceVoucher } from "../types";
+import { Project, ProjectEstimateItem, AppUser, UserRole, ServiceVoucher, UserSubscription, AppNotification } from "../types";
 import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 import {
   db,
@@ -625,6 +625,16 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
       existing?.authProvider ||
       (u.photoURL ? "google" : "email_password");
 
+    const defaultSub: UserSubscription = {
+      plan: isBootstrapAdmin ? "enterprise" : "pro",
+      status: "active",
+      validUntil: undefined,
+      maxProjects: isBootstrapAdmin ? 999 : 50,
+      features: ["estimates", "vouchers", "pdf_export", "all_calculators", "cloud_backup"],
+    };
+
+    const subscription: UserSubscription = u.subscription || existing?.subscription || defaultSub;
+
     userMap.set(key, {
       uid: existing?.uid || uid || key,
       email: existing?.email || email || null,
@@ -635,6 +645,7 @@ export async function fetchAllUsersForAdmin(): Promise<AppUser[]> {
       password: u.password || existing?.password,
       createdAt: existing?.createdAt || u.createdAt || new Date().toISOString(),
       lastLoginAt: u.lastLoginAt || existing?.lastLoginAt || new Date().toISOString(),
+      subscription,
     });
   };
 
@@ -1631,4 +1642,338 @@ export async function deleteServiceVoucher(voucherId: string, user: VoucherUserC
   } catch (err) {
     console.warn("Firestore deleteServiceVoucher fallback to local only:", err);
   }
+}
+
+/* ========================================================================== */
+/* SUBSCRIPTION MANAGEMENT FOR REGISTERED ENGINEERS                           */
+/* ========================================================================== */
+
+/**
+ * Admin updates engineer's subscription plan, status, expiry, limits, and notes.
+ * Synchronizes to Express backend, Firestore, and local storage.
+ */
+export async function updateUserSubscription(
+  userKeyOrUid: string,
+  subscription: Partial<UserSubscription>,
+  userEmail?: string | null,
+  adminEmail?: string | null
+): Promise<{ success: boolean; user?: AppUser; error?: string }> {
+  try {
+    const payload = {
+      ...subscription,
+      updatedAt: new Date().toISOString(),
+      updatedBy: adminEmail || "Admin",
+    };
+
+    // 1. Update Express backend
+    try {
+      await fetch(`/api/users/${encodeURIComponent(userKeyOrUid)}/subscription`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.warn("Backend user subscription update notice:", err);
+    }
+
+    // 2. Update Firestore users collection
+    try {
+      if (userKeyOrUid) {
+        const userDocRef = doc(db, "users", userKeyOrUid);
+        await setDoc(userDocRef, { subscription: payload, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+      if (userEmail) {
+        const cleanEmail = userEmail.trim().toLowerCase();
+        const emailDocRef = doc(db, "users", "usr_" + cleanEmail.replace(/[^a-z0-9]/g, "_"));
+        await setDoc(emailDocRef, { subscription: payload, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    } catch (err) {
+      console.warn("Firestore user subscription update notice:", err);
+    }
+
+    // 3. Update local storage registry
+    try {
+      const localUsers = getLocalRegisteredUsers();
+      let updated = false;
+      const updatedList = localUsers.map((u) => {
+        const matches =
+          (userKeyOrUid && u.uid === userKeyOrUid) ||
+          (userEmail && u.email && u.email.toLowerCase() === userEmail.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === userKeyOrUid.toLowerCase());
+        if (matches) {
+          updated = true;
+          const mergedSub: UserSubscription = {
+            ...(u.subscription || { plan: "pro", status: "active", maxProjects: 50 }),
+            ...payload,
+          };
+          return { ...u, subscription: mergedSub };
+        }
+        return u;
+      });
+      if (updated) {
+        localStorage.setItem("ashraf_registered_users", JSON.stringify(updatedList));
+      }
+
+      // Check current active session if matching
+      const currentSessionRaw = localStorage.getItem("ashraf_auth_session");
+      if (currentSessionRaw) {
+        const sessionUser = JSON.parse(currentSessionRaw);
+        if (
+          (userKeyOrUid && sessionUser.uid === userKeyOrUid) ||
+          (userEmail && sessionUser.email && sessionUser.email.toLowerCase() === userEmail.toLowerCase())
+        ) {
+          sessionUser.subscription = {
+            ...(sessionUser.subscription || { plan: "pro", status: "active", maxProjects: 50 }),
+            ...payload,
+          };
+          localStorage.setItem("ashraf_auth_session", JSON.stringify(sessionUser));
+        }
+      }
+    } catch (err) {
+      console.warn("Local storage subscription update notice:", err);
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to update subscription" };
+  }
+}
+
+/* ========================================================================== */
+/* NOTIFICATIONS & ADMIN ANNOUNCEMENTS FOR REGISTERED ENGINEERS               */
+/* ========================================================================== */
+
+const LOCAL_NOTIFICATIONS_KEY = "ashraf_notifications_cache";
+
+function getLocalNotifications(): AppNotification[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_NOTIFICATIONS_KEY);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list;
+    }
+  } catch {}
+  return [];
+}
+
+function saveLocalNotifications(list: AppNotification[]) {
+  try {
+    localStorage.setItem(LOCAL_NOTIFICATIONS_KEY, JSON.stringify(list));
+  } catch {}
+}
+
+/**
+ * Fetch notifications:
+ * If isAdmin = true, returns all notifications.
+ * Otherwise returns notifications matching user's UID/email + broadcast "all".
+ */
+export async function fetchNotifications(
+  userOrAdmin?: { uid?: string; email?: string } | string | boolean,
+  emailArg?: string,
+  isAdminArg?: boolean
+): Promise<AppNotification[]> {
+  const notifMap = new Map<string, AppNotification>();
+
+  // 1. Load from local storage cache
+  getLocalNotifications().forEach((n) => notifMap.set(n.id, n));
+
+  let isAdmin = false;
+  let userUid: string | undefined;
+  let userEmail: string | undefined;
+
+  if (typeof userOrAdmin === "boolean") {
+    isAdmin = userOrAdmin;
+  } else if (typeof userOrAdmin === "string") {
+    userUid = userOrAdmin;
+    userEmail = emailArg ? emailArg.trim().toLowerCase() : undefined;
+    isAdmin = Boolean(isAdminArg);
+  } else if (userOrAdmin && typeof userOrAdmin === "object") {
+    userUid = userOrAdmin.uid;
+    userEmail = userOrAdmin.email ? userOrAdmin.email.trim().toLowerCase() : undefined;
+    isAdmin = Boolean(isAdminArg);
+  } else if (isAdminArg) {
+    isAdmin = true;
+  }
+
+  // 2. Fetch from Express backend
+  try {
+    let url = "/api/notifications";
+    if (isAdmin) {
+      url += "?admin=true";
+    } else if (userUid || userEmail) {
+      const params = new URLSearchParams();
+      if (userUid) params.set("uid", userUid);
+      if (userEmail) params.set("email", userEmail);
+      url += `?${params.toString()}`;
+    }
+    const res = await fetch(url);
+    if (res.ok) {
+      const serverNotices: AppNotification[] = await res.json();
+      if (Array.isArray(serverNotices)) {
+        serverNotices.forEach((n) => notifMap.set(n.id, n));
+      }
+    }
+  } catch (err) {
+    console.warn("Backend notifications fetch fallback:", err);
+  }
+
+  // 3. Fetch from Firestore notifications collection
+  try {
+    const colRef = collection(db, "notifications");
+    const snapshot = await getDocs(colRef);
+    snapshot.forEach((docSnap) => {
+      const n = docSnap.data() as AppNotification;
+      if (n && n.id) {
+        notifMap.set(n.id, n);
+      }
+    });
+  } catch (err) {
+    // Firestore might be in local dev or empty
+  }
+
+  const all = Array.from(notifMap.values());
+  saveLocalNotifications(all);
+
+  if (isAdmin) {
+    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return all;
+  }
+
+  // Filter for current engineer
+  const filtered = all.filter((n) => {
+    if (n.recipientUid === "all") return true;
+    if (userUid && n.recipientUid === userUid) return true;
+    if (userEmail && n.recipientEmail && n.recipientEmail.trim().toLowerCase() === userEmail) return true;
+    return false;
+  });
+
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return filtered;
+}
+
+/**
+ * Send notification as Admin to a specific engineer or broadcast to all.
+ */
+export async function sendNotification(
+  noticeData: Partial<AppNotification>
+): Promise<{ success: boolean; notification?: AppNotification; error?: string }> {
+  try {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const newNotice: AppNotification = {
+      id,
+      recipientUid: noticeData.recipientUid || "all",
+      recipientEmail: noticeData.recipientEmail,
+      recipientName: noticeData.recipientName,
+      type: noticeData.type || "subscription",
+      priority: noticeData.priority || "normal",
+      title: noticeData.title || "Notice",
+      message: noticeData.message || "",
+      actionUrl: noticeData.actionUrl,
+      actionLabel: noticeData.actionLabel,
+      readBy: noticeData.readBy || [],
+      createdAt: noticeData.createdAt || new Date().toISOString(),
+      createdBy: noticeData.createdBy || "Admin",
+    };
+
+    // 1. Save to Express backend
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newNotice),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body.notification) {
+          newNotice.id = body.notification.id;
+        }
+      }
+    } catch (err) {
+      console.warn("Backend notification send notice:", err);
+    }
+
+    // 2. Save to Firestore
+    try {
+      const docRef = doc(db, "notifications", newNotice.id);
+      await setDoc(docRef, newNotice, { merge: true });
+    } catch (err) {
+      console.warn("Firestore notification send notice:", err);
+    }
+
+    // 3. Cache locally
+    const local = getLocalNotifications();
+    local.unshift(newNotice);
+    saveLocalNotifications(local);
+
+    return { success: true, notification: newNotice };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to send notification" };
+  }
+}
+
+/**
+ * Mark notification as read by engineer UID.
+ */
+export async function markNotificationRead(notificationId: string, uid: string): Promise<void> {
+  if (!notificationId || !uid) return;
+
+  // 1. Local update
+  const local = getLocalNotifications();
+  const target = local.find((n) => n.id === notificationId);
+  if (target) {
+    if (!Array.isArray(target.readBy)) target.readBy = [];
+    if (!target.readBy.includes(uid)) {
+      target.readBy.push(uid);
+      saveLocalNotifications(local);
+    }
+  }
+
+  // 2. Express backend update
+  try {
+    await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid }),
+    });
+  } catch {}
+
+  // 3. Firestore update
+  try {
+    const docRef = doc(db, "notifications", notificationId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      const readBy: string[] = Array.isArray(data.readBy) ? [...data.readBy] : [];
+      if (!readBy.includes(uid)) {
+        readBy.push(uid);
+        await updateDoc(docRef, { readBy });
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Admin deletes / retracts a notification.
+ */
+export async function deleteNotification(notificationId: string): Promise<boolean> {
+  if (!notificationId) return false;
+
+  // 1. Local delete
+  const local = getLocalNotifications().filter((n) => n.id !== notificationId);
+  saveLocalNotifications(local);
+
+  // 2. Express delete
+  try {
+    await fetch(`/api/notifications/${encodeURIComponent(notificationId)}`, {
+      method: "DELETE",
+    });
+  } catch {}
+
+  // 3. Firestore delete
+  try {
+    const docRef = doc(db, "notifications", notificationId);
+    await deleteDoc(docRef);
+  } catch {}
+
+  return true;
 }
