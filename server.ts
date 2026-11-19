@@ -14,8 +14,9 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "projects.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
+const ACCOUNTING_FILE = path.join(DATA_DIR, "accounting.json");
 
-import { Project, ProjectEstimateItem, AppUser, AppNotification, UserSubscription } from "./src/types";
+import { Project, ProjectEstimateItem, AppUser, AppNotification, UserSubscription, AccountingWorkspace } from "./src/types";
 
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -30,6 +31,25 @@ function ensureDataFile() {
   if (!fs.existsSync(NOTIFICATIONS_FILE)) {
     fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify([], null, 2), "utf-8");
   }
+  if (!fs.existsSync(ACCOUNTING_FILE)) {
+    fs.writeFileSync(ACCOUNTING_FILE, JSON.stringify([], null, 2), "utf-8");
+  }
+}
+
+function readAccountingWorkspaces(): AccountingWorkspace[] {
+  ensureDataFile();
+  try {
+    const raw = fs.readFileSync(ACCOUNTING_FILE, "utf-8");
+    const list: AccountingWorkspace[] = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAccountingWorkspaces(list: AccountingWorkspace[]) {
+  ensureDataFile();
+  fs.writeFileSync(ACCOUNTING_FILE, JSON.stringify(list, null, 2), "utf-8");
 }
 
 function readUsers(): AppUser[] {
@@ -976,6 +996,66 @@ app.get("/api/projects/:id/report", (req, res) => {
       },
       estimates: project.estimates,
     });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- BUSINESS ACCOUNTING WORKSPACES (PER USER CONFIDENTIAL) ----------------
+
+app.get("/api/accounting", (req, res) => {
+  try {
+    const uid = String(req.query.uid || "").trim();
+    const email = String(req.query.email || "").trim().toLowerCase();
+    if (!uid && !email) {
+      res.status(400).json({ error: "uid or email query parameter is required" });
+      return;
+    }
+    const all = readAccountingWorkspaces();
+    const matched = all.find(
+      (w) =>
+        (uid && w.ownerId === uid) ||
+        (email && w.ownerEmail && w.ownerEmail.trim().toLowerCase() === email)
+    );
+    if (!matched) {
+      res.status(404).json({ error: "No accounting workspace found for user" });
+      return;
+    }
+    res.json(matched);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/accounting", (req, res) => {
+  try {
+    const body = req.body as AccountingWorkspace;
+    if (!body || !body.id || !body.ownerId) {
+      res.status(400).json({ error: "Invalid accounting workspace payload" });
+      return;
+    }
+    const all = readAccountingWorkspaces();
+    const cleanEmail = body.ownerEmail ? body.ownerEmail.trim().toLowerCase() : undefined;
+    const idx = all.findIndex(
+      (w) =>
+        w.id === body.id ||
+        w.ownerId === body.ownerId ||
+        (cleanEmail && w.ownerEmail && w.ownerEmail.trim().toLowerCase() === cleanEmail)
+    );
+
+    const record: AccountingWorkspace = {
+      ...body,
+      ownerEmail: cleanEmail,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (idx !== -1) {
+      all[idx] = record;
+    } else {
+      all.push(record);
+    }
+    writeAccountingWorkspaces(all);
+    res.json(record);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

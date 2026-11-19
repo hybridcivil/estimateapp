@@ -18,6 +18,7 @@ import {
   Receipt,
   Bell,
   CreditCard,
+  Wallet,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -35,6 +36,7 @@ interface HeaderProps {
   onOpenAuthModal?: () => void;
   onOpenServiceVoucher?: () => void;
   voucherCount?: number;
+  onOpenBusinessAccounts?: () => void;
   onOpenNotifications?: () => void;
   unreadNotificationCount?: number;
   viewMode: "auto" | "web" | "app";
@@ -54,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuthModal,
   onOpenServiceVoucher,
   voucherCount,
+  onOpenBusinessAccounts,
   onOpenNotifications,
   unreadNotificationCount = 0,
   viewMode,
@@ -327,6 +330,19 @@ export const Header: React.FC<HeaderProps> = ({
                   {voucherCount}
                 </span>
               )}
+            </button>
+          )}
+
+          {/* Complete Business Accounts */}
+          {onOpenBusinessAccounts && (
+            <button
+              onClick={onOpenBusinessAccounts}
+              className="flex items-center gap-1.5 bg-[#00c2c7]/15 hover:bg-[#00c2c7]/25 text-[#00c2c7] border border-[#00c2c7]/45 px-2.5 py-1.5 rounded-lg font-bold text-[11px] transition active:scale-95 shadow-sm cursor-pointer"
+              title="Open Private Business Accounts & Financial Ledger (ব্যবসায়িক হিসাব-নিকাশ)"
+            >
+              <Wallet className="w-3.5 h-3.5 text-[#00c2c7]" />
+              <span className="hidden sm:inline">Accounts</span>
+              <span className="sm:hidden">Acc</span>
             </button>
           )}
 

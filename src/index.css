@@ -61,6 +61,16 @@
   body:has(.voucher-modal-backdrop) #root > div > header,
   body:has(.voucher-modal-backdrop) #root > div > nav,
   body:has(.voucher-modal-backdrop) #root > div > aside,
+  body.accounts-print-active #root > div > main,
+  body.accounts-print-active #root > div > header,
+  body.accounts-print-active #root > div > nav,
+  body.accounts-print-active #root > div > aside,
+  body.accounts-print-active #root > div > footer,
+  body.accounts-print-active .toast,
+  body:has(.accounts-modal-backdrop) #root > div > main,
+  body:has(.accounts-modal-backdrop) #root > div > header,
+  body:has(.accounts-modal-backdrop) #root > div > nav,
+  body:has(.accounts-modal-backdrop) #root > div > aside,
   .print-hide,
   .no-print {
     display: none !important;
@@ -68,7 +78,8 @@
 
   /* Reset outer modal overlays for print */
   .report-modal-backdrop,
-  .voucher-modal-backdrop {
+  .voucher-modal-backdrop,
+  .accounts-modal-backdrop {
     position: static !important;
     inset: auto !important;
     display: block !important;
@@ -85,7 +96,8 @@
   }
 
   .report-modal-card,
-  .voucher-modal-card {
+  .voucher-modal-card,
+  .accounts-modal-card {
     position: static !important;
     display: block !important;
     background: #ffffff !important;
@@ -111,7 +123,14 @@
     display: none !important;
   }
 
-  #printable-service-voucher {
+  /* Only printable accounting report shows when Business Accounts is printing */
+  .accounts-modal-card .accounts-modal-header,
+  .accounts-modal-card .accounts-nav-bar {
+    display: none !important;
+  }
+
+  #printable-service-voucher,
+  #printable-accounting-report {
     display: block !important;
     background: #ffffff !important;
     color: #0f172a !important;
@@ -865,7 +884,9 @@ body.light-theme .bg-black\/85 {
 html.light .report-modal-card,
 body.light-theme .report-modal-card,
 html.light .voucher-modal-card,
-body.light-theme .voucher-modal-card {
+body.light-theme .voucher-modal-card,
+html.light .accounts-modal-card,
+body.light-theme .accounts-modal-card {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
@@ -873,7 +894,9 @@ body.light-theme .voucher-modal-card {
 }
 
 html.light .voucher-modal-header,
-body.light-theme .voucher-modal-header {
+body.light-theme .voucher-modal-header,
+html.light .accounts-modal-header,
+body.light-theme .accounts-modal-header {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;

@@ -43,6 +43,7 @@ import {
   Lock,
   UserCheck,
   UserPlus,
+  Wallet,
 } from "lucide-react";
 import { ConfirmModal } from "./common/ConfirmModal";
 import { EditEstimateModal } from "./EditEstimateModal";
@@ -71,6 +72,7 @@ interface DashboardProps {
   onAddDefaultBuildingList?: () => Promise<void>;
   onUpdateProject?: (id: string, data: any) => Promise<void>;
   onOpenServiceVoucher?: () => void;
+  onOpenBusinessAccounts?: () => void;
 }
 
 interface MaterialRateInputProps {
@@ -200,6 +202,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onAddDefaultBuildingList,
   onUpdateProject,
   onOpenServiceVoucher,
+  onOpenBusinessAccounts,
 }) => {
   const { isLight, toggleTheme } = useTheme();
   const { currentUser, appUser, isAdmin, isViewer, isEditor, userRole, signInWithGoogle, logout } = useAuth();
@@ -856,7 +859,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Your personal workspace is ready. You do not have any projects yet. Create your first engineering project to start calculating BOQ schedules, material breakdowns, and structural estimates.
             </p>
           </div>
-          <div className="pt-2">
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
             <button
               type="button"
               onClick={onOpenNewProjectModal}
@@ -865,6 +868,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Create Your First Project</span>
             </button>
+            {onOpenServiceVoucher && (
+              <button
+                type="button"
+                onClick={onOpenServiceVoucher}
+                className="inline-flex items-center gap-2 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-500/40 font-bold px-4 py-2.5 rounded-xl text-xs transition active:scale-95 cursor-pointer"
+              >
+                <Receipt className="w-4 h-4 text-emerald-400" />
+                <span>Service Voucher</span>
+              </button>
+            )}
+            {onOpenBusinessAccounts && (
+              <button
+                type="button"
+                onClick={onOpenBusinessAccounts}
+                className="inline-flex items-center gap-2 bg-[#1a2b42] hover:bg-[#243b55] text-[#00c2c7] border border-[#00c2c7]/45 font-bold px-4 py-2.5 rounded-xl text-xs transition active:scale-95 cursor-pointer"
+              >
+                <Wallet className="w-4 h-4 text-[#00c2c7]" />
+                <span>Business Accounts</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1028,6 +1051,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 >
                   <Receipt className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Service Voucher</span>
+                </button>
+              )}
+
+              {onOpenBusinessAccounts && (
+                <button
+                  type="button"
+                  onClick={onOpenBusinessAccounts}
+                  className="flex items-center gap-1.5 bg-[#00c2c7]/15 hover:bg-[#00c2c7]/25 text-[#00c2c7] border border-[#00c2c7]/45 px-3 py-1.5 rounded-lg text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm"
+                  title="Open Private Business Accounts & Financial Ledger (ব্যবসায়িক হিসাব-নিকাশ)"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-[#00c2c7]" />
+                  <span>Business Accounts</span>
                 </button>
               )}
 

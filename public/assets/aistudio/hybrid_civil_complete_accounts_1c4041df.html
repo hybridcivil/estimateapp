@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hybrid Civil — Complete Accounts</title>
+<style>
+:root{--nav:#142747;--blue:#315bea;--bg:#f3f6fb;--card:#fff;--ink:#182235;--muted:#69758a;--line:#e5eaf2;--green:#13865c;--red:#cf4545;--amber:#b7791f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:var(--nav);color:#fff;padding:17px max(16px,calc((100% - 1200px)/2));display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}header p{margin:3px 0 0;color:#c4d0e2;font-size:12px}
+main{max-width:1200px;margin:18px auto;padding:0 14px}
+nav{display:flex;gap:7px;overflow:auto;padding:5px 0 13px}
+nav button{white-space:nowrap;background:#e7ecf5;color:#33415b}nav button.active{background:var(--nav);color:#fff}
+button{border:0;border-radius:8px;padding:10px 13px;font:600 13px system-ui;cursor:pointer}
+.primary{background:var(--blue);color:white}.soft{background:#eaf0ff;color:#2547b8}.danger{background:#fff0f0;color:#b42323}.success{background:#e8f7ef;color:#087443}
+.grid{display:grid;gap:12px}.stats{grid-template-columns:repeat(4,1fr)}.cols{grid-template-columns:360px 1fr}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px;box-shadow:0 3px 12px #14274708}
+.stat small{color:var(--muted)}.value{font-size:23px;font-weight:750;margin-top:6px;overflow-wrap:anywhere}.green{color:var(--green)}.red{color:var(--red)}.muted{color:var(--muted)}
+h2{font-size:16px;margin:0 0 13px}h3{font-size:14px;margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #d8dfeb;border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+textarea{min-height:65px;resize:vertical}.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}.formbtn{width:100%;margin-top:13px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.toolbar>*{flex:1;min-width:115px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid var(--line);vertical-align:top}th{font-size:11px;color:var(--muted)}td:last-child,th:last-child{text-align:right}
+.pill{display:inline-block;padding:3px 7px;border-radius:20px;background:#eef2f8;font-size:11px}.hidden{display:none!important}.empty{text-align:center;padding:24px;color:var(--muted)}
+.panel{margin-top:12px}.actions{display:flex;gap:6px;justify-content:flex-end}.actions button{padding:6px 8px}.notice{background:#fff8e8;border:1px solid #f2dfb2;border-radius:9px;padding:10px;color:#76531a;font-size:12px;margin:12px 0}
+.kpi{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)}.kpi:last-child{border:0}
+footer{text-align:center;color:var(--muted);padding:20px;font-size:11px}
+@media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}.value{font-size:20px}}
+@media(max-width:480px){main{padding:0 9px}.card{padding:12px}.stats{gap:8px}header{padding:14px}.hide-sm{display:none}table{font-size:12px}th,td{padding:8px 4px}}
+@media print{header,nav,.noprint,form button,.actions{display:none!important}body{background:white}.card{box-shadow:none;break-inside:avoid}main{max-width:none}}
+</style>
+</head>
+<body>
+<header><div><h1>HYBRID CIVIL — ACCOUNTS</h1><p>Complete business accounting & project finance</p></div><div class="row" style="flex:0 0 auto"><button class="soft" onclick="print()">Print</button><button class="soft" onclick="backup()">Backup</button></div></header>
+<main>
+<nav id="nav">
+<button class="active" data-tab="dashboard">Dashboard</button><button data-tab="transactions">Transactions</button><button data-tab="parties">Clients & Suppliers</button><button data-tab="projects">Projects</button><button data-tab="accounts">Accounts</button><button data-tab="reports">Reports</button><button data-tab="settings">Backup & Settings</button>
+</nav>
+<section id="dashboard" class="tab">
+<div class="grid stats">
+<div class="card stat"><small>Total Assets / Available Balance</small><div class="value" id="totalBalance">৳0.00</div></div>
+<div class="card stat"><small>Total Income</small><div class="value green" id="totalIncome">৳0.00</div></div>
+<div class="card stat"><small>Total Expense</small><div class="value red" id="totalExpense">৳0.00</div></div>
+<div class="card stat"><small>Net Profit / Loss</small><div class="value" id="netProfit">৳0.00</div></div>
+</div>
+<div class="grid" style="grid-template-columns:repeat(2,1fr);margin-top:12px">
+<div class="card"><h2>Account Balances</h2><div id="dashAccounts"></div></div>
+<div class="card"><h2>Receivables & Payables</h2><div id="dashDues"></div></div>
+</div>
+<div class="card panel"><h2>Recent Transactions</h2><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Description</th><th>Account</th><th>Type</th><th>Amount</th></tr></thead><tbody id="recent"></tbody></table></div></div>
+</section>
+<section id="transactions" class="tab hidden">
+<div class="grid cols">
+<div class="card"><h2 id="txTitle">New Transaction</h2><form id="txForm"><input type="hidden" id="txId">
+<label>Transaction Type</label><select id="txType"><option value="income">Income</option><option value="expense">Expense</option><option value="transfer">Transfer between accounts</option><option value="opening">Opening Balance</option></select>
+<label>Date</label><input type="date" id="txDate" required>
+<label>Description / Particulars</label><input id="txDesc" required placeholder="e.g. Design fee received">
+<div class="row"><div><label>Amount (BDT)</label><input type="number" min="0.01" step="0.01" id="txAmount" required></div><div><label>Category</label><select id="txCategory"><option>Consultancy Fee</option><option>Client Payment</option><option>Advance Received</option><option>Material</option><option>Labour</option><option>Office Rent</option><option>Salary</option><option>Transport</option><option>Utility</option><option>Food</option><option>Other</option></select></div></div>
+<div class="row"><div><label>From / Paid Through</label><select id="txAccount"></select></div><div id="toWrap" class="hidden"><label>To Account</label><select id="txTo"></select></div></div>
+<div class="row"><div><label>Party (optional)</label><select id="txParty"></select></div><div><label>Project (optional)</label><select id="txProject"></select></div></div>
+<label>Reference / Note</label><input id="txNote" placeholder="Voucher, invoice or note">
+<button class="primary formbtn" id="txSave">Save Transaction</button><button type="button" class="soft formbtn hidden" id="txCancel" onclick="resetTx()">Cancel Edit</button>
+</form></div>
+<div class="card"><h2>Transaction Register</h2><div class="toolbar"><input id="txSearch" placeholder="Search"><select id="txFilter"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option><option value="transfer">Transfer</option><option value="opening">Opening</option></select><input type="month" id="txMonth"></div><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Details</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody id="txRows"></tbody></table></div><div id="txEmpty" class="empty">No transactions found.</div></div>
+</div></section>
+<section id="parties" class="tab hidden">
+<div class="grid cols">
+<div class="card"><h2 id="partyTitle">Add Client / Supplier</h2><form id="partyForm"><input type="hidden" id="partyId"><label>Party Type</label><select id="partyType"><option>Client</option><option>Supplier</option><option>Contractor</option><option>Other</option></select><label>Name</label><input id="partyName" required><div class="row"><div><label>Phone</label><input id="partyPhone"></div><div><label>Address</label><input id="partyAddress"></div></div><label>Opening Due (BDT)</label><input type="number" min="0" step=".01" id="partyOpening" value="0"><label>Opening Due Direction</label><select id="partyDirection"><option value="receivable">They owe us (Receivable)</option><option value="payable">We owe them (Payable)</option></select><button class="primary formbtn">Save Party</button><button type="button" class="soft formbtn hidden" id="partyCancel" onclick="resetParty()">Cancel Edit</button></form></div>
+<div class="card"><h2>Party Ledger</h2><div class="toolbar"><input id="partySearch" placeholder="Search party"><select id="partyFilter"><option value="all">All parties</option><option>Client</option><option>Supplier</option><option>Contractor</option><option>Other</option></select></div><div style="overflow:auto"><table><thead><tr><th>Name / Contact</th><th>Type</th><th>Balance</th><th></th></tr></thead><tbody id="partyRows"></tbody></table></div><div id="partyEmpty" class="empty">No parties added.</div></div>
+</div></section>
+<section id="projects" class="tab hidden">
+<div class="grid cols">
+<div class="card"><h2 id="projectTitle">Add Project</h2><form id="projectForm"><input type="hidden" id="projectId"><label>Project Name</label><input id="projectName" required placeholder="e.g. 5-storied residential building"><label>Client</label><select id="projectClient"></select><div class="row"><div><label>Agreed Amount (৳)</label><input type="number" min="0" step=".01" id="projectContract" value="0"></div><div><label>Status</label><select id="projectStatus"><option>Active</option><option>Completed</option><option>On Hold</option></select></div></div><label>Location / Notes</label><input id="projectNote"><button class="primary formbtn">Save Project</button><button type="button" class="soft formbtn hidden" id="projectCancel" onclick="resetProject()">Cancel Edit</button></form></div>
+<div class="card"><h2>Project Performance</h2><div style="overflow:auto"><table><thead><tr><th>Project</th><th>Received</th><th>Expense</th><th>Net</th><th></th></tr></thead><tbody id="projectRows"></tbody></table></div><div id="projectEmpty" class="empty">No projects added.</div></div>
+</div></section>
+<section id="accounts" class="tab hidden">
+<div class="grid cols">
+<div class="card"><h2 id="accountTitle">Add Account</h2><form id="accountForm"><input type="hidden" id="accountId"><label>Account Name</label><input id="accountName" required placeholder="e.g. Office Cash"><label>Account Type</label><select id="accountType"><option>Cash</option><option>Bank</option><option>Mobile Banking</option><option>Other</option></select><label>Opening Balance (৳)</label><input type="number" step=".01" id="accountOpening" value="0"><button class="primary formbtn">Save Account</button><button type="button" class="soft formbtn hidden" id="accountCancel" onclick="resetAccount()">Cancel Edit</button></form></div>
+<div class="card"><h2>Account Register</h2><div style="overflow:auto"><table><thead><tr><th>Account</th><th>Type</th><th>Opening</th><th>Current Balance</th><th></th></tr></thead><tbody id="accountRows"></tbody></table></div></div>
+</div><div class="notice">Transfers move money between accounts and do not count as income or expense. Opening balances are starting funds and are excluded from profit.</div>
+</section>
+<section id="reports" class="tab hidden">
+<div class="card"><h2>Financial Reports</h2><div class="toolbar"><input type="date" id="reportFrom"><input type="date" id="reportTo"><button class="primary" onclick="renderReport()">Generate</button><button class="soft" onclick="print()">Print Report</button></div><div class="grid stats"><div><small class="muted">Income</small><div class="value green" id="rIncome">৳0</div></div><div><small class="muted">Expense</small><div class="value red" id="rExpense">৳0</div></div><div><small class="muted">Net</small><div class="value" id="rNet">৳0</div></div><div><small class="muted">Transactions</small><div class="value" id="rCount">0</div></div></div><h3 style="margin-top:20px">Category Summary</h3><div id="categoryReport"></div></div>
+</section>
+<section id="settings" class="tab hidden">
+<div class="grid cols">
+<div class="card"><h2>Backup & Restore</h2><p class="muted">Export all accounting data as a JSON backup. Keep a copy somewhere safe.</p><button class="primary" onclick="backup()">Download Full Backup</button><label>Restore from JSON backup</label><input type="file" id="restoreFile" accept=".json,application/json"><button class="soft formbtn" onclick="$('restoreFile').click()">Choose Backup File</button><div class="notice">Restoring replaces the current data in this browser. Export a backup first.</div></div>
+<div class="card"><h2>Business Profile</h2><label>Business Name</label><input id="businessName" value="Hybrid Civil Engineering & Consultancy"><label>Address</label><input id="businessAddress" placeholder="Business address"><label>Phone</label><input id="businessPhone" placeholder="Phone number"><button class="primary formbtn" onclick="saveProfile()">Save Profile</button><button class="danger formbtn" onclick="clearAll()">Delete All Local Data</button></div>
+</div><div class="notice">This is a local single-browser accounting tool, not a cloud multi-user accounting server. Data stays on this device/browser unless you export a backup. Use regular backups.</div>
+</section>
+</main><footer>Hybrid Civil Accounts • BDT • Local browser storage</footer>
+<script>
+const $=id=>document.getElementById(id), today=()=>new Date().toISOString().slice(0,10);
+const defaults={accounts:[{id:1,name:'Cash',type:'Cash',opening:0},{id:2,name:'Bank',type:'Bank',opening:0},{id:3,name:'bKash',type:'Mobile Banking',opening:0},{id:4,name:'Nagad',type:'Mobile Banking',opening:0}],parties:[],projects:[],transactions:[],profile:{name:'Hybrid Civil Engineering & Consultancy',address:'',phone:''}};
+let db;try{db=JSON.parse(localStorage.getItem('hybrid_accounts_v1'))||structuredClone(defaults)}catch(e){db=JSON.parse(JSON.stringify(defaults))}
+function save(){localStorage.setItem('hybrid_accounts_v1',JSON.stringify(db));renderAll()}
+const fmt=n=>'৳'+Number(n||0).toLocaleString('en-BD',{minimumFractionDigits:2,maximumFractionDigits:2});
+const sum=(a,fn)=>a.reduce((s,x)=>s+fn(x),0);
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function acctBalance(id){let a=db.accounts.find(x=>x.id==id);if(!a)return 0;let n=Number(a.opening||0);db.transactions.forEach(t=>{if(t.type==='income'&&t.account==id)n+=t.amount;if(t.type==='expense'&&t.account==id)n-=t.amount;if(t.type==='transfer'){if(t.account==id)n-=t.amount;if(t.to==id)n+=t.amount}if(t.type==='opening'&&t.account==id)n+=t.amount});return n}
+function totals(arr=db.transactions){let i=sum(arr.filter(t=>t.type==='income'),t=>t.amount),e=sum(arr.filter(t=>t.type==='expense'),t=>t.amount);return {i,e,net:i-e}}
+function partyBalance(p){let n=(p.direction==='payable'?-1:1)*Number(p.opening||0);db.transactions.filter(t=>t.party==p.id).forEach(t=>{if(t.type==='income')n-=t.amount;if(t.type==='expense')n+=t.amount});return n}
+function projectTotals(p){let a=db.transactions.filter(t=>t.project==p.id),i=sum(a.filter(t=>t.type==='income'),t=>t.amount),e=sum(a.filter(t=>t.type==='expense'),t=>t.amount);return {i,e,net:i-e}}
+function fillSelect(id,items,placeholder){$(id).innerHTML=(placeholder?'<option value="">'+placeholder+'</option>':'')+items.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')}
+function refreshSelects(){fillSelect('txAccount',db.accounts);fillSelect('txTo',db.accounts);fillSelect('txParty',db.parties,'No party');fillSelect('txProject',db.projects,'No project');fillSelect('projectClient',db.parties.filter(p=>p.type==='Client'),'Select client')}
+$('txType').addEventListener('change',()=>{$('toWrap').classList.toggle('hidden',$('txType').value!=='transfer');$('txCategory').disabled=$('txType').value==='transfer'||$('txType').value==='opening'});
+$('txForm').addEventListener('submit',e=>{e.preventDefault();let id=Number($('txId').value),type=$('txType').value,amount=Number($('txAmount').value),account=Number($('txAccount').value),to=Number($('txTo').value);if(!account||amount<=0)return alert('Select account and enter a valid amount.');if(type==='transfer'&&(!to||to===account))return alert('Choose a different destination account.');let x={id:id||Date.now(),type,date:$('txDate').value,desc:$('txDesc').value.trim(),amount,category:$('txCategory').value,account,to,party:Number($('txParty').value)||null,project:Number($('txProject').value)||null,note:$('txNote').value};if(id)db.transactions=db.transactions.map(t=>t.id===id?x:t);else db.transactions.push(x);save();resetTx()});
+function resetTx(){$('txForm').reset();$('txId').value='';$('txDate').value=today();$('txTitle').textContent='New Transaction';$('txSave').textContent='Save Transaction';$('txCancel').classList.add('hidden');$('txType').dispatchEvent(new Event('change'))}
+function editTx(id){let x=db.transactions.find(t=>t.id===id);if(!x)return;$('txId').value=x.id;$('txType').value=x.type;$('txDate').value=x.date;$('txDesc').value=x.desc;$('txAmount').value=x.amount;$('txCategory').value=x.category;$('txAccount').value=x.account;$('txTo').value=x.to||'';$('txParty').value=x.party||'';$('txProject').value=x.project||'';$('txNote').value=x.note||'';$('txType').dispatchEvent(new Event('change'));$('txTitle').textContent='Edit Transaction';$('txSave').textContent='Update';$('txCancel').classList.remove('hidden')}
+function delTx(id){if(confirm('Delete this transaction?')){db.transactions=db.transactions.filter(t=>t.id!==id);save()}}
+$('partyForm').addEventListener('submit',e=>{e.preventDefault();let id=Number($('partyId').value),p={id:id||Date.now(),type:$('partyType').value,name:$('partyName').value.trim(),phone:$('partyPhone').value,address:$('partyAddress').value,opening:Number($('partyOpening').value)||0,direction:$('partyDirection').value};if(id)db.parties=db.parties.map(x=>x.id===id?p:x);else db.parties.push(p);save();resetParty()});
+function resetParty(){$('partyForm').reset();$('partyId').value='';$('partyOpening').value=0;$('partyTitle').textContent='Add Client / Supplier';$('partyCancel').classList.add('hidden')}
+function editParty(id){let p=db.parties.find(x=>x.id===id);$('partyId').value=p.id;$('partyType').value=p.type;$('partyName').value=p.name;$('partyPhone').value=p.phone;$('partyAddress').value=p.address;$('partyOpening').value=p.opening;$('partyDirection').value=p.direction;$('partyTitle').textContent='Edit Party';$('partyCancel').classList.remove('hidden')}
+function delParty(id){if(db.transactions.some(t=>t.party==id))return alert('This party has linked transactions. Keep the record to preserve ledger history.');if(confirm('Delete party?')){db.parties=db.parties.filter(p=>p.id!==id);save()}}
+$('projectForm').addEventListener('submit',e=>{e.preventDefault();let id=Number($('projectId').value),p={id:id||Date.now(),name:$('projectName').value.trim(),client:Number($('projectClient').value)||null,contract:Number($('projectContract').value)||0,status:$('projectStatus').value,note:$('projectNote').value};if(id)db.projects=db.projects.map(x=>x.id===id?p:x);else db.projects.push(p);save();resetProject()});
+function resetProject(){$('projectForm').reset();$('projectId').value='';$('projectContract').value=0;$('projectTitle').textContent='Add Project';$('projectCancel').classList.add('hidden')}
+function editProject(id){let p=db.projects.find(x=>x.id===id);$('projectId').value=p.id;$('projectName').value=p.name;$('projectClient').value=p.client||'';$('projectContract').value=p.contract;$('projectStatus').value=p.status;$('projectNote').value=p.note;$('projectTitle').textContent='Edit Project';$('projectCancel').classList.remove('hidden')}
+function delProject(id){if(db.transactions.some(t=>t.project==id))return alert('Project has linked transactions. Keep it to preserve reports.');if(confirm('Delete project?')){db.projects=db.projects.filter(p=>p.id!==id);save()}}
+$('accountForm').addEventListener('submit',e=>{e.preventDefault();let id=Number($('accountId').value),a={id:id||Date.now(),name:$('accountName').value.trim(),type:$('accountType').value,opening:Number($('accountOpening').value)||0};if(id)db.accounts=db.accounts.map(x=>x.id===id?a:x);else db.accounts.push(a);save();resetAccount()});
+function resetAccount(){$('accountForm').reset();$('accountId').value='';$('accountOpening').value=0;$('accountTitle').textContent='Add Account';$('accountCancel').classList.add('hidden')}
+function editAccount(id){let a=db.accounts.find(x=>x.id===id);$('accountId').value=a.id;$('accountName').value=a.name;$('accountType').value=a.type;$('accountOpening').value=a.opening;$('accountTitle').textContent='Edit Account';$('accountCancel').classList.remove('hidden')}
+function delAccount(id){if(db.accounts.length<=1)return alert('At least one account is required.');if(db.transactions.some(t=>t.account==id||t.to==id))return alert('Account has linked transactions. Keep it to preserve balances.');if(confirm('Delete account?')){db.accounts=db.accounts.filter(a=>a.id!==id);save()}}
+function renderAll(){refreshSelects();renderDash();renderTx();renderParties();renderProjects();renderAccounts();$('businessName').value=db.profile.name;$('businessAddress').value=db.profile.address;$('businessPhone').value=db.profile.phone}
+function renderDash(){let t=totals();$('totalIncome').textContent=fmt(t.i);$('totalExpense').textContent=fmt(t.e);$('netProfit').textContent=fmt(t.net);$('netProfit').className='value '+(t.net>=0?'green':'red');$('totalBalance').textContent=fmt(sum(db.accounts, a=>acctBalance(a.id)));$('dashAccounts').innerHTML=db.accounts.map(a=>`<div class="kpi"><span>${esc(a.name)}</span><b>${fmt(acctBalance(a.id))}</b></div>`).join('');let rec=sum(db.parties,p=>Math.max(0,partyBalance(p))),pay=sum(db.parties,p=>Math.max(0,-partyBalance(p)));$('dashDues').innerHTML=`<div class="kpi"><span>Receivable from parties</span><b class="green">${fmt(rec)}</b></div><div class="kpi"><span>Payable to parties</span><b class="red">${fmt(pay)}</b></div>`;$('recent').innerHTML=[...db.transactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(t=>`<tr><td>${t.date}</td><td>${esc(t.desc)}</td><td>${esc(db.accounts.find(a=>a.id==t.account)?.name||'')}</td><td>${t.type}</td><td>${fmt(t.amount)}</td></tr>`).join('')}
+function renderTx(){let q=$('txSearch').value.toLowerCase(),f=$('txFilter').value,m=$('txMonth').value;let a=[...db.transactions].filter(t=>(f==='all'||t.type===f)&&(!m||t.date.startsWith(m))&&(`${t.desc} ${t.category} ${t.note}`).toLowerCase().includes(q)).sort((x,y)=>y.date.localeCompare(x.date));$('txRows').innerHTML=a.map(t=>`<tr><td>${t.date}</td><td>${esc(t.desc)}<div class="muted">${esc(t.category)}${t.note?' • '+esc(t.note):''}</div></td><td><span class="pill">${t.type}</span></td><td>${fmt(t.amount)}</td><td><div class="actions"><button class="soft" onclick="editTx(${t.id})">Edit</button><button class="danger" onclick="delTx(${t.id})">×</button></div></td></tr>`).join('');$('txEmpty').classList.toggle('hidden',a.length>0)}
+function renderParties(){let q=$('partySearch').value.toLowerCase(),f=$('partyFilter').value,a=db.parties.filter(p=>(f==='all'||p.type===f)&&(`${p.name} ${p.phone} ${p.address}`).toLowerCase().includes(q));$('partyRows').innerHTML=a.map(p=>{let b=partyBalance(p);return `<tr><td><b>${esc(p.name)}</b><div class="muted">${esc(p.phone||'')} ${esc(p.address||'')}</div></td><td>${p.type}</td><td class="${b>=0?'green':'red'}">${fmt(Math.abs(b))}<div class="muted">${b>=0?'Receivable':'Payable'}</div></td><td><div class="actions"><button class="soft" onclick="editParty(${p.id})">Edit</button><button class="danger" onclick="delParty(${p.id})">×</button></div></td></tr>`}).join('');$('partyEmpty').classList.toggle('hidden',a.length>0)}
+function renderProjects(){$('projectRows').innerHTML=db.projects.map(p=>{let t=projectTotals(p);return `<tr><td><b>${esc(p.name)}</b><div class="muted">${esc(db.parties.find(x=>x.id===p.client)?.name||'')} • ${p.status}</div><div class="muted">Contract ${fmt(p.contract)}</div></td><td>${fmt(t.i)}</td><td>${fmt(t.e)}</td><td class="${t.net>=0?'green':'red'}">${fmt(t.net)}</td><td><div class="actions"><button class="soft" onclick="editProject(${p.id})">Edit</button><button class="danger" onclick="delProject(${p.id})">×</button></div></td></tr>`}).join('');$('projectEmpty').classList.toggle('hidden',db.projects.length>0)}
+function renderAccounts(){$('accountRows').innerHTML=db.accounts.map(a=>`<tr><td><b>${esc(a.name)}</b></td><td>${a.type}</td><td>${fmt(a.opening)}</td><td><b>${fmt(acctBalance(a.id))}</b></td><td><div class="actions"><button class="soft" onclick="editAccount(${a.id})">Edit</button><button class="danger" onclick="delAccount(${a.id})">×</button></div></td></tr>`).join('')}
+function renderReport(){let from=$('reportFrom').value,to=$('reportTo').value,a=db.transactions.filter(t=>(!from||t.date>=from)&&(!to||t.date<=to)),t=totals(a);$('rIncome').textContent=fmt(t.i);$('rExpense').textContent=fmt(t.e);$('rNet').textContent=fmt(t.net);$('rCount').textContent=a.length;let cats={};a.forEach(x=>{if(x.type==='income'||x.type==='expense'){let k=x.type+' — '+x.category;cats[k]=(cats[k]||0)+x.amount}});$('categoryReport').innerHTML=Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="kpi"><span>${esc(k)}</span><b>${fmt(v)}</b></div>`).join('')||'<p class="muted">No data for selected period.</p>'}
+function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hybrid-civil-accounts-backup-'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
+$('restoreFile').addEventListener('change',e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.accounts||!x.transactions||!x.parties||!x.projects)throw Error();if(confirm('Replace all current data with this backup?')){db=x;save();alert('Backup restored.')}}catch(err){alert('Invalid backup file.')}e.target.value=''};r.readAsText(f)});
+function saveProfile(){db.profile={name:$('businessName').value,address:$('businessAddress').value,phone:$('businessPhone').value};save();alert('Business profile saved.')}
+function clearAll(){if(confirm('Permanently delete all local accounts data? Export backup first.')){localStorage.removeItem('hybrid_accounts_v1');db=JSON.parse(JSON.stringify(defaults));save()}}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='reports')renderReport()}));
+['txSearch','txFilter','txMonth'].forEach(id=>$(id).addEventListener('input',renderTx));['partySearch','partyFilter'].forEach(id=>$(id).addEventListener('input',renderParties));
+$('txDate').value=today();$('reportTo').value=today();$('reportFrom').value=today().slice(0,7)+'-01';renderAll();renderReport();
+</script></body></html>

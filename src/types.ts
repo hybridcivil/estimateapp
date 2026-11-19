@@ -541,3 +541,87 @@ export interface ServiceVoucher {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ========================================================================== */
+/* BUSINESS & PROJECT COMPLETE ACCOUNTING SYSTEM                              */
+/* ========================================================================== */
+
+export type AccountWalletType = "Cash" | "Bank" | "Mobile Banking" | "Card" | "Other";
+
+export interface AccountWallet {
+  id: string;
+  name: string;
+  type: AccountWalletType;
+  opening: number;
+  accountNumber?: string;
+  notes?: string;
+}
+
+export type AccountingPartyType = "Client" | "Supplier" | "Contractor" | "Staff" | "Other";
+
+export interface AccountingParty {
+  id: string;
+  type: AccountingPartyType;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  opening: number;
+  direction: "receivable" | "payable";
+  notes?: string;
+}
+
+export type AccountingProjectStatus = "Active" | "Completed" | "On Hold";
+
+export interface AccountingProject {
+  id: string;
+  name: string;
+  clientId?: string | null;
+  contract: number;
+  status: AccountingProjectStatus;
+  note?: string;
+  linkedBoqProjectId?: string;
+}
+
+export type AccountingTxType = "income" | "expense" | "transfer" | "opening";
+
+export interface AccountingTransaction {
+  id: string;
+  type: AccountingTxType;
+  date: string; // YYYY-MM-DD
+  desc: string;
+  amount: number;
+  category: string;
+  accountId: string;
+  toAccountId?: string | null;
+  partyId?: string | null;
+  projectId?: string | null;
+  paymentMethod?: string;
+  note?: string;
+  linkedVoucherId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AccountingProfile {
+  name: string;
+  tagline?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  signatoryName?: string;
+}
+
+export interface AccountingWorkspace {
+  id: string;
+  ownerId: string;
+  ownerEmail?: string;
+  profile: AccountingProfile;
+  accounts: AccountWallet[];
+  parties: AccountingParty[];
+  projects: AccountingProject[];
+  transactions: AccountingTransaction[];
+  createdAt: string;
+  updatedAt: string;
+}
+

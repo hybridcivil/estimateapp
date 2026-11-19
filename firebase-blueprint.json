@@ -367,6 +367,57 @@
         }
       },
       "required": ["id", "recipientUid", "type", "title", "message", "createdAt"]
+    },
+    "AccountingWorkspace": {
+      "title": "AccountingWorkspace",
+      "description": "Confidential per-user business accounting workspace with wallets, parties, projects, transactions, and customizable business profile",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique accounting workspace identifier scoped to user",
+          "maxLength": 128
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "maxLength": 128
+        },
+        "ownerEmail": {
+          "type": "string",
+          "description": "Owner email address",
+          "maxLength": 200
+        },
+        "profile": {
+          "type": "object",
+          "description": "User's custom engineering firm / business profile name, tagline, address, phone"
+        },
+        "accounts": {
+          "type": "array",
+          "description": "List of Cash, Bank, Mobile Banking, and Card wallets"
+        },
+        "parties": {
+          "type": "array",
+          "description": "List of Clients, Suppliers, Contractors, and Staff with opening dues"
+        },
+        "projects": {
+          "type": "array",
+          "description": "List of contracted business projects"
+        },
+        "transactions": {
+          "type": "array",
+          "description": "Double-side income, expense, transfer, and opening balance ledger entries"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "ownerId", "profile", "accounts", "parties", "projects", "transactions", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -389,6 +440,10 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Collection of system notices, subscription updates, guides and announcements"
+    },
+    "/accounting_workspaces/{workspaceId}": {
+      "schema": "AccountingWorkspace",
+      "description": "Confidential per-user business accounting ledgers, wallets, party ledgers, projects, and financial transactions"
     }
   }
 }

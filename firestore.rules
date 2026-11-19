@@ -124,6 +124,21 @@ service cloud.firestore {
         && (!('companyContact' in data) || data.companyContact == null || (data.companyContact is string && data.companyContact.size() <= 300));
     }
 
+    function isValidAccountingWorkspace(data) {
+      return data.keys().hasAll(['id', 'ownerId', 'profile', 'accounts', 'parties', 'projects', 'transactions', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'ownerEmail', 'profile', 'accounts', 'parties', 'projects', 'transactions', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
+        && (!('ownerEmail' in data) || data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 200))
+        && data.profile is map
+        && data.accounts is list && data.accounts.size() <= 100
+        && data.parties is list && data.parties.size() <= 500
+        && data.projects is list && data.projects.size() <= 500
+        && data.transactions is list && data.transactions.size() <= 5000
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
     // Connection testing endpoint
     match /test/{testId} {
       allow get: if true;
@@ -194,6 +209,45 @@ service cloud.firestore {
                       isAdmin()
                     );
       allow delete: if isValidId(voucherId)
+                    && (
+                      !isSignedIn() ||
+                      existing().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
+    }
+
+    // Confidential Business Accounting Workspaces (Strictly Isolated Per User)
+    match /accounting_workspaces/{workspaceId} {
+      allow get: if !isSignedIn() ||
+                    existing().ownerId == request.auth.uid ||
+                    (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                    isAdmin();
+      allow list: if !isSignedIn() ||
+                    resource.data.ownerId == request.auth.uid ||
+                    (request.auth.token.email != null && resource.data.ownerEmail == request.auth.token.email) ||
+                    isAdmin();
+      allow create: if isValidId(workspaceId)
+                    && incoming().id == workspaceId
+                    && isValidAccountingWorkspace(incoming())
+                    && (
+                      !isSignedIn() ||
+                      incoming().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && incoming().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
+      allow update: if isValidId(workspaceId)
+                    && isValidAccountingWorkspace(incoming())
+                    && incoming().id == existing().id
+                    && incoming().ownerId == existing().ownerId
+                    && incoming().createdAt == existing().createdAt
+                    && (
+                      !isSignedIn() ||
+                      existing().ownerId == request.auth.uid ||
+                      (request.auth.token.email != null && existing().ownerEmail == request.auth.token.email) ||
+                      isAdmin()
+                    );
+      allow delete: if isValidId(workspaceId)
                     && (
                       !isSignedIn() ||
                       existing().ownerId == request.auth.uid ||

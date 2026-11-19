@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Project, EstimateType, ProjectEstimateItem, ServiceVoucher } from "./types";
+import { Project, EstimateType, ProjectEstimateItem, ServiceVoucher, AccountingWorkspace } from "./types";
 import {
   fetchProjects,
   fetchProject,
@@ -12,6 +12,8 @@ import {
   fetchServiceVouchers,
   saveServiceVoucher,
   deleteServiceVoucher,
+  fetchAccountingWorkspace,
+  saveAccountingWorkspace,
   fetchNotifications,
   markNotificationRead,
   deleteNotification,
@@ -26,6 +28,7 @@ import { ReportModal } from "./components/ReportModal";
 import { SplashScreen } from "./components/SplashScreen";
 import { ServiceVoucherModal } from "./components/ServiceVoucherModal";
 import { NotificationCenterModal } from "./components/NotificationCenterModal";
+import { BusinessAccountsModal } from "./components/BusinessAccountsModal";
 
 import { BeamCalculator } from "./components/calculators/BeamCalculator";
 import { ColumnCalculator } from "./components/calculators/ColumnCalculator";
@@ -48,7 +51,7 @@ import { WorkspaceLoadingScreen } from "./components/WorkspaceLoadingScreen";
 import { createDefaultBuildingEstimates } from "./utils/buildingSchedule";
 
 function MainAppContent() {
-  const { currentUser, appUser, isAdmin, loading: authLoading } = useAuth();
+  const { currentUser, appUser, isAdmin, isViewer, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<EstimateType>("dashboard");
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -90,6 +93,10 @@ function MainAppContent() {
   // Service Voucher & Business Invoicing State
   const [isServiceVoucherModalOpen, setIsServiceVoucherModalOpen] = useState(false);
   const [serviceVouchers, setServiceVouchers] = useState<ServiceVoucher[]>([]);
+
+  // Per-User Confidential Business Accounting System State
+  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
+  const [accountingWorkspace, setAccountingWorkspace] = useState<AccountingWorkspace | null>(null);
 
   // Notifications & Announcements State
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
@@ -176,6 +183,37 @@ function MainAppContent() {
     showToast("ভাউচার মুছে ফেলা হয়েছে", "info");
   };
 
+  const loadAccountingWorkspace = useCallback(async () => {
+    const userToUse = appUser || (currentUser ? {
+      uid: currentUser.uid,
+      email: currentUser.email || "",
+      displayName: currentUser.displayName || "Civil Engineer",
+    } : null);
+    if (!userToUse || (!userToUse.uid && !userToUse.email)) {
+      setAccountingWorkspace(null);
+      return;
+    }
+    try {
+      const displayName = appUser?.displayName || currentUser?.displayName || userToUse.email?.split("@")[0] || "Civil Engineer";
+      const ws = await fetchAccountingWorkspace(userToUse, displayName);
+      setAccountingWorkspace(ws);
+    } catch (err) {
+      console.warn("Failed to load accounting workspace", err);
+    }
+  }, [appUser, currentUser]);
+
+  const handleSaveAccountingWorkspace = async (ws: AccountingWorkspace) => {
+    const userToUse = appUser || (currentUser ? {
+      uid: currentUser.uid,
+      email: currentUser.email || "",
+      displayName: currentUser.displayName || "Civil Engineer",
+    } : null);
+    if (!userToUse) return;
+    const saved = await saveAccountingWorkspace(ws, userToUse);
+    setAccountingWorkspace(saved);
+    showToast("অ্যাকাউন্টস ডাটা সংরক্ষিত হয়েছে!", "success");
+  };
+
   // Toast notification
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
@@ -204,6 +242,7 @@ function MainAppContent() {
       setProjects([]);
       setActiveProject(null);
       setServiceVouchers([]);
+      setAccountingWorkspace(null);
       setFlowState("auth");
     }
   }, [currentUser, appUser, authLoading, flowState]);
@@ -259,16 +298,18 @@ function MainAppContent() {
     }
   }, [appUser, currentUser, isAdmin]);
 
-  // Trigger project, vouchers, and notifications loading when user ID/email changes
+  // Trigger project, vouchers, accounting, and notifications loading when user ID/email changes
   useEffect(() => {
     setProjects([]);
     setActiveProject(null);
+    setAccountingWorkspace(null);
     if (appUser || currentUser) {
       loadProjects();
       loadServiceVouchers();
+      loadAccountingWorkspace();
       loadNotifications();
     }
-  }, [loadProjects, loadServiceVouchers, loadNotifications, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
+  }, [loadProjects, loadServiceVouchers, loadAccountingWorkspace, loadNotifications, appUser?.uid, currentUser?.uid, appUser?.email, currentUser?.email]);
 
   // Project management handlers
   const handleCreateProject = async (data: {
@@ -618,6 +659,7 @@ function MainAppContent() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenServiceVoucher={() => setIsServiceVoucherModalOpen(true)}
         voucherCount={serviceVouchers.length}
+        onOpenBusinessAccounts={() => setIsAccountsModalOpen(true)}
         onOpenNotifications={() => setIsNotificationCenterOpen(true)}
         unreadNotificationCount={
           notifications.filter(
@@ -681,6 +723,7 @@ function MainAppContent() {
                 onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 onOpenServiceVoucher={() => setIsServiceVoucherModalOpen(true)}
+                onOpenBusinessAccounts={() => setIsAccountsModalOpen(true)}
                 onImportProject={handleImportProject}
                 onAddDefaultBuildingList={handleAddDefaultBuildingList}
                 onUpdateProject={handleUpdateProject}
@@ -867,6 +910,20 @@ function MainAppContent() {
         onMarkAllAsRead={handleMarkAllNotificationsRead}
         onDeleteNotification={handleDeleteNotification}
         isAdmin={isAdmin}
+      />
+
+      {/* Per-User Confidential Business Accounting Modal */}
+      <BusinessAccountsModal
+        isOpen={isAccountsModalOpen}
+        onClose={() => setIsAccountsModalOpen(false)}
+        workspace={accountingWorkspace}
+        onSaveWorkspace={handleSaveAccountingWorkspace}
+        boqProjects={projects}
+        serviceVouchers={serviceVouchers}
+        currentUserEmail={currentUser?.email || appUser?.email || undefined}
+        currentUserId={currentUser?.uid || appUser?.uid || undefined}
+        currentUserName={appUser?.displayName || currentUser?.displayName || undefined}
+        readOnly={isViewer}
       />
 
 

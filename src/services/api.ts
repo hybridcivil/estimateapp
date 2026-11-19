@@ -1,4 +1,4 @@
-import { Project, ProjectEstimateItem, AppUser, UserRole, ServiceVoucher, UserSubscription, AppNotification } from "../types";
+import { Project, ProjectEstimateItem, AppUser, UserRole, ServiceVoucher, UserSubscription, AppNotification, AccountingWorkspace } from "../types";
 import { createDefaultBuildingEstimates, rescaleEstimatesForStories } from "../utils/buildingSchedule";
 import {
   db,
@@ -1977,3 +1977,216 @@ export async function deleteNotification(notificationId: string): Promise<boolea
 
   return true;
 }
+
+/* ========================================================================== */
+/* CONFIDENTIAL PER-USER COMPLETE BUSINESS ACCOUNTING SYSTEM                  */
+/* ========================================================================== */
+
+const ACCOUNTING_STORAGE_KEY_PREFIX = "dolphinbox_accounting_v1_";
+
+export function getAccountingWorkspaceId(user: VoucherUserContext): string {
+  if (!user) return "";
+  const uid = typeof user === "string" ? user.trim() : (user.uid || "").trim();
+  const email = typeof user === "string" ? user.trim().toLowerCase() : (user.email || "").trim().toLowerCase();
+  const raw = uid || (email ? "usr_" + email.replace(/[^a-z0-9]/g, "_") : "");
+  const safe = raw.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+  return safe ? `acct_${safe}` : "";
+}
+
+export function getAccountingStorageKey(user: VoucherUserContext): string | null {
+  const wid = getAccountingWorkspaceId(user);
+  return wid ? `${ACCOUNTING_STORAGE_KEY_PREFIX}${wid}` : null;
+}
+
+export function createDefaultAccountingWorkspace(
+  user: VoucherUserContext,
+  displayName?: string
+): AccountingWorkspace {
+  const now = new Date().toISOString();
+  const wid = getAccountingWorkspaceId(user) || `acct_local_${Date.now()}`;
+  const uid = typeof user === "string" ? user : user?.uid || wid;
+  const email = typeof user === "string" ? undefined : user?.email?.trim().toLowerCase();
+  const firmBaseName = displayName?.trim()
+    ? displayName.trim()
+    : email
+    ? email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "My Engineering";
+
+  return {
+    id: wid,
+    ownerId: uid,
+    ownerEmail: email,
+    profile: {
+      name: `${firmBaseName} — Engineering & Consultancy`,
+      tagline: "Complete Business Accounting & Project Finance",
+      address: "",
+      phone: "",
+      email: email || "",
+      signatoryName: displayName?.trim() || "",
+    },
+    accounts: [
+      { id: "acc_cash", name: "Office Cash", type: "Cash", opening: 0 },
+      { id: "acc_bank", name: "Bank Account", type: "Bank", opening: 0 },
+      { id: "acc_bkash", name: "bKash", type: "Mobile Banking", opening: 0 },
+      { id: "acc_nagad", name: "Nagad", type: "Mobile Banking", opening: 0 },
+    ],
+    parties: [],
+    projects: [],
+    transactions: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function getLocalAccountingWorkspace(user: VoucherUserContext): AccountingWorkspace | null {
+  const key = getAccountingStorageKey(user);
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AccountingWorkspace;
+      if (parsed && parsed.id) return parsed;
+    }
+  } catch (err) {
+    console.warn("Failed to read local accounting workspace", err);
+  }
+  return null;
+}
+
+export function saveLocalAccountingWorkspace(workspace: AccountingWorkspace, user: VoucherUserContext): void {
+  const key = getAccountingStorageKey(user);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(workspace));
+  } catch (err) {
+    console.warn("Failed to save local accounting workspace", err);
+  }
+}
+
+export async function fetchAccountingWorkspace(
+  user: VoucherUserContext,
+  displayName?: string
+): Promise<AccountingWorkspace> {
+  const fallback = createDefaultAccountingWorkspace(user, displayName);
+  if (!user) return fallback;
+
+  const uid = typeof user === "string" ? user.trim() : (user.uid || "").trim();
+  const email = typeof user === "string" ? user.trim().toLowerCase() : (user.email || "").trim().toLowerCase();
+  const wid = getAccountingWorkspaceId(user);
+
+  const candidates: AccountingWorkspace[] = [];
+
+  // 1. Local cache
+  const local = getLocalAccountingWorkspace(user);
+  if (local) candidates.push(local);
+
+  // 2. Express backend
+  try {
+    const params = new URLSearchParams();
+    if (uid) params.set("uid", uid);
+    if (email) params.set("email", email);
+    const res = await fetch(`/api/accounting?${params.toString()}`);
+    if (res.ok) {
+      const remote = (await res.json()) as AccountingWorkspace;
+      if (remote && remote.id) candidates.push(remote);
+    }
+  } catch {}
+
+  // 3. Firestore accounting_workspaces collection
+  if (wid) {
+    try {
+      const docRef = doc(db, "accounting_workspaces", wid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const fsData = docSnap.data() as AccountingWorkspace;
+        if (fsData && fsData.id) candidates.push(fsData);
+      } else if (email) {
+        const qSnap = await getDocs(
+          query(collection(db, "accounting_workspaces"), where("ownerEmail", "==", email))
+        );
+        qSnap.forEach((d) => {
+          const item = d.data() as AccountingWorkspace;
+          if (item && item.id) candidates.push(item);
+        });
+      }
+    } catch (err) {
+      console.warn("Firestore fetchAccountingWorkspace notice:", err);
+    }
+  }
+
+  if (candidates.length === 0) {
+    saveLocalAccountingWorkspace(fallback, user);
+    return fallback;
+  }
+
+  // Pick the most recently updated workspace (or richest if same timestamp)
+  candidates.sort((a, b) => {
+    const tDiff = new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+    if (tDiff !== 0) return tDiff;
+    return (b.transactions?.length || 0) - (a.transactions?.length || 0);
+  });
+
+  const latest = candidates[0];
+  const merged: AccountingWorkspace = {
+    ...fallback,
+    ...latest,
+    id: latest.id || fallback.id,
+    ownerId: latest.ownerId || fallback.ownerId,
+    ownerEmail: latest.ownerEmail || fallback.ownerEmail,
+    profile: {
+      ...fallback.profile,
+      ...(latest.profile || {}),
+    },
+    accounts: Array.isArray(latest.accounts) && latest.accounts.length > 0 ? latest.accounts : fallback.accounts,
+    parties: Array.isArray(latest.parties) ? latest.parties : [],
+    projects: Array.isArray(latest.projects) ? latest.projects : [],
+    transactions: Array.isArray(latest.transactions) ? latest.transactions : [],
+  };
+
+  saveLocalAccountingWorkspace(merged, user);
+  return merged;
+}
+
+export async function saveAccountingWorkspace(
+  workspace: AccountingWorkspace,
+  user: VoucherUserContext
+): Promise<AccountingWorkspace> {
+  const uid = typeof user === "object" ? user?.uid : typeof user === "string" ? user : undefined;
+  const email = typeof user === "object" ? user?.email?.trim().toLowerCase() : undefined;
+  const wid = workspace.id || getAccountingWorkspaceId(user) || `acct_${Date.now()}`;
+
+  const updated: AccountingWorkspace = {
+    ...workspace,
+    id: wid,
+    ownerId: workspace.ownerId || uid || wid,
+    ownerEmail: workspace.ownerEmail || email,
+    createdAt: workspace.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 1. Local cache
+  saveLocalAccountingWorkspace(updated, user);
+
+  // 2. Express backend
+  try {
+    await fetch("/api/accounting", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    });
+  } catch (err) {
+    console.warn("Backend saveAccountingWorkspace notice:", err);
+  }
+
+  // 3. Firestore sync (strip undefined keys recursively)
+  try {
+    const cleanData = sanitizeForFirestore(updated);
+    const docRef = doc(db, "accounting_workspaces", wid);
+    await setDoc(docRef, cleanData, { merge: true });
+  } catch (err) {
+    console.warn("Firestore saveAccountingWorkspace fallback to local/backend:", err);
+  }
+
+  return updated;
+}
+
