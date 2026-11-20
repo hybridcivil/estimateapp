@@ -214,7 +214,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const [dirName, setDirName] = useState<string>("");
   const [dirDesignation, setDirDesignation] = useState<string>("Director");
   const [dirPhone, setDirPhone] = useState<string>("");
-  const [dirSharePercent, setDirSharePercent] = useState<string>("25");
+  const [dirSharePercent, setDirSharePercent] = useState<string>("");
   const [dirSalaryAmount, setDirSalaryAmount] = useState<string>("0");
   const [dirOpeningBalance, setDirOpeningBalance] = useState<string>("0");
   const [selectedDirectorLedgerId, setSelectedDirectorLedgerId] = useState<string | null>(null);
@@ -690,6 +690,51 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     };
   }, [selectedDirectorLedgerId, directorsList, ws.transactions, ws.parties, ws.accounts]);
 
+  // Effective Share % per Director:
+  // If Share % is not entered (0 or blank), automatically decide share % according to Salary ratio.
+  // If only some directors have Share % entered, remaining % is divided among the rest by Salary ratio.
+  const effectiveDirectorShares = useMemo(() => {
+    const map: Record<string, { effectivePct: number; isAutoFromSalary: boolean }> = {};
+    if (directorsList.length === 0) return map;
+
+    const totalSal = directorsList.reduce((s, d) => s + Math.max(0, Number(d.salaryAmount || 0)), 0);
+    const explicitDirs = directorsList.filter((d) => Number(d.sharePercent || 0) > 0);
+    const unassignedDirs = directorsList.filter((d) => !d.sharePercent || Number(d.sharePercent || 0) <= 0);
+    const explicitSum = explicitDirs.reduce((s, d) => s + Number(d.sharePercent || 0), 0);
+
+    if (explicitSum <= 0) {
+      directorsList.forEach((d) => {
+        const sal = Math.max(0, Number(d.salaryAmount || 0));
+        const pct = totalSal > 0 ? (sal / totalSal) * 100 : 100 / directorsList.length;
+        map[d.id] = { effectivePct: pct, isAutoFromSalary: true };
+      });
+    } else if (unassignedDirs.length === 0) {
+      directorsList.forEach((d) => {
+        map[d.id] = { effectivePct: Number(d.sharePercent || 0), isAutoFromSalary: false };
+      });
+    } else {
+      const remainingPct = Math.max(0, 100 - explicitSum);
+      const unassignedSalSum = unassignedDirs.reduce(
+        (s, d) => s + Math.max(0, Number(d.salaryAmount || 0)),
+        0
+      );
+      directorsList.forEach((d) => {
+        const entered = Number(d.sharePercent || 0);
+        if (entered > 0) {
+          map[d.id] = { effectivePct: entered, isAutoFromSalary: false };
+        } else {
+          const sal = Math.max(0, Number(d.salaryAmount || 0));
+          const pct =
+            unassignedSalSum > 0
+              ? remainingPct * (sal / unassignedSalSum)
+              : remainingPct / unassignedDirs.length;
+          map[d.id] = { effectivePct: pct, isAutoFromSalary: true };
+        }
+      });
+    }
+    return map;
+  }, [directorsList]);
+
   // Profit Distribution Calculation Engine (Salary Amount + Share Percentage)
   const profitDistCalculation = useMemo(() => {
     const periodTxs = ws.transactions.filter(
@@ -710,6 +755,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     const totalSalaryBase = directorsList.reduce((s, d) => s + Number(d.salaryAmount || 0) * monthsMult, 0);
 
     const remainingProfitAfterSalary = poolBase - totalSalaryBase;
+    const extraProfit = Math.max(0, remainingProfitAfterSalary);
 
     const rows = directorsList.map((d) => {
       const periodSalary = Math.round(Number(d.salaryAmount || 0) * monthsMult * 100) / 100;
@@ -719,22 +765,36 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
           : directorsList.length > 0
           ? 100 / directorsList.length
           : 0;
-      const directPct = totalSharePct > 0 ? Number(d.sharePercent || 0) : directorsList.length > 0 ? 100 / directorsList.length : 0;
+      const shareInfo = effectiveDirectorShares[d.id] || {
+        effectivePct: salaryWeightPct,
+        isAutoFromSalary: true,
+      };
 
-      let effectivePct = directPct;
+      let effectivePct = shareInfo.effectivePct;
+      let isAutoFromSalary = shareInfo.isAutoFromSalary;
       let salaryEntitlement = 0;
       let profitShare = 0;
 
       if (distMode === "salary_plus_percent") {
-        salaryEntitlement = periodSalary;
-        effectivePct = directPct;
-        profitShare = remainingProfitAfterSalary * (effectivePct / 100);
+        if (poolBase >= totalSalaryBase) {
+          salaryEntitlement = periodSalary;
+          profitShare = extraProfit * (effectivePct / 100);
+        } else if (poolBase >= 0) {
+          // Profit < Total Salary: distribute available profit proportionally by salary, Bonus = 0
+          const salRatio = totalSalaryBase > 0 ? periodSalary / totalSalaryBase : effectivePct / 100;
+          salaryEntitlement = poolBase * salRatio;
+          profitShare = 0;
+        } else {
+          // Net Loss: share loss according to effective share %
+          salaryEntitlement = 0;
+          profitShare = poolBase * (effectivePct / 100);
+        }
       } else if (distMode === "salary_weighted_percent") {
         effectivePct = salaryWeightPct;
+        isAutoFromSalary = true;
         salaryEntitlement = 0;
         profitShare = poolBase * (effectivePct / 100);
       } else {
-        effectivePct = directPct;
         salaryEntitlement = 0;
         profitShare = poolBase * (effectivePct / 100);
       }
@@ -748,6 +808,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
       return {
         director: d,
         effectivePct,
+        isAutoFromSalary,
         salaryEntitlement,
         profitShare,
         totalEarned,
@@ -764,9 +825,10 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
       totalSharePct,
       totalSalaryBase,
       remainingProfitAfterSalary,
+      extraProfit,
       rows,
     };
-  }, [ws.transactions, directorsList, distFrom, distTo, distMode, distSalaryMonths, distPoolOverride, directorStatsMap]);
+  }, [ws.transactions, directorsList, effectiveDirectorShares, distFrom, distTo, distMode, distSalaryMonths, distPoolOverride, directorStatsMap]);
 
   const getProjectStats = (p: AccountingProject) => {
     const txs = ws.transactions.filter((t) => t.projectId === p.id);
@@ -1220,7 +1282,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     setDirName("");
     setDirDesignation("Director");
     setDirPhone("");
-    setDirSharePercent("25");
+    setDirSharePercent("");
     setDirSalaryAmount("0");
     setDirOpeningBalance("0");
   };
@@ -1231,12 +1293,13 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
       notify("Director / Partner name is required.", "error");
       return;
     }
+    const parsedShare = dirSharePercent.trim() === "" ? 0 : Math.max(0, Number(dirSharePercent || 0));
     const item: AccountingDirector = {
       id: dirId || genId("dir"),
       name: dirName.trim(),
       designation: dirDesignation.trim() || "Director",
       phone: dirPhone.trim(),
-      sharePercent: Math.max(0, Number(dirSharePercent || 0)),
+      sharePercent: parsedShare,
       salaryAmount: Math.max(0, Number(dirSalaryAmount || 0)),
       openingBalance: Number(dirOpeningBalance || 0),
     };
@@ -1253,14 +1316,14 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
 
   const handleQuickAddFourDirectors = async () => {
     const sampleDirs: AccountingDirector[] = [
-      { id: genId("dir") + "_a", name: "Director A", designation: "Managing Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
-      { id: genId("dir") + "_b", name: "Director B", designation: "Technical Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
-      { id: genId("dir") + "_c", name: "Director C", designation: "Finance Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
-      { id: genId("dir") + "_d", name: "Director D", designation: "Operations Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_a", name: "Director A", designation: "Managing Director", sharePercent: 0, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_b", name: "Director B", designation: "Technical Director", sharePercent: 0, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_c", name: "Director C", designation: "Finance Director", sharePercent: 0, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_d", name: "Director D", designation: "Operations Director", sharePercent: 0, salaryAmount: 25000, openingBalance: 0 },
     ];
     await commitWorkspace(
       { ...ws, directors: [...directorsList, ...sampleDirs] },
-      "Added 4 Directors (A, B, C, D) — edit their names, salaries, and % shares anytime."
+      "Added 4 Directors (A, B, C, D) — edit their names, salaries, and optional % shares anytime."
     );
   };
 
@@ -2758,7 +2821,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                           <td className="py-2.5 px-2.5 font-sans">
                             <div className="font-bold">{r.director.name}</div>
                             <div className={`text-[10px] ${mutedText}`}>
-                              {r.director.designation || "Director"} · {r.director.sharePercent}%
+                              {r.director.designation || "Director"} ·{" "}
+                              {(effectiveDirectorShares[r.director.id]?.effectivePct || 0).toFixed(1)}%
+                              {effectiveDirectorShares[r.director.id]?.isAutoFromSalary ? " (by salary)" : ""}
                             </div>
                           </td>
                           <td className="py-2.5 px-2.5 text-right text-emerald-500 font-semibold">
@@ -4248,8 +4313,11 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   <div className="flex items-baseline justify-between mt-1">
                     <span className="text-xl font-bold font-mono tabular-nums">{directorsList.length}</span>
                     <span className={`text-[11px] font-mono ${mutedText}`}>
-                      Total Share:{" "}
-                      {directorsList.reduce((s, d) => s + Number(d.sharePercent || 0), 0).toFixed(1)}%
+                      {directorsList.some((d) => Number(d.sharePercent || 0) > 0)
+                        ? `Total Share: ${directorsList
+                            .reduce((s, d) => s + (effectiveDirectorShares[d.id]?.effectivePct || 0), 0)
+                            .toFixed(1)}%`
+                        : "Share %: Auto by Salary"}
                     </span>
                   </div>
                 </div>
@@ -4333,7 +4401,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
 
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Share %</label>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
+                        Share % <span className="font-normal opacity-75">(opt.)</span>
+                      </label>
                       <input
                         type="number"
                         min="0"
@@ -4341,6 +4411,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         step="0.01"
                         value={dirSharePercent}
                         onChange={(e) => setDirSharePercent(e.target.value)}
+                        placeholder="Auto"
                         className={`${inputCls} font-mono tabular-nums`}
                       />
                     </div>
@@ -4366,6 +4437,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       />
                     </div>
                   </div>
+                  <p className={`text-[10px] leading-snug ${mutedText}`}>
+                    Leave Share % blank or 0 to auto-decide share % from each director's Salary ratio.
+                  </p>
 
                   <button
                     type="submit"
@@ -4428,13 +4502,22 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                             (st?.clientCashKept || 0) +
                             (st?.receivedFromDirectors || 0) +
                             (st?.withdrawnFromFirm || 0);
+                          const effShare = effectiveDirectorShares[d.id] || {
+                            effectivePct: Number(d.sharePercent || 0),
+                            isAutoFromSalary: false,
+                          };
                           return (
                             <tr key={d.id} className="hover:bg-slate-500/10 transition">
                               <td className="py-2.5 px-2 font-sans">
                                 <div className="font-bold">{d.name}</div>
                                 <div className={`text-[10px] ${mutedText}`}>{d.designation || "Director"}</div>
                               </td>
-                              <td className="py-2.5 px-2 text-right">{Number(d.sharePercent || 0).toFixed(1)}%</td>
+                              <td className="py-2.5 px-2 text-right">
+                                <div className="font-semibold">{effShare.effectivePct.toFixed(1)}%</div>
+                                <div className={`font-sans text-[10px] ${mutedText}`}>
+                                  {effShare.isAutoFromSalary ? "by salary" : "entered"}
+                                </div>
+                              </td>
                               <td className="py-2.5 px-2 text-right">{fmtBdt(d.salaryAmount)}</td>
                               <td className="py-2.5 px-2 text-right text-emerald-500">
                                 {fmtBdt(st?.paidForFirm || 0)}
@@ -4481,7 +4564,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                                       setDirName(d.name);
                                       setDirDesignation(d.designation || "Director");
                                       setDirPhone(d.phone || "");
-                                      setDirSharePercent(String(d.sharePercent || 0));
+                                      setDirSharePercent(Number(d.sharePercent || 0) > 0 ? String(d.sharePercent) : "");
                                       setDirSalaryAmount(String(d.salaryAmount || 0));
                                       setDirOpeningBalance(String(d.openingBalance || 0));
                                     }}
@@ -4707,7 +4790,8 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       </h4>
                       <p className={`text-xs ${mutedText}`}>
                         {selectedDirectorLedger.director.designation || "Director"} · Share{" "}
-                        {selectedDirectorLedger.director.sharePercent}% · Salary{" "}
+                        {(effectiveDirectorShares[selectedDirectorLedger.director.id]?.effectivePct || 0).toFixed(1)}%
+                        {effectiveDirectorShares[selectedDirectorLedger.director.id]?.isAutoFromSalary ? " (by salary)" : ""} · Salary{" "}
                         {fmtBdt(selectedDirectorLedger.director.salaryAmount)}/mo
                       </p>
                     </div>
@@ -4778,7 +4862,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       Profit & Salary Distribution Calculator
                     </h3>
                     <p className={`text-xs ${mutedText}`}>
-                      Distribute firm Net Profit across Directors by Salary Amount, Share %, or combined Salary + % of Remaining Profit.
+                      If Share % is left empty/0, shares are decided automatically from Salary ratio. Extra profit above salaries is distributed as Bonus.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -4827,7 +4911,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       onChange={(e) => setDistMode(e.target.value as any)}
                       className={inputCls}
                     >
-                      <option value="salary_plus_percent">Salary + % Remaining Profit</option>
+                      <option value="salary_plus_percent">Salary + Bonus (Extra Profit %)</option>
                       <option value="percent_only">Share % of Net Profit Only</option>
                       <option value="salary_weighted_percent">Salary-Ratio Weighted %</option>
                     </select>
@@ -4845,7 +4929,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   </div>
                   <div>
                     <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
-                      Profit Pool Override (optional)
+                      Net Profit Override (optional)
                     </label>
                     <input
                       type="number"
@@ -4867,7 +4951,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     </div>
                   </div>
                   <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
-                    <div className={`text-[10px] ${mutedText}`}>Distributable Pool Used</div>
+                    <div className={`text-[10px] ${mutedText}`}>Distributable Profit Used</div>
                     <div className="font-mono tabular-nums font-bold text-sm text-teal-500 mt-0.5">
                       {fmtBdt(profitDistCalculation.poolBase)}
                     </div>
@@ -4879,10 +4963,15 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     </div>
                   </div>
                   <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
-                    <div className={`text-[10px] ${mutedText}`}>Remaining Profit After Salary</div>
+                    <div className={`text-[10px] ${mutedText}`}>Extra Profit (Bonus Pool)</div>
                     <div className="font-mono tabular-nums font-bold text-sm text-emerald-500 mt-0.5">
-                      {fmtBdt(profitDistCalculation.remainingProfitAfterSalary)}
+                      {fmtBdt(profitDistCalculation.extraProfit)}
                     </div>
+                    {profitDistCalculation.remainingProfitAfterSalary < 0 && distMode === "salary_plus_percent" && (
+                      <div className={`text-[10px] mt-0.5 text-amber-500`}>
+                        Profit below total salary · Proportional salary payout
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4893,9 +4982,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       <tr>
                         <th className="py-2 px-2.5 font-semibold">Director</th>
                         <th className="py-2 px-2.5 font-semibold text-right">Eff. Share %</th>
-                        <th className="py-2 px-2.5 font-semibold text-right">Salary Entitlement</th>
-                        <th className="py-2 px-2.5 font-semibold text-right">Profit Share</th>
-                        <th className="py-2 px-2.5 font-semibold text-right">Total Distribution</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Salary Payable</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Bonus / Profit Share</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Total Receive</th>
                         <th className="py-2 px-2.5 font-semibold text-right">Current Ledger</th>
                         <th className="py-2 px-2.5 font-semibold text-right">Final Net Payable</th>
                       </tr>
@@ -4904,7 +4993,12 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       {profitDistCalculation.rows.map((r) => (
                         <tr key={r.director.id} className="hover:bg-slate-500/10">
                           <td className="py-2 px-2.5 font-sans font-bold">{r.director.name}</td>
-                          <td className="py-2 px-2.5 text-right">{r.effectivePct.toFixed(2)}%</td>
+                          <td className="py-2 px-2.5 text-right">
+                            <span>{r.effectivePct.toFixed(2)}%</span>
+                            <span className={`block font-sans text-[10px] ${mutedText}`}>
+                              {r.isAutoFromSalary ? "by salary" : "entered"}
+                            </span>
+                          </td>
                           <td className="py-2 px-2.5 text-right">{fmtBdt(r.salaryEntitlement)}</td>
                           <td className="py-2 px-2.5 text-right">{fmtBdt(r.profitShare)}</td>
                           <td className="py-2 px-2.5 text-right font-bold text-teal-500">
@@ -5680,7 +5774,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                 {printTarget === "statement" && selectedPartyStatement
                   ? selectedPartyStatement.party.name
                   : printTarget === "director" && selectedDirectorLedger
-                  ? `${selectedDirectorLedger.director.name} (${selectedDirectorLedger.director.sharePercent}%)`
+                  ? `${selectedDirectorLedger.director.name} (${(effectiveDirectorShares[selectedDirectorLedger.director.id]?.effectivePct || 0).toFixed(1)}%)`
                   : printTarget === "profit_sheet"
                   ? `Period: ${distFrom || "Start"} to ${distTo || todayStr()}`
                   : printTarget === "summary_hisab"
@@ -5783,9 +5877,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   <div className="text-base font-bold font-mono">{fmtBdt(profitDistCalculation.totalSalaryBase)}</div>
                 </div>
                 <div className="border border-slate-300 rounded p-2.5">
-                  <div className="text-[10px] text-slate-500">Remaining Profit</div>
+                  <div className="text-[10px] text-slate-500">Extra Profit (Bonus Pool)</div>
                   <div className="text-base font-bold font-mono">
-                    {fmtBdt(profitDistCalculation.remainingProfitAfterSalary)}
+                    {fmtBdt(profitDistCalculation.extraProfit)}
                   </div>
                 </div>
               </div>
@@ -5794,10 +5888,10 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                 <thead>
                   <tr className="border-b-2 border-slate-400 bg-slate-100 font-sans">
                     <th className="py-2 px-2 text-left">Director</th>
-                    <th className="py-2 px-2 text-right">Share %</th>
-                    <th className="py-2 px-2 text-right">Salary</th>
-                    <th className="py-2 px-2 text-right">Profit Share</th>
-                    <th className="py-2 px-2 text-right">Total Dist.</th>
+                    <th className="py-2 px-2 text-right">Eff. Share %</th>
+                    <th className="py-2 px-2 text-right">Salary Payable</th>
+                    <th className="py-2 px-2 text-right">Bonus / Profit</th>
+                    <th className="py-2 px-2 text-right">Total Receive</th>
                     <th className="py-2 px-2 text-right">Ledger Bal</th>
                     <th className="py-2 px-2 text-right">Final Payable</th>
                   </tr>

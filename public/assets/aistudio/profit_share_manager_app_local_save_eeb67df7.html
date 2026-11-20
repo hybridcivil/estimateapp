@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111827">
+<title>Profit Share Manager</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#eef1f5;font-family:Inter,Arial,sans-serif;color:#17202a}
+.app{max-width:480px;min-height:100vh;margin:auto;background:#f8fafc;padding-bottom:78px}
+.header{background:#111827;color:#fff;padding:20px 16px 26px;border-radius:0 0 24px 24px}
+.brand{font-size:11px;letter-spacing:1.5px;font-weight:800;opacity:.65}.title{font-size:23px;font-weight:800;margin-top:5px}
+.hero{margin-top:18px}.hero small{opacity:.65}.hero b{display:block;font-size:29px;margin-top:4px}
+.content{padding:13px}.section{display:none}.section.active{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-24px}
+.stat,.card{background:#fff;border-radius:17px;box-shadow:0 4px 16px #0000000b}
+.stat{padding:14px}.stat small{font-size:11px;color:#667085}.stat b{display:block;font-size:18px;margin-top:5px}
+.card{padding:15px;margin-top:13px}.card h2{font-size:17px;margin:0 0 13px}
+label{display:block;font-size:12px;font-weight:700;color:#475467;margin:9px 0 5px}
+input{width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:11px;font-size:16px;background:#fff;outline:none}
+input:focus{border-color:#111827;box-shadow:0 0 0 3px #11182712}
+button{border:0;border-radius:11px;padding:12px 14px;font-weight:800;font-size:14px;cursor:pointer}
+.primary{background:#111827;color:#fff}.light{background:#eef1f5;color:#111827}.danger{background:#fee4e2;color:#b42318}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}.full{width:100%}
+.table-wrap{overflow:auto;border-radius:13px;margin-top:12px}
+table{width:100%;border-collapse:collapse;min-width:520px;font-size:13px}
+th{background:#f1f5f9;color:#475467;padding:10px 7px;text-align:right}th:first-child,td:first-child{text-align:left}
+td{padding:9px 7px;border-bottom:1px solid #edf0f2;text-align:right}td input{padding:9px;font-size:13px;min-width:70px}
+.item{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid #edf0f2}.item:last-child{border:0}
+.avatar{width:40px;height:40px;border-radius:12px;background:#e8ecf1;display:grid;place-items:center;font-weight:800;margin-right:10px}
+.info{flex:1}.info b{font-size:14px}.info small{display:block;color:#667085;margin-top:3px}.right{text-align:right}.right b{font-size:14px}.right small{display:block;color:#667085;margin-top:3px}
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(480px,100%);height:70px;background:#fff;border-top:1px solid #e5e7eb;display:flex;justify-content:space-around;z-index:10}
+.nav{background:none;color:#98a2b3;padding:7px 10px;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:3px}.nav span{font-size:20px}.nav.active{color:#111827}
+.result{overflow:auto}.total-row td{font-weight:800;background:#f8fafc}.extra-profit td{background:#e8f4fb}
+.badge{display:inline-block;background:#eef1f5;border-radius:20px;padding:4px 8px;font-size:10px}
+@media(min-width:481px){.bottom{position:absolute}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="header">
+  <div class="brand">PROFIT SHARE MANAGER</div>
+  <div class="title">Bonus Calculator</div>
+  <div class="hero"><small>Net Profit</small><b id="heroProfit">Tk 85,000.00</b></div>
+</header>
+<main class="content">
+<section id="home" class="section active">
+  <div class="grid">
+    <div class="stat"><small>Net Profit</small><b id="sProfit">Tk 0</b></div>
+    <div class="stat"><small>Total Salary</small><b id="sSalary">Tk 0</b></div>
+    <div class="stat"><small>Extra Profit</small><b id="sExtra">Tk 0</b></div>
+    <div class="stat"><small>Employees</small><b id="sCount">0</b></div>
+  </div>
+  <div class="card"><h2>Current Team</h2><div id="homeTeam"></div></div>
+</section>
+
+<section id="calculator" class="section">
+  <div class="card">
+    <h2>Profit Calculator</h2>
+    <label>Net Profit (Tk)</label>
+    <input id="profit" type="number" value="85000" step="100" oninput="calculate();autoSave()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px">
+      <h3 style="font-size:16px;margin:0">Employees</h3>
+      <button class="light" onclick="addEmployee()">＋ Add</button>
+    </div>
+    <div class="table-wrap">
+      <table id="empTable"><thead><tr><th>Name</th><th>Salary</th><th>Action</th></tr></thead><tbody>
+      <tr><td><input value="Engineer" placeholder="Name"></td><td><input type="number" value="60000" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td></tr>
+      <tr><td><input value="Manager" placeholder="Name"></td><td><input type="number" value="25000" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td></tr>
+      </tbody></table>
+    </div>
+    <div class="actions">
+      <button class="primary full" onclick="calculate()">Calculate Distribution</button>
+      <button class="light" onclick="saveTeam()">💾 Save Team</button>
+      <button class="light" onclick="loadTeam()">↻ Load Saved</button>
+    </div>
+  </div>
+</section>
+
+<section id="results" class="section">
+  <div class="card">
+    <h2>Distribution Breakdown</h2>
+    <div class="result"><table id="resultTable"></table></div>
+  </div>
+</section>
+
+<section id="settings" class="section">
+  <div class="card"><h2>Data</h2>
+    <p style="color:#667085;font-size:13px;line-height:1.5">Your team can be saved in this browser. Export a backup if you want to keep a copy.</p>
+    <div class="actions"><button class="primary" onclick="exportTeam()">⬇ Export Backup</button><button class="light" onclick="document.getElementById('importFile').click()">⬆ Import</button><button class="danger" onclick="resetApp()">Reset</button></div>
+    <input id="importFile" type="file" accept=".json" style="display:none" onchange="importTeam(event)">
+  </div>
+</section>
+</main>
+<nav class="bottom">
+<button class="nav active" onclick="tab('home',this)"><span>⌂</span>Home</button>
+<button class="nav" onclick="tab('calculator',this)"><span>◉</span>Calculate</button>
+<button class="nav" onclick="tab('results',this)"><span>▤</span>Results</button>
+<button class="nav" onclick="tab('settings',this)"><span>⚙</span>Settings</button>
+</nav>
+</div>
+
+<script>
+const money=n=>"Tk "+Number(n||0).toLocaleString("en-BD",{minimumFractionDigits:2,maximumFractionDigits:2});
+function tab(id,btn){document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".nav").forEach(x=>x.classList.remove("active"));btn.classList.add("active");calculate();}
+function addEmployee(){const tb=document.querySelector("#empTable tbody"),r=tb.insertRow();r.innerHTML='<td><input placeholder="Employee" oninput="autoSave()"></td><td><input type="number" value="0" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td>';calculate();autoSave();}
+function removeRow(btn){const r=btn.closest("tr");if(r)r.remove();calculate();autoSave();}
+function getEmployees(){return [...document.querySelectorAll("#empTable tbody tr")].map(r=>({name:r.cells[0].querySelector("input").value.trim()||"Unnamed",salary:+r.cells[1].querySelector("input").value||0}));}
+function calculate(){
+ const employees=getEmployees(),profit=+document.getElementById("profit").value||0,totalSalary=employees.reduce((s,e)=>s+e.salary,0),extra=Math.max(0,profit-totalSalary);
+ heroProfit.textContent=money(profit);sProfit.textContent=money(profit);sSalary.textContent=money(totalSalary);sExtra.textContent=money(extra);sCount.textContent=employees.length;
+ let html='<thead><tr><th>Name</th><th>Salary</th><th>Bonus</th><th>Total Receive</th></tr></thead><tbody>';
+ employees.forEach(e=>{const ratio=totalSalary?e.salary/totalSalary:0;let salaryPaid,bonus=0;if(profit<totalSalary)salaryPaid=profit*ratio;else{salaryPaid=e.salary;bonus=extra*ratio}html+=`<tr><td><strong>${esc(e.name)}</strong></td><td>${money(e.salary)}</td><td>${money(bonus)}</td><td><strong>${money(salaryPaid+bonus)}</strong></td></tr>`});
+ html+=`<tr class="total-row"><td colspan="3">Total Salary</td><td>${money(totalSalary)}</td></tr><tr class="total-row"><td colspan="3">Net Profit</td><td>${money(profit)}</td></tr><tr class="total-row extra-profit"><td colspan="3">Extra Profit</td><td>${money(extra)}</td></tr></tbody>`;
+ resultTable.innerHTML=html;
+ homeTeam.innerHTML=employees.map(e=>`<div class="item"><div class="avatar">${esc(e.name.charAt(0).toUpperCase())}</div><div class="info"><b>${esc(e.name)}</b><small>Salary · ${money(e.salary)}</small></div><div class="right"><b>${totalSalary?(e.salary/totalSalary*100).toFixed(2):"0.00"}%</b><small>share</small></div></div>`).join("")||'<div style="padding:15px;color:#667085">No employees</div>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function getAppData(){return {profit:+document.getElementById("profit").value||0,employees:getEmployees(),savedAt:new Date().toISOString()};}
+function saveTeam(show=true){try{localStorage.setItem("profitTeam",JSON.stringify(getAppData()));if(show)alert("Saved locally on this device/browser.");}catch(e){alert("Local save failed: "+e.message);}}
+function loadTeam(){try{const d=JSON.parse(localStorage.getItem("profitTeam")||"null");if(!d)return alert("No local data found.");document.getElementById("profit").value=d.profit||0;const tb=document.querySelector("#empTable tbody");tb.innerHTML="";(d.employees||[]).forEach(e=>{const r=tb.insertRow();r.innerHTML=`<td><input value="${esc(e.name)}" oninput="autoSave()"></td><td><input type="number" value="${e.salary}" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td>`});calculate();alert("Local data loaded.");}catch(e){alert("Could not load local data.");}}
+function autoSave(){clearTimeout(window.saveTimer);window.saveTimer=setTimeout(()=>saveTeam(false),250);}
+window.addEventListener("beforeunload",()=>saveTeam(false));
+function exportTeam(){const d={profit:+profit.value||0,employees:getEmployees(),exported:new Date().toISOString()};const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:"application/json"}));a.download="profit-share-backup.json";a.click();}
+function importTeam(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);profit.value=d.profit||0;const tb=document.querySelector("#empTable tbody");tb.innerHTML="";(d.employees||[]).forEach(e=>{const row=tb.insertRow();row.innerHTML=`<td><input value="${esc(e.name)}"></td><td><input type="number" value="${e.salary}" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td>`});calculate();alert("Backup imported.");}catch{alert("Invalid backup file.");}};r.readAsText(f);}
+function resetApp(){if(confirm("Reset calculator to the original Engineer and Manager?")){profit.value=85000;document.querySelector("#empTable tbody").innerHTML='<tr><td><input value="Engineer"></td><td><input type="number" value="60000" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td></tr><tr><td><input value="Manager"></td><td><input type="number" value="25000" oninput="calculate();autoSave()"></td><td><button class="danger" onclick="removeRow(this)">Delete</button></td></tr>';calculate();}}
+calculate();
+</script>
+</body></html>
