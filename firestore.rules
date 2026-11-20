@@ -126,7 +126,7 @@ service cloud.firestore {
 
     function isValidAccountingWorkspace(data) {
       return data.keys().hasAll(['id', 'ownerId', 'profile', 'accounts', 'parties', 'projects', 'transactions', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'ownerId', 'ownerEmail', 'profile', 'accounts', 'parties', 'projects', 'transactions', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'ownerEmail', 'profile', 'accounts', 'parties', 'projects', 'directors', 'transactions', 'createdAt', 'updatedAt'])
         && data.id is string && data.id.size() > 0 && data.id.size() <= 128
         && data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() <= 128
         && (!('ownerEmail' in data) || data.ownerEmail == null || (data.ownerEmail is string && data.ownerEmail.size() <= 200))
@@ -134,6 +134,7 @@ service cloud.firestore {
         && data.accounts is list && data.accounts.size() <= 100
         && data.parties is list && data.parties.size() <= 500
         && data.projects is list && data.projects.size() <= 500
+        && (!('directors' in data) || (data.directors is list && data.directors.size() <= 100))
         && data.transactions is list && data.transactions.size() <= 5000
         && data.createdAt is string && data.createdAt.size() <= 64
         && data.updatedAt is string && data.updatedAt.size() <= 64;

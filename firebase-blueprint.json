@@ -404,9 +404,13 @@
           "type": "array",
           "description": "List of contracted business projects"
         },
+        "directors": {
+          "type": "array",
+          "description": "List of company directors/partners with salary amounts and profit share percentages"
+        },
         "transactions": {
           "type": "array",
-          "description": "Double-side income, expense, transfer, and opening balance ledger entries"
+          "description": "Double-entry income, credit/baki expense, due settlement, director transfer, split receipt, and profit distribution entries"
         },
         "createdAt": {
           "type": "string",

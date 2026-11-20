@@ -10,6 +10,9 @@ import {
   AccountingTransaction,
   AccountingTxType,
   AccountingProfile,
+  AccountingDirector,
+  AccountingDirectorAllocation,
+  AccountingPaidByMode,
   Project,
   ServiceVoucher,
 } from "../types";
@@ -43,6 +46,11 @@ import {
   ChevronRight,
   AlertTriangle,
   Sparkles,
+  Briefcase,
+  Coins,
+  Percent,
+  UserCheck,
+  Calculator,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { createDefaultAccountingWorkspace } from "../services/api";
@@ -64,6 +72,7 @@ type AccountsTab =
   | "dashboard"
   | "transactions"
   | "parties"
+  | "directors"
   | "projects"
   | "accounts"
   | "reports"
@@ -81,6 +90,9 @@ const INCOME_CATEGORIES = [
 ];
 
 const EXPENSE_CATEGORIES = [
+  "Tea & Snacks (Cha/Biscuit)",
+  "House Rent",
+  "Utility & Internet",
   "Material",
   "Labour",
   "Sub-Consultant Fee",
@@ -88,7 +100,6 @@ const EXPENSE_CATEGORIES = [
   "Salary",
   "Software & Tools",
   "Transport",
-  "Utility",
   "Food",
   "Printing & Stationery",
   "Equipment",
@@ -162,6 +173,18 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const [txPartyId, setTxPartyId] = useState<string>("");
   const [txProjectId, setTxProjectId] = useState<string>("");
   const [txNote, setTxNote] = useState<string>("");
+  const [txPaidByMode, setTxPaidByMode] = useState<AccountingPaidByMode>("wallet");
+  const [txPaidByDirectorId, setTxPaidByDirectorId] = useState<string>("");
+  const [txFromDirectorId, setTxFromDirectorId] = useState<string>("");
+  const [txToDirectorId, setTxToDirectorId] = useState<string>("");
+  const [txDirectorSettlementMode, setTxDirectorSettlementMode] = useState<"firm_to_director" | "director_to_firm">("firm_to_director");
+  const [txSplitEnabled, setTxSplitEnabled] = useState<boolean>(false);
+  const [txSplitAllocations, setTxSplitAllocations] = useState<{ directorId: string; amount: string }[]>([]);
+
+  // Inline Quick Add Shop/Party inside Transaction form
+  const [quickPartyOpen, setQuickPartyOpen] = useState(false);
+  const [quickPartyName, setQuickPartyName] = useState("");
+  const [quickPartyType, setQuickPartyType] = useState<AccountingPartyType>("Vendor / Shop");
 
   // Transaction Filters
   const [txSearch, setTxSearch] = useState<string>("");
@@ -184,6 +207,35 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const [partyFilterType, setPartyFilterType] = useState<string>("all");
   const [partyBalanceFilter, setPartyBalanceFilter] = useState<"all" | "receivable" | "payable">("all");
   const [selectedStatementPartyId, setSelectedStatementPartyId] = useState<string | null>(null);
+
+  // Directors & Profit Distribution State
+  const [dirId, setDirId] = useState<string>("");
+  const [dirName, setDirName] = useState<string>("");
+  const [dirDesignation, setDirDesignation] = useState<string>("Director");
+  const [dirPhone, setDirPhone] = useState<string>("");
+  const [dirSharePercent, setDirSharePercent] = useState<string>("25");
+  const [dirSalaryAmount, setDirSalaryAmount] = useState<string>("0");
+  const [dirOpeningBalance, setDirOpeningBalance] = useState<string>("0");
+  const [selectedDirectorLedgerId, setSelectedDirectorLedgerId] = useState<string | null>(null);
+
+  const [quickDirTransferFrom, setQuickDirTransferFrom] = useState<string>("");
+  const [quickDirTransferTo, setQuickDirTransferTo] = useState<string>("");
+  const [quickDirTransferAmt, setQuickDirTransferAmt] = useState<string>("");
+  const [quickDirTransferDate, setQuickDirTransferDate] = useState<string>(todayStr());
+  const [quickDirTransferNote, setQuickDirTransferNote] = useState<string>("");
+
+  const [dirSettleDirectorId, setDirSettleDirectorId] = useState<string>("");
+  const [dirSettleMode, setDirSettleMode] = useState<"director_to_firm" | "firm_to_director">("director_to_firm");
+  const [dirSettleWalletId, setDirSettleWalletId] = useState<string>("");
+  const [dirSettleAmt, setDirSettleAmt] = useState<string>("");
+  const [dirSettleDate, setDirSettleDate] = useState<string>(todayStr());
+  const [dirSettleNote, setDirSettleNote] = useState<string>("");
+
+  const [distFrom, setDistFrom] = useState<string>("");
+  const [distTo, setDistTo] = useState<string>("");
+  const [distMode, setDistMode] = useState<"salary_plus_percent" | "percent_only" | "salary_weighted_percent">("salary_plus_percent");
+  const [distSalaryMonths, setDistSalaryMonths] = useState<string>("1");
+  const [distPoolOverride, setDistPoolOverride] = useState<string>("");
 
   // Project Form State
   const [projId, setProjId] = useState<string>("");
@@ -218,8 +270,8 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const [editingHeaderName, setEditingHeaderName] = useState(false);
   const [headerNameDraft, setHeaderNameDraft] = useState("");
 
-  // Print Mode Target ("report" | "statement")
-  const [printTarget, setPrintTarget] = useState<"report" | "statement">("report");
+  // Print Mode Target
+  const [printTarget, setPrintTarget] = useState<"report" | "statement" | "director" | "profit_sheet">("report");
 
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
@@ -282,6 +334,24 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
 
   // ---------------- CALCULATIONS ----------------
 
+  const directorsList = useMemo<AccountingDirector[]>(() => {
+    return Array.isArray(ws.directors) ? ws.directors : [];
+  }, [ws.directors]);
+
+  useEffect(() => {
+    if (directorsList.length > 0) {
+      if (!txPaidByDirectorId) setTxPaidByDirectorId(directorsList[0].id);
+      if (!txFromDirectorId) setTxFromDirectorId(directorsList[0].id);
+      if (!txToDirectorId) setTxToDirectorId((directorsList[1] || directorsList[0]).id);
+      if (!quickDirTransferFrom) setQuickDirTransferFrom(directorsList[0].id);
+      if (!quickDirTransferTo) setQuickDirTransferTo((directorsList[1] || directorsList[0]).id);
+      if (!dirSettleDirectorId) setDirSettleDirectorId(directorsList[0].id);
+    }
+    if (ws.accounts.length > 0 && !dirSettleWalletId) {
+      setDirSettleWalletId(ws.accounts[0].id);
+    }
+  }, [directorsList, ws.accounts, txPaidByDirectorId, txFromDirectorId, txToDirectorId, quickDirTransferFrom, quickDirTransferTo, dirSettleDirectorId, dirSettleWalletId]);
+
   const accountBalances = useMemo(() => {
     const map: Record<string, { balance: number; inflow: number; outflow: number }> = {};
     ws.accounts.forEach((a) => {
@@ -289,13 +359,28 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     });
     ws.transactions.forEach((t) => {
       const amt = Number(t.amount || 0);
-      if (t.type === "income" || t.type === "opening") {
+      if (t.type === "opening") {
         if (map[t.accountId]) {
           map[t.accountId].balance += amt;
           map[t.accountId].inflow += amt;
         }
+      } else if (t.type === "income") {
+        // Subtract any portion directly taken/retained by directors from client bill
+        const dirTaken = (t.directorAllocations || []).reduce((s, a) => s + Number(a.amount || 0), 0);
+        const walletDeposit = Math.max(0, amt - dirTaken);
+        if (map[t.accountId] && walletDeposit > 0) {
+          map[t.accountId].balance += walletDeposit;
+          map[t.accountId].inflow += walletDeposit;
+        }
       } else if (t.type === "expense") {
-        if (map[t.accountId]) {
+        // Only deduct from wallet if paid from wallet (not on Baki/credit and not paid out-of-pocket by director)
+        if (t.paidByMode !== "credit" && t.paidByMode !== "director" && map[t.accountId]) {
+          map[t.accountId].balance -= amt;
+          map[t.accountId].outflow += amt;
+        }
+      } else if (t.type === "due_settlement") {
+        // Paying shop/supplier Baki from wallet (or by director -> 0 wallet change)
+        if (t.paidByMode !== "director" && map[t.accountId]) {
           map[t.accountId].balance -= amt;
           map[t.accountId].outflow += amt;
         }
@@ -307,6 +392,16 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
         if (t.toAccountId && map[t.toAccountId]) {
           map[t.toAccountId].balance += amt;
           map[t.toAccountId].inflow += amt;
+        }
+      } else if (t.type === "director_settlement") {
+        if (map[t.accountId]) {
+          if (t.directorSettlementMode === "director_to_firm") {
+            map[t.accountId].balance += amt;
+            map[t.accountId].inflow += amt;
+          } else {
+            map[t.accountId].balance -= amt;
+            map[t.accountId].outflow += amt;
+          }
         }
       }
     });
@@ -321,22 +416,43 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const overallTotals = useMemo(() => {
     let income = 0;
     let expense = 0;
+    let creditExpenseTotal = 0;
+    let directorPaidExpenseTotal = 0;
     ws.transactions.forEach((t) => {
-      if (t.type === "income") income += Number(t.amount || 0);
-      else if (t.type === "expense") expense += Number(t.amount || 0);
+      const amt = Number(t.amount || 0);
+      if (t.type === "income") income += amt;
+      else if (t.type === "expense") {
+        expense += amt;
+        if (t.paidByMode === "credit") creditExpenseTotal += amt;
+        if (t.paidByMode === "director") directorPaidExpenseTotal += amt;
+      }
     });
     const net = income - expense;
     const margin = income > 0 ? (net / income) * 100 : 0;
-    return { income, expense, net, margin };
+    return { income, expense, net, margin, creditExpenseTotal, directorPaidExpenseTotal };
   }, [ws.transactions]);
 
   const getPartyBalance = (p: AccountingParty): number => {
+    // + = Receivable (they owe us), - = Payable / Baki (we owe them)
     let bal = (p.direction === "payable" ? -1 : 1) * Number(p.opening || 0);
     ws.transactions
       .filter((t) => t.partyId === p.id)
       .forEach((t) => {
-        if (t.type === "income") bal -= Number(t.amount || 0);
-        if (t.type === "expense") bal += Number(t.amount || 0);
+        const amt = Number(t.amount || 0);
+        if (t.type === "income") {
+          bal -= amt;
+        } else if (t.type === "due_settlement") {
+          bal += amt;
+        } else if (t.type === "expense") {
+          if (t.paidByMode === "credit") {
+            // Buying on Baki increases what we owe the shop/supplier
+            bal -= amt;
+          } else if (!t.paidByMode) {
+            // Legacy transaction behavior compatibility
+            bal += amt;
+          }
+          // Immediate cash or director-paid direct expense settles on the spot -> 0 net change to due
+        }
       });
     return bal;
   };
@@ -351,6 +467,252 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     });
     return { receivable, payable };
   }, [ws.parties, ws.transactions]);
+
+  // Per-Director Accounting Ledger Statistics
+  const directorStatsMap = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        opening: number;
+        paidForFirm: number;
+        givenToDirectors: number;
+        receivedFromDirectors: number;
+        clientCashKept: number;
+        profitSalaryCredited: number;
+        withdrawnFromFirm: number;
+        depositedToFirm: number;
+        netBalance: number;
+      }
+    > = {};
+
+    directorsList.forEach((d) => {
+      map[d.id] = {
+        opening: Number(d.openingBalance || 0),
+        paidForFirm: 0,
+        givenToDirectors: 0,
+        receivedFromDirectors: 0,
+        clientCashKept: 0,
+        profitSalaryCredited: 0,
+        withdrawnFromFirm: 0,
+        depositedToFirm: 0,
+        netBalance: Number(d.openingBalance || 0),
+      };
+    });
+
+    ws.transactions.forEach((t) => {
+      const amt = Number(t.amount || 0);
+      if ((t.type === "expense" || t.type === "due_settlement") && t.paidByMode === "director" && t.paidByDirectorId && map[t.paidByDirectorId]) {
+        map[t.paidByDirectorId].paidForFirm += amt;
+      } else if (t.type === "director_transfer") {
+        if (t.fromDirectorId && map[t.fromDirectorId]) {
+          map[t.fromDirectorId].givenToDirectors += amt;
+        }
+        if (t.toDirectorId && map[t.toDirectorId]) {
+          map[t.toDirectorId].receivedFromDirectors += amt;
+        }
+      } else if (t.type === "income" && Array.isArray(t.directorAllocations)) {
+        t.directorAllocations.forEach((alloc) => {
+          if (alloc.directorId && map[alloc.directorId]) {
+            map[alloc.directorId].clientCashKept += Number(alloc.amount || 0);
+          }
+        });
+      } else if (t.type === "profit_distribution" && Array.isArray(t.directorAllocations)) {
+        t.directorAllocations.forEach((alloc) => {
+          if (alloc.directorId && map[alloc.directorId]) {
+            map[alloc.directorId].profitSalaryCredited += Number(alloc.amount || 0);
+          }
+        });
+      } else if (t.type === "director_settlement") {
+        const targetDir = t.paidByDirectorId || t.fromDirectorId || t.toDirectorId;
+        if (targetDir && map[targetDir]) {
+          if (t.directorSettlementMode === "director_to_firm") {
+            map[targetDir].depositedToFirm += amt;
+          } else {
+            map[targetDir].withdrawnFromFirm += amt;
+          }
+        }
+      }
+    });
+
+    Object.keys(map).forEach((id) => {
+      const s = map[id];
+      s.netBalance =
+        s.opening +
+        s.paidForFirm +
+        s.givenToDirectors +
+        s.profitSalaryCredited +
+        s.depositedToFirm -
+        s.receivedFromDirectors -
+        s.clientCashKept -
+        s.withdrawnFromFirm;
+    });
+
+    return map;
+  }, [directorsList, ws.transactions]);
+
+  const directorSummaryTotals = useMemo(() => {
+    let firmOwesDirectors = 0;
+    let directorsOweFirm = 0;
+    directorsList.forEach((d) => {
+      const bal = directorStatsMap[d.id]?.netBalance || 0;
+      if (bal > 0) firmOwesDirectors += bal;
+      else if (bal < 0) directorsOweFirm += -bal;
+    });
+    return { firmOwesDirectors, directorsOweFirm };
+  }, [directorsList, directorStatsMap]);
+
+  // Selected Director Ledger Statement Rows
+  const selectedDirectorLedger = useMemo(() => {
+    if (!selectedDirectorLedgerId) return null;
+    const dir = directorsList.find((d) => d.id === selectedDirectorLedgerId);
+    if (!dir) return null;
+
+    let running = Number(dir.openingBalance || 0);
+    const dirTxs = ws.transactions
+      .filter((t) => {
+        if ((t.type === "expense" || t.type === "due_settlement") && t.paidByMode === "director" && t.paidByDirectorId === dir.id) return true;
+        if (t.type === "director_transfer" && (t.fromDirectorId === dir.id || t.toDirectorId === dir.id)) return true;
+        if ((t.type === "income" || t.type === "profit_distribution") && t.directorAllocations?.some((a) => a.directorId === dir.id && Number(a.amount || 0) > 0)) return true;
+        if (t.type === "director_settlement" && (t.paidByDirectorId === dir.id || t.fromDirectorId === dir.id || t.toDirectorId === dir.id)) return true;
+        return false;
+      })
+      .sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || "").localeCompare(b.createdAt || ""));
+
+    const rows = dirTxs.map((t) => {
+      let credit = 0; // + Firm owes director more
+      let debit = 0;  // - Director took/received cash
+      let summaryLabel = t.desc;
+
+      if ((t.type === "expense" || t.type === "due_settlement") && t.paidByMode === "director" && t.paidByDirectorId === dir.id) {
+        credit = Number(t.amount || 0);
+        const partyNm = t.partyId ? ws.parties.find((p) => p.id === t.partyId)?.name : "";
+        summaryLabel = `${t.type === "due_settlement" ? "Paid Baki" : "Paid Expense"}: ${t.desc}${partyNm ? ` (${partyNm})` : ""}`;
+      } else if (t.type === "director_transfer") {
+        const fromNm = directorsList.find((d) => d.id === t.fromDirectorId)?.name || "Director";
+        const toNm = directorsList.find((d) => d.id === t.toDirectorId)?.name || "Director";
+        if (t.fromDirectorId === dir.id) {
+          credit = Number(t.amount || 0);
+          summaryLabel = `Gave cash to ${toNm}${t.desc ? ` — ${t.desc}` : ""}`;
+        }
+        if (t.toDirectorId === dir.id) {
+          debit = Number(t.amount || 0);
+          summaryLabel = `Received cash from ${fromNm}${t.desc ? ` — ${t.desc}` : ""}`;
+        }
+      } else if (t.type === "income") {
+        const alloc = t.directorAllocations?.find((a) => a.directorId === dir.id);
+        debit = Number(alloc?.amount || 0);
+        summaryLabel = `Retained from Client Bill (Total ৳${Number(t.amount || 0).toLocaleString()}): ${t.desc}`;
+      } else if (t.type === "profit_distribution") {
+        const alloc = t.directorAllocations?.find((a) => a.directorId === dir.id);
+        credit = Number(alloc?.amount || 0);
+        summaryLabel = `${t.desc}${alloc?.salaryAmount ? ` [Salary ৳${alloc.salaryAmount} + Profit ৳${alloc.profitShareAmount || 0}]` : ""}`;
+      } else if (t.type === "director_settlement") {
+        const acctNm = ws.accounts.find((a) => a.id === t.accountId)?.name || "Office Wallet";
+        if (t.directorSettlementMode === "director_to_firm") {
+          credit = Number(t.amount || 0);
+          summaryLabel = `Deposited cash (Joma) to ${acctNm}${t.desc ? ` — ${t.desc}` : ""}`;
+        } else {
+          debit = Number(t.amount || 0);
+          summaryLabel = `Paid by Firm (${acctNm})${t.desc ? ` — ${t.desc}` : ""}`;
+        }
+      }
+
+      running = running + credit - debit;
+      return {
+        id: t.id,
+        date: t.date,
+        label: summaryLabel,
+        credit,
+        debit,
+        running,
+      };
+    });
+
+    return {
+      director: dir,
+      opening: Number(dir.openingBalance || 0),
+      rows,
+      finalBalance: running,
+    };
+  }, [selectedDirectorLedgerId, directorsList, ws.transactions, ws.parties, ws.accounts]);
+
+  // Profit Distribution Calculation Engine (Salary Amount + Share Percentage)
+  const profitDistCalculation = useMemo(() => {
+    const periodTxs = ws.transactions.filter(
+      (t) => (!distFrom || t.date >= distFrom) && (!distTo || t.date <= distTo)
+    );
+    let periodIncome = 0;
+    let periodExpense = 0;
+    periodTxs.forEach((t) => {
+      const amt = Number(t.amount || 0);
+      if (t.type === "income") periodIncome += amt;
+      else if (t.type === "expense") periodExpense += amt;
+    });
+    const operatingProfit = periodIncome - periodExpense;
+    const poolBase = distPoolOverride.trim() !== "" ? Number(distPoolOverride || 0) : operatingProfit;
+    const monthsMult = Math.max(0, Number(distSalaryMonths || 1));
+
+    const totalSharePct = directorsList.reduce((s, d) => s + Number(d.sharePercent || 0), 0);
+    const totalSalaryBase = directorsList.reduce((s, d) => s + Number(d.salaryAmount || 0) * monthsMult, 0);
+
+    const remainingProfitAfterSalary = poolBase - totalSalaryBase;
+
+    const rows = directorsList.map((d) => {
+      const periodSalary = Math.round(Number(d.salaryAmount || 0) * monthsMult * 100) / 100;
+      const salaryWeightPct =
+        totalSalaryBase > 0
+          ? (periodSalary / totalSalaryBase) * 100
+          : directorsList.length > 0
+          ? 100 / directorsList.length
+          : 0;
+      const directPct = totalSharePct > 0 ? Number(d.sharePercent || 0) : directorsList.length > 0 ? 100 / directorsList.length : 0;
+
+      let effectivePct = directPct;
+      let salaryEntitlement = 0;
+      let profitShare = 0;
+
+      if (distMode === "salary_plus_percent") {
+        salaryEntitlement = periodSalary;
+        effectivePct = directPct;
+        profitShare = remainingProfitAfterSalary * (effectivePct / 100);
+      } else if (distMode === "salary_weighted_percent") {
+        effectivePct = salaryWeightPct;
+        salaryEntitlement = 0;
+        profitShare = poolBase * (effectivePct / 100);
+      } else {
+        effectivePct = directPct;
+        salaryEntitlement = 0;
+        profitShare = poolBase * (effectivePct / 100);
+      }
+
+      salaryEntitlement = Math.round(salaryEntitlement * 100) / 100;
+      profitShare = Math.round(profitShare * 100) / 100;
+      const totalEarned = Math.round((salaryEntitlement + profitShare) * 100) / 100;
+      const currentLedgerBal = directorStatsMap[d.id]?.netBalance || 0;
+      const projectedNetPayable = Math.round((currentLedgerBal + totalEarned) * 100) / 100;
+
+      return {
+        director: d,
+        effectivePct,
+        salaryEntitlement,
+        profitShare,
+        totalEarned,
+        currentLedgerBal,
+        projectedNetPayable,
+      };
+    });
+
+    return {
+      periodIncome,
+      periodExpense,
+      operatingProfit,
+      poolBase,
+      totalSharePct,
+      totalSalaryBase,
+      remainingProfitAfterSalary,
+      rows,
+    };
+  }, [ws.transactions, directorsList, distFrom, distTo, distMode, distSalaryMonths, distPoolOverride, directorStatsMap]);
 
   const getProjectStats = (p: AccountingProject) => {
     const txs = ws.transactions.filter((t) => t.projectId === p.id);
@@ -409,7 +771,12 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
           const pName = ws.parties.find((p) => p.id === t.partyId)?.name || "";
           const prName = ws.projects.find((p) => p.id === t.projectId)?.name || "";
           const acName = ws.accounts.find((a) => a.id === t.accountId)?.name || "";
-          const hay = `${t.desc} ${t.category} ${t.note || ""} ${pName} ${prName} ${acName}`.toLowerCase();
+          const dirNames = [
+            directorsList.find((d) => d.id === t.paidByDirectorId)?.name || "",
+            directorsList.find((d) => d.id === t.fromDirectorId)?.name || "",
+            directorsList.find((d) => d.id === t.toDirectorId)?.name || "",
+          ].join(" ");
+          const hay = `${t.desc} ${t.category} ${t.note || ""} ${pName} ${prName} ${acName} ${dirNames}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
@@ -420,6 +787,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     ws.parties,
     ws.projects,
     ws.accounts,
+    directorsList,
     txSearch,
     txFilterType,
     txFilterCategory,
@@ -469,15 +837,36 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
 
     const rows = txs.map((t) => {
       const amt = Number(t.amount || 0);
-      if (t.type === "income") running -= amt;
-      else if (t.type === "expense") running += amt;
-      const acctName = ws.accounts.find((a) => a.id === t.accountId)?.name || "Account";
+      let labelSource = ws.accounts.find((a) => a.id === t.accountId)?.name || "Account";
+      if (t.type === "income") {
+        running -= amt;
+      } else if (t.type === "due_settlement") {
+        running += amt;
+        if (t.paidByMode === "director") {
+          const dNm = directorsList.find((d) => d.id === t.paidByDirectorId)?.name || "Director";
+          labelSource = `Paid Baki (${dNm})`;
+        } else {
+          labelSource = `Paid Baki (${labelSource})`;
+        }
+      } else if (t.type === "expense") {
+        if (t.paidByMode === "credit") {
+          running -= amt;
+          labelSource = "On Credit (Baki)";
+        } else if (!t.paidByMode) {
+          running += amt;
+        } else if (t.paidByMode === "director") {
+          const dNm = directorsList.find((d) => d.id === t.paidByDirectorId)?.name || "Director";
+          labelSource = `Spot Paid (${dNm})`;
+        } else {
+          labelSource = `Spot Paid (${labelSource})`;
+        }
+      }
       const projName = ws.projects.find((p) => p.id === t.projectId)?.name || "";
-      return { ...t, acctName, projName, running };
+      return { ...t, acctName: labelSource, projName, running };
     });
 
     return { party, openingSigned, rows, finalBalance: running };
-  }, [selectedStatementPartyId, ws.parties, ws.transactions, ws.accounts, ws.projects]);
+  }, [selectedStatementPartyId, ws.parties, ws.transactions, ws.accounts, ws.projects, directorsList]);
 
   // Report Data for selected period
   const reportData = useMemo(() => {
@@ -541,23 +930,129 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     setTxPartyId("");
     setTxProjectId("");
     setTxNote("");
+    setTxPaidByMode("wallet");
+    setTxPaidByDirectorId(directorsList[0]?.id || "");
+    setTxFromDirectorId(directorsList[0]?.id || "");
+    setTxToDirectorId((directorsList[1] || directorsList[0])?.id || "");
+    setTxDirectorSettlementMode("firm_to_director");
+    setTxSplitEnabled(false);
+    setTxSplitAllocations([]);
+    setQuickPartyOpen(false);
+    setQuickPartyName("");
+  };
+
+  const handleQuickAddParty = async () => {
+    const trimmed = quickPartyName.trim();
+    if (!trimmed) {
+      notify("Enter a shop or party name first.", "error");
+      return;
+    }
+    const newParty: AccountingParty = {
+      id: genId("pty"),
+      type: quickPartyType,
+      name: trimmed,
+      opening: 0,
+      direction: quickPartyType === "Client" ? "receivable" : "payable",
+    };
+    await commitWorkspace(
+      { ...ws, parties: [newParty, ...ws.parties] },
+      `Added "${trimmed}" (${quickPartyType}).`
+    );
+    setTxPartyId(newParty.id);
+    setQuickPartyName("");
+    setQuickPartyOpen(false);
   };
 
   const handleSaveTx = async (e: React.FormEvent) => {
     e.preventDefault();
     const amountNum = parseFloat(txAmount);
-    if (!txAccountId || isNaN(amountNum) || amountNum <= 0) {
-      notify("Please select a valid account and enter an amount greater than 0.", "error");
+    if (isNaN(amountNum) || amountNum <= 0) {
+      notify("Please enter an amount greater than 0.", "error");
       return;
     }
     if (!txDesc.trim()) {
       notify("Please enter transaction particulars / description.", "error");
       return;
     }
-    if (txType === "transfer" && (!txToAccountId || txToAccountId === txAccountId)) {
-      notify("Please select a different destination account for transfer.", "error");
-      return;
+
+    if (txType === "transfer") {
+      if (!txAccountId || !txToAccountId || txToAccountId === txAccountId) {
+        notify("Please select different source and destination accounts for transfer.", "error");
+        return;
+      }
+    } else if (txType === "director_transfer") {
+      if (!txFromDirectorId || !txToDirectorId || txFromDirectorId === txToDirectorId) {
+        notify("Please select two different directors for inter-director transfer.", "error");
+        return;
+      }
+    } else if (txType === "director_settlement") {
+      if (!txPaidByDirectorId || !txAccountId) {
+        notify("Please select both a director and an office wallet.", "error");
+        return;
+      }
+    } else if (txType === "expense") {
+      if (txPaidByMode === "wallet" && !txAccountId) {
+        notify("Please select an office wallet.", "error");
+        return;
+      }
+      if (txPaidByMode === "credit" && !txPartyId) {
+        notify("For On Credit (Baki), please select a Shop / Vendor / Supplier so the Baki is tracked properly.", "error");
+        return;
+      }
+      if (txPaidByMode === "director" && !txPaidByDirectorId) {
+        notify("Please select which Director paid this bill.", "error");
+        return;
+      }
+    } else if (txType === "due_settlement") {
+      if (!txPartyId) {
+        notify("Please select the Shop / Supplier / Party whose Baki is being settled.", "error");
+        return;
+      }
+      if (txPaidByMode === "director" && !txPaidByDirectorId) {
+        notify("Please select the Director who paid this Baki.", "error");
+        return;
+      }
+      if (txPaidByMode !== "director" && !txAccountId) {
+        notify("Please select an office wallet.", "error");
+        return;
+      }
+    } else if (txType === "income") {
+      if (txSplitEnabled) {
+        const cleanAllocs = txSplitAllocations
+          .filter((a) => a.directorId && Number(a.amount || 0) > 0)
+          .map((a) => ({ directorId: a.directorId, amount: Math.round(Number(a.amount) * 100) / 100 }));
+        const totalAllocated = cleanAllocs.reduce((s, a) => s + a.amount, 0);
+        if (totalAllocated > amountNum + 0.001) {
+          notify("Director kept amounts exceed total client bill received.", "error");
+          return;
+        }
+        const depositAmt = amountNum - totalAllocated;
+        if (depositAmt > 0 && !txAccountId) {
+          notify("Please select the office wallet where remaining cash is deposited (Joma).", "error");
+          return;
+        }
+      } else if (!txAccountId) {
+        notify("Please select an office wallet.", "error");
+        return;
+      }
+    } else {
+      if (!txAccountId) {
+        notify("Please select a valid account.", "error");
+        return;
+      }
     }
+
+    const cleanDirectorAllocs: AccountingDirectorAllocation[] | undefined =
+      txType === "income" && txSplitEnabled
+        ? txSplitAllocations
+            .filter((a) => a.directorId && Number(a.amount || 0) > 0)
+            .map((a) => ({
+              directorId: a.directorId,
+              amount: Math.round(Number(a.amount) * 100) / 100,
+            }))
+        : txId && txType === "profit_distribution"
+        ? ws.transactions.find((x) => x.id === txId)?.directorAllocations
+        : undefined;
 
     const now = new Date().toISOString();
     const existing = txId ? ws.transactions.find((t) => t.id === txId) : null;
@@ -567,12 +1062,44 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
       date: txDate || todayStr(),
       desc: txDesc.trim(),
       amount: Math.round(amountNum * 100) / 100,
-      category: txType === "transfer" ? "Account Transfer" : txType === "opening" ? "Opening Balance" : txCategory,
-      accountId: txAccountId,
+      category:
+        txType === "transfer"
+          ? "Account Transfer"
+          : txType === "opening"
+          ? "Opening Balance"
+          : txType === "due_settlement"
+          ? "Baki / Due Settlement"
+          : txType === "director_transfer"
+          ? "Director Transfer"
+          : txType === "director_settlement"
+          ? "Director Settlement"
+          : txCategory,
+      accountId:
+        txType === "director_transfer" || (txType === "expense" && txPaidByMode !== "wallet")
+          ? ""
+          : txAccountId,
       toAccountId: txType === "transfer" ? txToAccountId : null,
       partyId: txPartyId || null,
       projectId: txProjectId || null,
       note: txNote.trim(),
+      paidByMode:
+        txType === "expense"
+          ? txPaidByMode
+          : txType === "due_settlement"
+          ? txPaidByMode === "director"
+            ? "director"
+            : "wallet"
+          : undefined,
+      paidByDirectorId:
+        (txType === "expense" || txType === "due_settlement") && txPaidByMode === "director"
+          ? txPaidByDirectorId
+          : txType === "director_settlement"
+          ? txPaidByDirectorId
+          : null,
+      fromDirectorId: txType === "director_transfer" ? txFromDirectorId : null,
+      toDirectorId: txType === "director_transfer" ? txToDirectorId : null,
+      directorSettlementMode: txType === "director_settlement" ? txDirectorSettlementMode : undefined,
+      directorAllocations: cleanDirectorAllocs && cleanDirectorAllocs.length > 0 ? cleanDirectorAllocs : undefined,
       linkedVoucherId: existing?.linkedVoucherId,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
@@ -593,24 +1120,256 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     setTxDesc(t.desc);
     setTxAmount(String(t.amount));
     setTxCategory(t.category || "Consultancy Fee");
-    setTxAccountId(t.accountId);
+    setTxAccountId(t.accountId || ws.accounts[0]?.id || "");
     setTxToAccountId(t.toAccountId || "");
     setTxPartyId(t.partyId || "");
     setTxProjectId(t.projectId || "");
     setTxNote(t.note || "");
+    setTxPaidByMode(t.paidByMode || "wallet");
+    setTxPaidByDirectorId(t.paidByDirectorId || directorsList[0]?.id || "");
+    setTxFromDirectorId(t.fromDirectorId || directorsList[0]?.id || "");
+    setTxToDirectorId(t.toDirectorId || (directorsList[1] || directorsList[0])?.id || "");
+    setTxDirectorSettlementMode(t.directorSettlementMode || "firm_to_director");
+    if (t.type === "income" && t.directorAllocations && t.directorAllocations.length > 0) {
+      setTxSplitEnabled(true);
+      setTxSplitAllocations(
+        t.directorAllocations.map((a) => ({
+          directorId: a.directorId,
+          amount: String(a.amount),
+        }))
+      );
+    } else {
+      setTxSplitEnabled(false);
+      setTxSplitAllocations([]);
+    }
     setActiveTab("transactions");
   };
 
   const handleDeleteTx = (t: AccountingTransaction) => {
     setConfirmAction({
       title: "Delete Transaction",
-      message: `Delete "${t.desc}" (${fmtBdt(t.amount)}) dated ${t.date}? Account & party balances will recalculate automatically.`,
+      message: `Delete "${t.desc}" (${fmtBdt(t.amount)}) dated ${t.date}? Account, party & director balances will recalculate automatically.`,
       confirmLabel: "Delete Transaction",
       danger: true,
       onConfirm: async () => {
         const nextTxs = ws.transactions.filter((x) => x.id !== t.id);
         await commitWorkspace({ ...ws, transactions: nextTxs }, "Transaction deleted.");
         if (txId === t.id) resetTxForm();
+      },
+    });
+  };
+
+  // ---------------- DIRECTOR & PROFIT DISTRIBUTION HANDLERS ----------------
+
+  const resetDirectorForm = () => {
+    setDirId("");
+    setDirName("");
+    setDirDesignation("Director");
+    setDirPhone("");
+    setDirSharePercent("25");
+    setDirSalaryAmount("0");
+    setDirOpeningBalance("0");
+  };
+
+  const handleSaveDirector = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dirName.trim()) {
+      notify("Director / Partner name is required.", "error");
+      return;
+    }
+    const item: AccountingDirector = {
+      id: dirId || genId("dir"),
+      name: dirName.trim(),
+      designation: dirDesignation.trim() || "Director",
+      phone: dirPhone.trim(),
+      sharePercent: Math.max(0, Number(dirSharePercent || 0)),
+      salaryAmount: Math.max(0, Number(dirSalaryAmount || 0)),
+      openingBalance: Number(dirOpeningBalance || 0),
+    };
+    const nextDirs = dirId
+      ? directorsList.map((d) => (d.id === dirId ? item : d))
+      : [...directorsList, item];
+
+    await commitWorkspace(
+      { ...ws, directors: nextDirs },
+      dirId ? "Director updated." : `Director "${item.name}" added.`
+    );
+    resetDirectorForm();
+  };
+
+  const handleQuickAddFourDirectors = async () => {
+    const sampleDirs: AccountingDirector[] = [
+      { id: genId("dir") + "_a", name: "Director A", designation: "Managing Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_b", name: "Director B", designation: "Technical Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_c", name: "Director C", designation: "Finance Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
+      { id: genId("dir") + "_d", name: "Director D", designation: "Operations Director", sharePercent: 25, salaryAmount: 25000, openingBalance: 0 },
+    ];
+    await commitWorkspace(
+      { ...ws, directors: [...directorsList, ...sampleDirs] },
+      "Added 4 Directors (A, B, C, D) — edit their names, salaries, and % shares anytime."
+    );
+  };
+
+  const handleSyncPercentFromSalary = async () => {
+    if (directorsList.length === 0) return;
+    const totalSal = directorsList.reduce((s, d) => s + Number(d.salaryAmount || 0), 0);
+    if (totalSal <= 0) {
+      notify("Set salary amounts greater than 0 first so percentages can be derived.", "error");
+      return;
+    }
+    const nextDirs = directorsList.map((d) => ({
+      ...d,
+      sharePercent: Math.round(((Number(d.salaryAmount || 0) / totalSal) * 100) * 100) / 100,
+    }));
+    await commitWorkspace(
+      { ...ws, directors: nextDirs },
+      "Director profit percentages synced automatically from salary ratio!"
+    );
+  };
+
+  const handleDeleteDirector = (d: AccountingDirector) => {
+    const isLinked = ws.transactions.some(
+      (t) =>
+        t.paidByDirectorId === d.id ||
+        t.fromDirectorId === d.id ||
+        t.toDirectorId === d.id ||
+        t.directorAllocations?.some((a) => a.directorId === d.id)
+    );
+    if (isLinked) {
+      notify("This director has ledger transactions. Delete or reassign those entries first.", "error");
+      return;
+    }
+    setConfirmAction({
+      title: "Delete Director",
+      message: `Remove "${d.name}" from Directors & Profit Share list?`,
+      confirmLabel: "Delete Director",
+      danger: true,
+      onConfirm: async () => {
+        await commitWorkspace(
+          { ...ws, directors: directorsList.filter((x) => x.id !== d.id) },
+          "Director removed."
+        );
+        if (selectedDirectorLedgerId === d.id) setSelectedDirectorLedgerId(null);
+      },
+    });
+  };
+
+  const handleQuickDirectorTransfer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(quickDirTransferAmt);
+    if (!quickDirTransferFrom || !quickDirTransferTo || quickDirTransferFrom === quickDirTransferTo) {
+      notify("Select two different directors for handover.", "error");
+      return;
+    }
+    if (isNaN(amt) || amt <= 0) {
+      notify("Enter a valid transfer amount greater than 0.", "error");
+      return;
+    }
+    const fromName = directorsList.find((d) => d.id === quickDirTransferFrom)?.name || "Director";
+    const toName = directorsList.find((d) => d.id === quickDirTransferTo)?.name || "Director";
+    const now = new Date().toISOString();
+    const tx: AccountingTransaction = {
+      id: genId("tx"),
+      type: "director_transfer",
+      date: quickDirTransferDate || todayStr(),
+      desc: quickDirTransferNote.trim() || `${fromName} gave cash to ${toName}`,
+      amount: Math.round(amt * 100) / 100,
+      category: "Director Transfer",
+      accountId: "",
+      fromDirectorId: quickDirTransferFrom,
+      toDirectorId: quickDirTransferTo,
+      note: quickDirTransferNote.trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    await commitWorkspace(
+      { ...ws, transactions: [tx, ...ws.transactions] },
+      `Recorded transfer: ${fromName} → ${toName} (${fmtBdt(amt)})`
+    );
+    setQuickDirTransferAmt("");
+    setQuickDirTransferNote("");
+  };
+
+  const handleQuickDirectorSettlement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amt = parseFloat(dirSettleAmt);
+    if (!dirSettleDirectorId || !dirSettleWalletId) {
+      notify("Select a director and an office wallet.", "error");
+      return;
+    }
+    if (isNaN(amt) || amt <= 0) {
+      notify("Enter a valid settlement amount greater than 0.", "error");
+      return;
+    }
+    const dirObj = directorsList.find((d) => d.id === dirSettleDirectorId);
+    const walletObj = ws.accounts.find((a) => a.id === dirSettleWalletId);
+    const now = new Date().toISOString();
+    const tx: AccountingTransaction = {
+      id: genId("tx"),
+      type: "director_settlement",
+      date: dirSettleDate || todayStr(),
+      desc:
+        dirSettleNote.trim() ||
+        (dirSettleMode === "director_to_firm"
+          ? `${dirObj?.name || "Director"} deposited cash (Joma) to ${walletObj?.name || "Office"}`
+          : `Firm paid ${dirObj?.name || "Director"} from ${walletObj?.name || "Office"}`),
+      amount: Math.round(amt * 100) / 100,
+      category: "Director Settlement",
+      accountId: dirSettleWalletId,
+      paidByDirectorId: dirSettleDirectorId,
+      directorSettlementMode: dirSettleMode,
+      note: dirSettleNote.trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    await commitWorkspace(
+      { ...ws, transactions: [tx, ...ws.transactions] },
+      "Director settlement recorded & synced!"
+    );
+    setDirSettleAmt("");
+    setDirSettleNote("");
+  };
+
+  const handlePostProfitDistribution = () => {
+    if (directorsList.length === 0) {
+      notify("Add directors first before posting profit distribution.", "error");
+      return;
+    }
+    const positiveRows = profitDistCalculation.rows.filter((r) => Math.abs(r.totalEarned) > 0.001);
+    if (positiveRows.length === 0) {
+      notify("Calculated distribution amounts are all ৳0. Check period profit or salaries.", "info");
+      return;
+    }
+    const totalDistributed = positiveRows.reduce((s, r) => s + r.totalEarned, 0);
+    setConfirmAction({
+      title: "Post Profit & Salary Distribution",
+      message: `Credit total ${fmtBdt(totalDistributed)} across ${positiveRows.length} director ledger(s) for ${distFrom || "Start"} to ${distTo || todayStr()}?`,
+      confirmLabel: "Post to Ledgers",
+      onConfirm: async () => {
+        const now = new Date().toISOString();
+        const tx: AccountingTransaction = {
+          id: genId("tx"),
+          type: "profit_distribution",
+          date: distTo || todayStr(),
+          desc: `Profit & Salary Distribution (${distFrom || "All"} to ${distTo || todayStr()})`,
+          amount: Math.round(totalDistributed * 100) / 100,
+          category: "Profit Distribution",
+          accountId: "",
+          directorAllocations: positiveRows.map((r) => ({
+            directorId: r.director.id,
+            amount: r.totalEarned,
+            salaryAmount: r.salaryEntitlement,
+            profitShareAmount: r.profitShare,
+            percentUsed: Math.round(r.effectivePct * 100) / 100,
+          })),
+          note: `Mode: ${distMode} · Pool: ${fmtBdt(profitDistCalculation.poolBase)}`,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await commitWorkspace(
+          { ...ws, transactions: [tx, ...ws.transactions] },
+          "Profit & salary distribution posted to every director's ledger!"
+        );
       },
     });
   };
@@ -990,13 +1749,31 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
           desc: String(t.desc || ""),
           amount: Number(t.amount || 0),
           category: String(t.category || "Other"),
-          accountId: String(t.accountId || t.account || mappedAccounts[0]?.id || "acc_cash"),
+          accountId: String(t.accountId ?? t.account ?? ""),
           toAccountId: t.toAccountId ? String(t.toAccountId) : t.to ? String(t.to) : null,
           partyId: t.partyId ? String(t.partyId) : t.party ? String(t.party) : null,
           projectId: t.projectId ? String(t.projectId) : t.project ? String(t.project) : null,
           note: t.note || "",
+          paidByMode: t.paidByMode,
+          paidByDirectorId: t.paidByDirectorId || null,
+          fromDirectorId: t.fromDirectorId || null,
+          toDirectorId: t.toDirectorId || null,
+          directorSettlementMode: t.directorSettlementMode,
+          directorAllocations: Array.isArray(t.directorAllocations) ? t.directorAllocations : undefined,
           linkedVoucherId: t.linkedVoucherId,
         }));
+
+        const mappedDirectors: AccountingDirector[] = Array.isArray(raw.directors)
+          ? raw.directors.map((d: any) => ({
+              id: String(d.id),
+              name: String(d.name || "Director"),
+              designation: d.designation || "Director",
+              phone: d.phone || "",
+              sharePercent: Number(d.sharePercent || 0),
+              salaryAmount: Number(d.salaryAmount || 0),
+              openingBalance: Number(d.openingBalance || 0),
+            }))
+          : ws.directors || [];
 
         // Never leave generic "Hybrid Civil" name if restored from old HTML backup — preserve user's own name if legacy default
         let restoredName = String(raw.profile?.name || "").trim();
@@ -1006,7 +1783,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
 
         setConfirmAction({
           title: "Restore Accounting Backup",
-          message: `Restore ${mappedAccounts.length} accounts, ${mappedParties.length} parties, ${mappedProjects.length} projects, and ${mappedTxs.length} transactions? This will replace your current ledger data.`,
+          message: `Restore ${mappedAccounts.length} accounts, ${mappedParties.length} parties, ${mappedProjects.length} projects, ${mappedDirectors.length} directors, and ${mappedTxs.length} transactions? This will replace your current ledger data.`,
           confirmLabel: "Restore Backup",
           danger: true,
           onConfirm: async () => {
@@ -1021,6 +1798,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
                 accounts: mappedAccounts,
                 parties: mappedParties,
                 projects: mappedProjects,
+                directors: mappedDirectors,
                 transactions: mappedTxs,
               },
               "Backup restored & synced to cloud!"
@@ -1036,20 +1814,49 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   };
 
   const handleExportTransactionsCsv = () => {
-    const headers = ["Date", "Type", "Description", "Category", "Account", "To Account", "Party", "Project", "Amount (BDT)", "Note"];
+    const headers = [
+      "Date",
+      "Type",
+      "Payment Source",
+      "Description",
+      "Category",
+      "Account",
+      "To Account",
+      "Party",
+      "Director / Split Details",
+      "Project",
+      "Amount (BDT)",
+      "Note",
+    ];
     const rows = filteredTransactions.map((t) => {
       const acct = ws.accounts.find((a) => a.id === t.accountId)?.name || "";
       const toAcct = t.toAccountId ? ws.accounts.find((a) => a.id === t.toAccountId)?.name || "" : "";
       const party = t.partyId ? ws.parties.find((p) => p.id === t.partyId)?.name || "" : "";
       const proj = t.projectId ? ws.projects.find((p) => p.id === t.projectId)?.name || "" : "";
+      const source =
+        t.paidByMode === "credit"
+          ? "On Credit (Baki)"
+          : t.paidByMode === "director"
+          ? `Director (${directorsList.find((d) => d.id === t.paidByDirectorId)?.name || ""})`
+          : t.type === "director_transfer"
+          ? `${directorsList.find((d) => d.id === t.fromDirectorId)?.name || ""} -> ${directorsList.find((d) => d.id === t.toDirectorId)?.name || ""}`
+          : acct || "-";
+      const splitInfo =
+        t.directorAllocations && t.directorAllocations.length > 0
+          ? t.directorAllocations
+              .map((a) => `${directorsList.find((d) => d.id === a.directorId)?.name || "Director"}: ${a.amount}`)
+              .join("; ")
+          : "";
       return [
         t.date,
         t.type,
+        `"${source.replace(/"/g, '""')}"`,
         `"${(t.desc || "").replace(/"/g, '""')}"`,
         `"${(t.category || "").replace(/"/g, '""')}"`,
         `"${acct.replace(/"/g, '""')}"`,
         `"${toAcct.replace(/"/g, '""')}"`,
         `"${party.replace(/"/g, '""')}"`,
+        `"${splitInfo.replace(/"/g, '""')}"`,
         `"${proj.replace(/"/g, '""')}"`,
         t.amount,
         `"${(t.note || "").replace(/"/g, '""')}"`,
@@ -1065,7 +1872,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     notify("CSV spreadsheet exported.", "success");
   };
 
-  const triggerPrint = (target: "report" | "statement") => {
+  const triggerPrint = (target: "report" | "statement" | "director" | "profit_sheet") => {
     setPrintTarget(target);
     document.body.classList.add("accounts-print-active");
     const cleanup = () => {
@@ -1277,7 +2084,8 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
             [
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
               { id: "transactions", label: "Transactions", icon: ArrowLeftRight },
-              { id: "parties", label: "Clients & Suppliers", icon: Users },
+              { id: "parties", label: "Clients, Shops & Baki", icon: Users },
+              { id: "directors", label: "Directors & Profit Share", icon: Briefcase },
               { id: "projects", label: "Projects", icon: FolderKanban },
               { id: "accounts", label: "Accounts & Wallets", icon: Landmark },
               { id: "reports", label: "Financial Reports", icon: FileSpreadsheet },
@@ -1389,12 +2197,12 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                 </div>
               </div>
 
-              {/* Quick Integrations & Actions Bar */}
+              {/* Quick Integrations & Daily Shortcuts Bar */}
               <div className={`rounded-xl border p-3.5 flex flex-wrap items-center justify-between gap-3 ${surfaceBg}`}>
                 <div className="text-xs">
-                  <span className="font-bold">Smart Integrations:</span>{" "}
+                  <span className="font-bold">Quick Entry & Sync:</span>{" "}
                   <span className={mutedText}>
-                    Sync consultancy payments directly from Service Vouchers or import BOQ projects.
+                    Log Cha/Biscuit Baki, Director-paid bills, Split client receipts, or sync Service Vouchers.
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1402,12 +2210,57 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     type="button"
                     onClick={() => {
                       resetTxForm();
+                      setTxType("expense");
+                      setTxPaidByMode("credit");
+                      setTxCategory("Tea & Snacks (Cha/Biscuit)");
+                      setTxDesc("Cha & Biscuit (Office)");
                       setActiveTab("transactions");
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white transition"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      isLight
+                        ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40"
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>New Transaction</span>
+                    <Receipt className="w-3.5 h-3.5" />
+                    <span>+ Office Baki (Cha/Shop)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTxForm();
+                      setTxType("expense");
+                      setTxPaidByMode("director");
+                      setActiveTab("transactions");
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      isLight
+                        ? "bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-300"
+                        : "bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border-indigo-500/40"
+                    }`}
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>+ Director Paid Bill</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTxForm();
+                      setTxType("income");
+                      setTxSplitEnabled(true);
+                      if (directorsList[0]) {
+                        setTxSplitAllocations([{ directorId: directorsList[0].id, amount: "" }]);
+                      }
+                      setActiveTab("transactions");
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      isLight
+                        ? "bg-teal-50 hover:bg-teal-100 text-teal-800 border-teal-300"
+                        : "bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border-teal-500/40"
+                    }`}
+                  >
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>+ Split Client Bill</span>
                   </button>
                   <button
                     type="button"
@@ -1419,7 +2272,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     }`}
                   >
                     <Receipt className="w-3.5 h-3.5" />
-                    <span>Sync Service Vouchers ({serviceVouchers.filter((v) => v.paid > 0).length})</span>
+                    <span>Sync Vouchers ({serviceVouchers.filter((v) => v.paid > 0).length})</span>
                   </button>
                   <button
                     type="button"
@@ -1431,12 +2284,12 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     }`}
                   >
                     <FolderKanban className="w-3.5 h-3.5" />
-                    <span>Import BOQ Projects ({boqProjects.length})</span>
+                    <span>Import BOQ ({boqProjects.length})</span>
                   </button>
                 </div>
               </div>
 
-              {/* 2-Column Middle Grid: Account Balances & Receivables/Payables */}
+              {/* 2-Column Middle Grid: Account Balances & Receivables/Payables + Directors Position */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
                   <div className="flex items-center justify-between">
@@ -1469,30 +2322,51 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
 
                 <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold">Receivables & Payables</h3>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("parties")}
-                      className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
-                    >
-                      Party Ledger <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    <h3 className="text-sm font-bold">Baki, Dues & Directors Position</h3>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("parties")}
+                        className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
+                      >
+                        Shops/Parties <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("directors")}
+                        className="text-xs font-semibold text-indigo-400 hover:underline flex items-center gap-0.5"
+                      >
+                        Directors ({directorsList.length}) <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div className="divide-y divide-slate-500/20 text-xs">
-                    <div className="py-2.5 flex items-center justify-between">
+                    <div className="py-2 flex items-center justify-between">
                       <span className={mutedText}>Receivable from Clients / Parties</span>
                       <span className="font-mono tabular-nums font-bold text-emerald-500">
                         {fmtBdt(duesTotals.receivable)}
                       </span>
                     </div>
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className={mutedText}>Payable to Suppliers / Contractors</span>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className={mutedText}>Payable / Office Baki (Shops, Vendors, Suppliers)</span>
                       <span className="font-mono tabular-nums font-bold text-rose-500">
                         {fmtBdt(duesTotals.payable)}
                       </span>
                     </div>
-                    <div className="py-2.5 flex items-center justify-between">
-                      <span className="font-semibold">Net Outstanding Position</span>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className={mutedText}>Firm Owes Directors (Paid Bills / Undrawn Profit)</span>
+                      <span className="font-mono tabular-nums font-bold text-sky-400">
+                        {fmtBdt(directorSummaryTotals.firmOwesDirectors)}
+                      </span>
+                    </div>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className={mutedText}>Directors Hold Firm Cash (To Deposit / Offset)</span>
+                      <span className="font-mono tabular-nums font-bold text-amber-500">
+                        {fmtBdt(directorSummaryTotals.directorsOweFirm)}
+                      </span>
+                    </div>
+                    <div className="py-2 flex items-center justify-between">
+                      <span className="font-semibold">Net Trade Position (Receivable − Baki)</span>
                       <span
                         className={`font-mono tabular-nums font-bold ${
                           duesTotals.receivable - duesTotals.payable >= 0 ? "text-emerald-500" : "text-rose-500"
@@ -1644,14 +2518,20 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         if (nextType === "income" && EXPENSE_CATEGORIES.includes(txCategory)) {
                           setTxCategory("Consultancy Fee");
                         } else if (nextType === "expense" && INCOME_CATEGORIES.includes(txCategory)) {
-                          setTxCategory("Material");
+                          setTxCategory("Tea & Snacks (Cha/Biscuit)");
+                        }
+                        if (nextType === "due_settlement") {
+                          setTxPaidByMode("wallet");
                         }
                       }}
                       className={inputCls}
                     >
-                      <option value="income">Income</option>
-                      <option value="expense">Expense</option>
-                      <option value="transfer">Transfer</option>
+                      <option value="income">Income / Client Receipt</option>
+                      <option value="expense">Expense (Wallet / Baki / Director)</option>
+                      <option value="due_settlement">Pay Baki / Settle Shop Due</option>
+                      <option value="director_transfer">Director Transfer (C → D)</option>
+                      <option value="director_settlement">Director Joma / Firm Payout</option>
+                      <option value="transfer">Wallet-to-Wallet Transfer</option>
                       <option value="opening">Opening Balance</option>
                     </select>
                   </div>
@@ -1673,7 +2553,17 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     type="text"
                     value={txDesc}
                     onChange={(e) => setTxDesc(e.target.value)}
-                    placeholder="e.g. Structural design fee received"
+                    placeholder={
+                      txType === "expense" && txPaidByMode === "credit"
+                        ? "e.g. Cha & Biscuit on Baki from XYZ Dokan"
+                        : txType === "expense" && txPaidByMode === "director"
+                        ? "e.g. Tea bill or House rent paid by Director"
+                        : txType === "director_transfer"
+                        ? "e.g. Director C gave ৳1,500 to Director D"
+                        : txType === "income" && txSplitEnabled
+                        ? "e.g. Client bill 5000 (Director keeps 2000, rest Joma)"
+                        : "e.g. Structural design fee received"
+                    }
                     required
                     className={inputCls}
                   />
@@ -1681,7 +2571,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Amount (BDT)</label>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
+                      {txType === "income" && txSplitEnabled ? "Total Client Paid (BDT)" : "Amount (BDT)"}
+                    </label>
                     <input
                       type="number"
                       min="0.01"
@@ -1698,7 +2590,13 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     <select
                       value={txCategory}
                       onChange={(e) => setTxCategory(e.target.value)}
-                      disabled={txType === "transfer" || txType === "opening"}
+                      disabled={
+                        txType === "transfer" ||
+                        txType === "opening" ||
+                        txType === "due_settlement" ||
+                        txType === "director_transfer" ||
+                        txType === "director_settlement"
+                      }
                       className={inputCls}
                     >
                       {(txType === "expense" ? EXPENSE_CATEGORIES : ALL_CATEGORIES).map((c) => (
@@ -1710,73 +2608,431 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   </div>
                 </div>
 
-                <div className={`grid ${txType === "transfer" ? "grid-cols-2" : "grid-cols-1"} gap-2.5`}>
-                  <div>
-                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
-                      {txType === "transfer" ? "From Account" : "Account / Wallet"}
-                    </label>
-                    <select
-                      value={txAccountId}
-                      onChange={(e) => setTxAccountId(e.target.value)}
-                      className={inputCls}
-                    >
-                      {ws.accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} ({fmtBdt(accountBalances[a.id]?.balance || 0)})
-                        </option>
+                {/* EXPENSE PAYMENT MODE: OFFICE WALLET | ON CREDIT (BAKI) | PAID BY DIRECTOR */}
+                {txType === "expense" && (
+                  <div className={`rounded-lg border p-2.5 space-y-2 ${innerCardBg}`}>
+                    <label className={`block text-[11px] font-bold ${mutedText}`}>How was this expense paid?</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(
+                        [
+                          { id: "wallet", label: "Office Wallet" },
+                          { id: "credit", label: "Baki (বাকি)" },
+                          { id: "director", label: "By Director" },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setTxPaidByMode(opt.id)}
+                          className={`py-1.5 px-2 rounded-md text-[11px] font-semibold border transition ${
+                            txPaidByMode === opt.id
+                              ? "bg-teal-600 border-teal-600 text-white"
+                              : isLight
+                              ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                              : "bg-[#0e1624] border-[#2d4a6a] text-slate-300 hover:bg-[#1a2b42]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
                       ))}
-                    </select>
+                    </div>
+                    {txPaidByMode === "credit" && (
+                      <p className="text-[11px] text-amber-500">
+                        Records operating expense immediately & adds Payable (Baki) to the selected Shop/Vendor without deducting Office Wallets.
+                      </p>
+                    )}
+                    {txPaidByMode === "director" && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className={`text-[11px] font-semibold ${mutedText}`}>Which Director Paid?</label>
+                          {directorsList.length === 0 && (
+                            <button
+                              type="button"
+                              onClick={handleQuickAddFourDirectors}
+                              className="text-[10px] font-bold text-teal-500 hover:underline"
+                            >
+                              + Add Directors (A–D)
+                            </button>
+                          )}
+                        </div>
+                        <select
+                          value={txPaidByDirectorId}
+                          onChange={(e) => setTxPaidByDirectorId(e.target.value)}
+                          className={inputCls}
+                        >
+                          <option value="">Select director...</option>
+                          {directorsList.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  {txType === "transfer" && (
-                    <div>
-                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>To Account</label>
+                {/* DUE SETTLEMENT (PAY BAKI) CONTROLS */}
+                {txType === "due_settlement" && (
+                  <div className={`rounded-lg border p-2.5 space-y-2 ${innerCardBg}`}>
+                    <label className={`block text-[11px] font-bold ${mutedText}`}>Baki Settled From</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setTxPaidByMode("wallet")}
+                        className={`py-1.5 px-2 rounded-md text-[11px] font-semibold border transition ${
+                          txPaidByMode !== "director"
+                            ? "bg-teal-600 border-teal-600 text-white"
+                            : isLight
+                            ? "bg-white border-slate-300 text-slate-700"
+                            : "bg-[#0e1624] border-[#2d4a6a] text-slate-300"
+                        }`}
+                      >
+                        Office Wallet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTxPaidByMode("director")}
+                        className={`py-1.5 px-2 rounded-md text-[11px] font-semibold border transition ${
+                          txPaidByMode === "director"
+                            ? "bg-teal-600 border-teal-600 text-white"
+                            : isLight
+                            ? "bg-white border-slate-300 text-slate-700"
+                            : "bg-[#0e1624] border-[#2d4a6a] text-slate-300"
+                        }`}
+                      >
+                        Paid by Director
+                      </button>
+                    </div>
+                    {txPaidByMode === "director" && (
                       <select
-                        value={txToAccountId}
-                        onChange={(e) => setTxToAccountId(e.target.value)}
+                        value={txPaidByDirectorId}
+                        onChange={(e) => setTxPaidByDirectorId(e.target.value)}
                         className={inputCls}
                       >
-                        {ws.accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
+                        <option value="">Select director...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {/* INTER-DIRECTOR TRANSFER (C -> D) */}
+                {txType === "director_transfer" && (
+                  <div className={`rounded-lg border p-2.5 grid grid-cols-2 gap-2 ${innerCardBg}`}>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>From Director (Giver)</label>
+                      <select
+                        value={txFromDirectorId}
+                        onChange={(e) => setTxFromDirectorId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
                           </option>
                         ))}
                       </select>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>To Director (Receiver)</label>
+                      <select
+                        value={txToDirectorId}
+                        onChange={(e) => setTxToDirectorId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Party (optional)</label>
-                    <select
-                      value={txPartyId}
-                      onChange={(e) => setTxPartyId(e.target.value)}
-                      className={inputCls}
-                    >
-                      <option value="">No party</option>
-                      {ws.parties.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.type})
-                        </option>
-                      ))}
-                    </select>
+                {/* DIRECTOR SETTLEMENT (JOMA TO OFFICE / FIRM PAYOUT) */}
+                {txType === "director_settlement" && (
+                  <div className={`rounded-lg border p-2.5 space-y-2 ${innerCardBg}`}>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Director</label>
+                      <select
+                        value={txPaidByDirectorId}
+                        onChange={(e) => setTxPaidByDirectorId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select director...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Settlement Direction</label>
+                      <select
+                        value={txDirectorSettlementMode}
+                        onChange={(e) => setTxDirectorSettlementMode(e.target.value as "firm_to_director" | "director_to_firm")}
+                        className={inputCls}
+                      >
+                        <option value="director_to_firm">Director Deposits Cash to Office (Joma)</option>
+                        <option value="firm_to_director">Firm Pays / Reimburses Director</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Project (optional)</label>
-                    <select
-                      value={txProjectId}
-                      onChange={(e) => setTxProjectId(e.target.value)}
-                      className={inputCls}
-                    >
-                      <option value="">No project</option>
-                      {ws.projects.map((pr) => (
-                        <option key={pr.id} value={pr.id}>
-                          {pr.name}
-                        </option>
-                      ))}
-                    </select>
+                )}
+
+                {/* OFFICE WALLET DROPDOWN (SHOWN WHEN RELEVANT) */}
+                {!(
+                  txType === "director_transfer" ||
+                  (txType === "expense" && txPaidByMode !== "wallet") ||
+                  (txType === "due_settlement" && txPaidByMode === "director")
+                ) && (
+                  <div className={`grid ${txType === "transfer" ? "grid-cols-2" : "grid-cols-1"} gap-2.5`}>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
+                        {txType === "transfer"
+                          ? "From Account"
+                          : txType === "income" && txSplitEnabled
+                          ? "Deposit Remaining (Joma) To"
+                          : txType === "director_settlement"
+                          ? "Office Wallet"
+                          : "Account / Wallet"}
+                      </label>
+                      <select
+                        value={txAccountId}
+                        onChange={(e) => setTxAccountId(e.target.value)}
+                        className={inputCls}
+                      >
+                        {ws.accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({fmtBdt(accountBalances[a.id]?.balance || 0)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {txType === "transfer" && (
+                      <div>
+                        <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>To Account</label>
+                        <select
+                          value={txToAccountId}
+                          onChange={(e) => setTxToAccountId(e.target.value)}
+                          className={inputCls}
+                        >
+                          {ws.accounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* SPLIT CLIENT BILL WITH DIRECTOR(S) */}
+                {txType === "income" && (
+                  <div className={`rounded-lg border p-2.5 space-y-2 ${innerCardBg}`}>
+                    <label className="flex items-center justify-between gap-2 cursor-pointer text-[11px] font-bold">
+                      <span>Split with Director(s)? (e.g. Director takes part, rest Joma)</span>
+                      <input
+                        type="checkbox"
+                        checked={txSplitEnabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setTxSplitEnabled(checked);
+                          if (checked && txSplitAllocations.length === 0 && directorsList[0]) {
+                            setTxSplitAllocations([{ directorId: directorsList[0].id, amount: "" }]);
+                          }
+                        }}
+                        className="accent-teal-600 w-3.5 h-3.5"
+                      />
+                    </label>
+
+                    {txSplitEnabled && (
+                      <div className="space-y-2 pt-1 border-t border-slate-500/20">
+                        {directorsList.length === 0 ? (
+                          <div className="text-[11px] space-y-1.5">
+                            <p className={mutedText}>No directors added yet.</p>
+                            <button
+                              type="button"
+                              onClick={handleQuickAddFourDirectors}
+                              className="px-2.5 py-1 rounded bg-teal-600 text-white font-semibold text-[11px]"
+                            >
+                              + Quick Add Directors A, B, C, D
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {txSplitAllocations.map((row, idx) => (
+                              <div key={idx} className="flex items-center gap-1.5">
+                                <select
+                                  value={row.directorId}
+                                  onChange={(e) =>
+                                    setTxSplitAllocations((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, directorId: e.target.value } : item))
+                                    )
+                                  }
+                                  className={`${inputCls} flex-1`}
+                                >
+                                  {directorsList.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={row.amount}
+                                  onChange={(e) =>
+                                    setTxSplitAllocations((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, amount: e.target.value } : item))
+                                    )
+                                  }
+                                  placeholder="Kept ৳"
+                                  className={`${inputCls} w-24 font-mono tabular-nums`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setTxSplitAllocations((prev) => prev.filter((_, i) => i !== idx))
+                                  }
+                                  className="px-2 py-1.5 rounded bg-rose-500/15 text-rose-500 text-xs font-bold"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            <div className="flex items-center justify-between gap-2 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTxSplitAllocations((prev) => [
+                                    ...prev,
+                                    { directorId: directorsList[0].id, amount: "" },
+                                  ])
+                                }
+                                className="text-teal-500 font-semibold hover:underline"
+                              >
+                                + Add Another Director
+                              </button>
+                              {(() => {
+                                const tot = parseFloat(txAmount || "0") || 0;
+                                const kept = txSplitAllocations.reduce(
+                                  (s, r) => s + (parseFloat(r.amount || "0") || 0),
+                                  0
+                                );
+                                const joma = tot - kept;
+                                return (
+                                  <span
+                                    className={`font-mono font-bold ${
+                                      joma < 0 ? "text-rose-500" : "text-emerald-500"
+                                    }`}
+                                  >
+                                    Office Joma: {fmtBdt(joma)}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* PARTY / SHOP & PROJECT SELECTORS */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className={`text-[11px] font-semibold ${mutedText}`}>
+                          {txType === "expense" && txPaidByMode === "credit"
+                            ? "Shop / Vendor (Required)"
+                            : txType === "due_settlement"
+                            ? "Shop / Party (Required)"
+                            : "Party (optional)"}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setQuickPartyOpen((v) => !v)}
+                          className="text-[10px] font-bold text-teal-500 hover:underline"
+                        >
+                          {quickPartyOpen ? "Close" : "+ New Shop"}
+                        </button>
+                      </div>
+                      <select
+                        value={txPartyId}
+                        onChange={(e) => setTxPartyId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select party / shop...</option>
+                        {ws.parties.map((p) => {
+                          const bal = getPartyBalance(p);
+                          return (
+                            <option key={p.id} value={p.id}>
+                              {p.name} ({p.type}
+                              {bal < 0 ? ` · Baki ${fmtBdt(Math.abs(bal))}` : bal > 0 ? ` · Recv ${fmtBdt(bal)}` : ""})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Project (optional)</label>
+                      <select
+                        value={txProjectId}
+                        onChange={(e) => setTxProjectId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">No project</option>
+                        {ws.projects.map((pr) => (
+                          <option key={pr.id} value={pr.id}>
+                            {pr.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {quickPartyOpen && (
+                    <div className={`rounded-lg border p-2 flex items-center gap-1.5 ${innerCardBg}`}>
+                      <input
+                        type="text"
+                        value={quickPartyName}
+                        onChange={(e) => setQuickPartyName(e.target.value)}
+                        placeholder="e.g. XYZ Dokan (Cha/Biscuit)"
+                        className={`${inputCls} flex-1`}
+                      />
+                      <select
+                        value={quickPartyType}
+                        onChange={(e) => setQuickPartyType(e.target.value as AccountingPartyType)}
+                        className={`${inputCls} w-28`}
+                      >
+                        <option value="Vendor / Shop">Vendor / Shop</option>
+                        <option value="Supplier">Supplier</option>
+                        <option value="Client">Client</option>
+                        <option value="Contractor">Contractor</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleQuickAddParty}
+                        className="px-2.5 py-2 rounded-lg bg-teal-600 text-white text-[11px] font-bold shrink-0"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1851,7 +3107,11 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     <option value="all">All Types</option>
                     <option value="income">Income</option>
                     <option value="expense">Expense</option>
-                    <option value="transfer">Transfer</option>
+                    <option value="due_settlement">Pay Baki</option>
+                    <option value="director_transfer">Director Transfer</option>
+                    <option value="director_settlement">Director Joma/Payout</option>
+                    <option value="profit_distribution">Profit Distribution</option>
+                    <option value="transfer">Wallet Transfer</option>
                     <option value="opening">Opening</option>
                   </select>
                   <select
@@ -1910,7 +3170,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       <tr>
                         <th className="py-2 px-2.5 font-semibold">Date</th>
                         <th className="py-2 px-2.5 font-semibold">Details</th>
-                        <th className="py-2 px-2.5 font-semibold">Type</th>
+                        <th className="py-2 px-2.5 font-semibold">Source / Type</th>
                         <th className="py-2 px-2.5 font-semibold text-right">Amount</th>
                         <th className="py-2 px-2.5 font-semibold text-right">Actions</th>
                       </tr>
@@ -1921,6 +3181,37 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         const toAcctName = t.toAccountId ? ws.accounts.find((a) => a.id === t.toAccountId)?.name : "";
                         const partyNameStr = t.partyId ? ws.parties.find((p) => p.id === t.partyId)?.name : "";
                         const projNameStr = t.projectId ? ws.projects.find((p) => p.id === t.projectId)?.name : "";
+                        const paidDirNm = t.paidByDirectorId ? directorsList.find((d) => d.id === t.paidByDirectorId)?.name : "";
+                        const fromDirNm = t.fromDirectorId ? directorsList.find((d) => d.id === t.fromDirectorId)?.name : "";
+                        const toDirNm = t.toDirectorId ? directorsList.find((d) => d.id === t.toDirectorId)?.name : "";
+
+                        let sourceBadge = acctName || "—";
+                        let typeLabel: string = t.type;
+                        if (t.type === "expense" && t.paidByMode === "credit") {
+                          sourceBadge = "On Credit (Baki)";
+                          typeLabel = "Expense · Baki";
+                        } else if (t.type === "expense" && t.paidByMode === "director") {
+                          sourceBadge = `By ${paidDirNm || "Director"}`;
+                          typeLabel = "Expense · Director";
+                        } else if (t.type === "due_settlement") {
+                          sourceBadge = t.paidByMode === "director" ? `By ${paidDirNm || "Director"}` : acctName;
+                          typeLabel = "Pay Baki";
+                        } else if (t.type === "director_transfer") {
+                          sourceBadge = `${fromDirNm || "Dir"} → ${toDirNm || "Dir"}`;
+                          typeLabel = "Dir Transfer";
+                        } else if (t.type === "director_settlement") {
+                          sourceBadge = `${paidDirNm || "Dir"} ↔ ${acctName}`;
+                          typeLabel = t.directorSettlementMode === "director_to_firm" ? "Dir Joma" : "Dir Payout";
+                        } else if (t.type === "profit_distribution") {
+                          sourceBadge = "Profit Pool";
+                          typeLabel = "Profit Dist.";
+                        } else if (t.type === "income" && t.directorAllocations && t.directorAllocations.length > 0) {
+                          const keptTotal = t.directorAllocations.reduce((s, a) => s + Number(a.amount || 0), 0);
+                          const jomaAmt = Math.max(0, Number(t.amount || 0) - keptTotal);
+                          sourceBadge = `Split: Dir ${fmtBdt(keptTotal)} + ${acctName || "Wallet"} ${fmtBdt(jomaAmt)}`;
+                          typeLabel = "Income · Split";
+                        }
+
                         return (
                           <tr key={t.id} className="hover:bg-slate-500/10 transition">
                             <td className="py-2.5 px-2.5 font-mono tabular-nums whitespace-nowrap align-top">
@@ -1929,34 +3220,49 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                             <td className="py-2.5 px-2.5 align-top">
                               <div className="font-semibold">{t.desc}</div>
                               <div className={`text-[11px] mt-0.5 ${mutedText}`}>
-                                {t.category} · {acctName}
-                                {toAcctName ? ` → ${toAcctName}` : ""}
+                                {t.category}
+                                {toAcctName ? ` · ${acctName} → ${toAcctName}` : ""}
                                 {partyNameStr ? ` · ${partyNameStr}` : ""}
                                 {projNameStr ? ` · ${projNameStr}` : ""}
+                                {t.directorAllocations && t.directorAllocations.length > 0
+                                  ? ` · [${t.directorAllocations
+                                      .map(
+                                        (a) =>
+                                          `${directorsList.find((d) => d.id === a.directorId)?.name || "Dir"}: ${fmtBdt(a.amount)}`
+                                      )
+                                      .join(", ")}]`
+                                  : ""}
                                 {t.note ? ` · ${t.note}` : ""}
                               </div>
                             </td>
-                            <td className="py-2.5 px-2.5 capitalize align-top font-medium">{t.type}</td>
+                            <td className="py-2.5 px-2.5 align-top">
+                              <div className="font-semibold whitespace-nowrap">{typeLabel}</div>
+                              <div className={`text-[10px] ${t.paidByMode === "credit" ? "text-amber-500 font-semibold" : mutedText}`}>
+                                {sourceBadge}
+                              </div>
+                            </td>
                             <td
                               className={`py-2.5 px-2.5 text-right font-mono tabular-nums font-bold align-top whitespace-nowrap ${
                                 t.type === "income"
                                   ? "text-emerald-500"
                                   : t.type === "expense"
                                   ? "text-rose-500"
-                                  : ""
+                                  : "text-sky-400"
                               }`}
                             >
                               {fmtBdt(t.amount)}
                             </td>
                             <td className="py-2.5 px-2.5 text-right align-top whitespace-nowrap">
                               <div className="inline-flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleEditTx(t)}
-                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
-                                >
-                                  Edit
-                                </button>
+                                {t.type !== "profit_distribution" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditTx(t)}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteTx(t)}
@@ -2011,10 +3317,19 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Party Type</label>
                     <select
                       value={partyType}
-                      onChange={(e) => setPartyType(e.target.value as AccountingPartyType)}
+                      onChange={(e) => {
+                        const val = e.target.value as AccountingPartyType;
+                        setPartyType(val);
+                        if (val === "Vendor / Shop" || val === "Supplier") {
+                          setPartyDirection("payable");
+                        } else if (val === "Client") {
+                          setPartyDirection("receivable");
+                        }
+                      }}
                       className={inputCls}
                     >
                       <option value="Client">Client</option>
+                      <option value="Vendor / Shop">Vendor / Shop (Tea, Snacks, Office Store)</option>
                       <option value="Supplier">Supplier</option>
                       <option value="Contractor">Contractor</option>
                       <option value="Staff">Staff / Engineer</option>
@@ -2029,7 +3344,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       value={partyName}
                       onChange={(e) => setPartyName(e.target.value)}
                       required
-                      placeholder="Full name or company"
+                      placeholder="e.g. XYZ Dokan or Client Name"
                       className={inputCls}
                     />
                   </div>
@@ -2088,7 +3403,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         className={inputCls}
                       >
                         <option value="receivable">They owe us (Receivable)</option>
-                        <option value="payable">We owe them (Payable)</option>
+                        <option value="payable">We owe them (Payable / Baki)</option>
                       </select>
                     </div>
                   </div>
@@ -2105,13 +3420,13 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                 {/* Party Ledger List */}
                 <div className={`lg:col-span-8 rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold">Party Ledger ({filteredParties.length})</h3>
+                    <h3 className="text-sm font-bold">Clients, Vendors & Baki Ledger ({filteredParties.length})</h3>
                     <div className="flex items-center gap-3 text-xs font-mono tabular-nums">
                       <span className="text-emerald-500 font-semibold">
                         Receivable: {fmtBdt(duesTotals.receivable)}
                       </span>
                       <span className="text-rose-500 font-semibold">
-                        Payable: {fmtBdt(duesTotals.payable)}
+                        Payable (Baki): {fmtBdt(duesTotals.payable)}
                       </span>
                     </div>
                   </div>
@@ -2134,6 +3449,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     >
                       <option value="all">All Party Types</option>
                       <option value="Client">Client</option>
+                      <option value="Vendor / Shop">Vendor / Shop</option>
                       <option value="Supplier">Supplier</option>
                       <option value="Contractor">Contractor</option>
                       <option value="Staff">Staff / Engineer</option>
@@ -2146,7 +3462,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     >
                       <option value="all">All Balances</option>
                       <option value="receivable">Receivable Only</option>
-                      <option value="payable">Payable Only</option>
+                      <option value="payable">Payable (Baki) Only</option>
                     </select>
                   </div>
 
@@ -2177,7 +3493,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                                   {fmtBdt(Math.abs(bal))}
                                 </div>
                                 <div className={`text-[10px] ${mutedText}`}>
-                                  {bal === 0 ? "Settled" : bal > 0 ? "Receivable" : "Payable"}
+                                  {bal === 0 ? "Settled" : bal > 0 ? "Receivable" : "Baki / Payable"}
                                 </div>
                               </td>
                               <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
@@ -2194,14 +3510,37 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                                     onClick={() => {
                                       resetTxForm();
                                       setTxPartyId(p.id);
-                                      setTxType(bal >= 0 ? "income" : "expense");
-                                      setTxDesc(bal >= 0 ? `Payment received from ${p.name}` : `Payment made to ${p.name}`);
+                                      setTxType("expense");
+                                      setTxPaidByMode("credit");
+                                      setTxCategory(p.type === "Vendor / Shop" ? "Tea & Snacks (Cha/Biscuit)" : "Material");
+                                      setTxDesc(`Baki purchase from ${p.name}`);
+                                      setActiveTab("transactions");
+                                    }}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-amber-500/15 text-amber-500 hover:bg-amber-500/25"
+                                    title="Add credit (Baki) purchase for this shop"
+                                  >
+                                    +Baki
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      resetTxForm();
+                                      setTxPartyId(p.id);
+                                      if (bal < 0) {
+                                        setTxType("due_settlement");
+                                        setTxAmount(String(Math.abs(bal)));
+                                        setTxDesc(`Baki paid to ${p.name}`);
+                                      } else {
+                                        setTxType("income");
+                                        if (bal > 0) setTxAmount(String(bal));
+                                        setTxDesc(`Payment received from ${p.name}`);
+                                      }
                                       setActiveTab("transactions");
                                     }}
                                     className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
-                                    title="Record payment for this party"
+                                    title={bal < 0 ? "Settle Baki / Payable due" : "Record payment from client"}
                                   >
-                                    Pay/Recv
+                                    {bal < 0 ? "Pay Baki" : "Recv"}
                                   </button>
                                   <button
                                     type="button"
@@ -2282,9 +3621,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         <tr>
                           <th className="py-2 px-2.5">Date</th>
                           <th className="py-2 px-2.5">Particulars</th>
-                          <th className="py-2 px-2.5">Account</th>
-                          <th className="py-2 px-2.5 text-right">Paid Out (Expense)</th>
-                          <th className="py-2 px-2.5 text-right">Received (Income)</th>
+                          <th className="py-2 px-2.5">Source / Account</th>
+                          <th className="py-2 px-2.5 text-right">Baki / Expense</th>
+                          <th className="py-2 px-2.5 text-right">Paid Baki / Recv</th>
                           <th className="py-2 px-2.5 text-right">Running Balance</th>
                         </tr>
                       </thead>
@@ -2311,7 +3650,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                               {r.type === "expense" ? fmtBdt(r.amount) : "—"}
                             </td>
                             <td className="py-2 px-2.5 text-right text-emerald-500">
-                              {r.type === "income" ? fmtBdt(r.amount) : "—"}
+                              {r.type === "income" || r.type === "due_settlement" ? fmtBdt(r.amount) : "—"}
                             </td>
                             <td className="py-2 px-2.5 text-right font-bold">
                               {fmtBdt(r.running)}
@@ -2323,6 +3662,693 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* TAB 3B: DIRECTORS, TRANSFERS & PROFIT DISTRIBUTION             */}
+          {/* ============================================================== */}
+          {activeTab === "directors" && (
+            <div className="space-y-4">
+              {/* Top KPI Summary Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Active Directors / Partners</div>
+                  <div className="flex items-baseline justify-between mt-1">
+                    <span className="text-xl font-bold font-mono tabular-nums">{directorsList.length}</span>
+                    <span className={`text-[11px] font-mono ${mutedText}`}>
+                      Total Share:{" "}
+                      {directorsList.reduce((s, d) => s + Number(d.sharePercent || 0), 0).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Firm Owes Directors (+)</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-emerald-500 mt-1">
+                    {fmtBdt(directorSummaryTotals.firmOwesDirectors)}
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Directors Hold Firm Cash (−)</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-amber-500 mt-1">
+                    {fmtBdt(directorSummaryTotals.directorsOweFirm)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 1 & 2: Director Profile Form + Live Director Balances */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                <form
+                  onSubmit={handleSaveDirector}
+                  className={`lg:col-span-4 rounded-xl border p-4 space-y-3 ${surfaceBg}`}
+                >
+                  <div className="flex items-center justify-between border-b border-slate-500/20 pb-2">
+                    <h3 className="text-sm font-bold">{dirId ? "Edit Director" : "Add Director / Partner"}</h3>
+                    {dirId ? (
+                      <button
+                        type="button"
+                        onClick={resetDirectorForm}
+                        className="text-[11px] font-semibold text-amber-500 hover:underline"
+                      >
+                        Cancel Edit
+                      </button>
+                    ) : (
+                      directorsList.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={handleQuickAddFourDirectors}
+                          className="text-[11px] font-bold text-teal-500 hover:underline"
+                        >
+                          + Add A, B, C, D
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Director Name</label>
+                    <input
+                      type="text"
+                      value={dirName}
+                      onChange={(e) => setDirName(e.target.value)}
+                      required
+                      placeholder="e.g. Director A (or full name)"
+                      className={inputCls}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Designation</label>
+                      <input
+                        type="text"
+                        value={dirDesignation}
+                        onChange={(e) => setDirDesignation(e.target.value)}
+                        placeholder="Managing Director"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Phone</label>
+                      <input
+                        type="text"
+                        value={dirPhone}
+                        onChange={(e) => setDirPhone(e.target.value)}
+                        placeholder="+880 1..."
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Share %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={dirSharePercent}
+                        onChange={(e) => setDirSharePercent(e.target.value)}
+                        className={`${inputCls} font-mono tabular-nums`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Salary (৳/mo)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={dirSalaryAmount}
+                        onChange={(e) => setDirSalaryAmount(e.target.value)}
+                        className={`${inputCls} font-mono tabular-nums`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Opening Bal</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={dirOpeningBalance}
+                        onChange={(e) => setDirOpeningBalance(e.target.value)}
+                        className={`${inputCls} font-mono tabular-nums`}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={readOnly}
+                    className="w-full py-2.5 px-4 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold transition"
+                  >
+                    {dirId ? "Update Director" : "Save Director"}
+                  </button>
+                </form>
+
+                {/* Live Directors Ledger Table */}
+                <div className={`lg:col-span-8 rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold">Directors Live Balance & Equity Ledger</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {directorsList.length === 0 && (
+                        <button
+                          type="button"
+                          onClick={handleQuickAddFourDirectors}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-teal-600 hover:bg-teal-500 text-white"
+                        >
+                          + Quick Add Directors A, B, C, D
+                        </button>
+                      )}
+                      {directorsList.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleSyncPercentFromSalary}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${innerCardBg}`}
+                          title="Auto-calculate each director's Share % based on their Salary amount"
+                        >
+                          <Percent className="w-3.5 h-3.5" />
+                          <span>Derive % from Salary</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                        <tr>
+                          <th className="py-2 px-2 font-semibold">Director</th>
+                          <th className="py-2 px-2 font-semibold text-right">Share %</th>
+                          <th className="py-2 px-2 font-semibold text-right">Salary</th>
+                          <th className="py-2 px-2 font-semibold text-right">Paid Bills</th>
+                          <th className="py-2 px-2 font-semibold text-right">Client Kept</th>
+                          <th className="py-2 px-2 font-semibold text-right">Net Balance</th>
+                          <th className="py-2 px-2 font-semibold text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-500/20 font-mono tabular-nums">
+                        {directorsList.map((d) => {
+                          const st = directorStatsMap[d.id];
+                          const net = st?.netBalance || 0;
+                          return (
+                            <tr key={d.id} className="hover:bg-slate-500/10 transition">
+                              <td className="py-2.5 px-2 font-sans">
+                                <div className="font-bold">{d.name}</div>
+                                <div className={`text-[10px] ${mutedText}`}>{d.designation || "Director"}</div>
+                              </td>
+                              <td className="py-2.5 px-2 text-right">{Number(d.sharePercent || 0).toFixed(1)}%</td>
+                              <td className="py-2.5 px-2 text-right">{fmtBdt(d.salaryAmount)}</td>
+                              <td className="py-2.5 px-2 text-right text-emerald-500">
+                                {fmtBdt(st?.paidForFirm || 0)}
+                              </td>
+                              <td className="py-2.5 px-2 text-right text-amber-500">
+                                {fmtBdt(st?.clientCashKept || 0)}
+                              </td>
+                              <td className="py-2.5 px-2 text-right">
+                                <div className={`font-bold ${net >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                  {fmtBdt(net)}
+                                </div>
+                                <div className={`font-sans text-[10px] ${mutedText}`}>
+                                  {net > 0 ? "Firm owes" : net < 0 ? "To deposit" : "Settled"}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-sans whitespace-nowrap">
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedDirectorLedgerId(d.id)}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-teal-500/15 text-teal-500 hover:bg-teal-500/25"
+                                  >
+                                    Ledger
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDirSettleDirectorId(d.id);
+                                      setDirSettleMode(net < 0 ? "director_to_firm" : "firm_to_director");
+                                      setDirSettleAmt(net !== 0 ? String(Math.abs(net)) : "");
+                                    }}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
+                                  >
+                                    Settle
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDirId(d.id);
+                                      setDirName(d.name);
+                                      setDirDesignation(d.designation || "Director");
+                                      setDirPhone(d.phone || "");
+                                      setDirSharePercent(String(d.sharePercent || 0));
+                                      setDirSalaryAmount(String(d.salaryAmount || 0));
+                                      setDirOpeningBalance(String(d.openingBalance || 0));
+                                    }}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDirector(d)}
+                                    className="px-2 py-1 rounded text-[11px] font-semibold bg-rose-500/15 text-rose-500 hover:bg-rose-500/25"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {directorsList.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className={`py-8 text-center font-sans ${mutedText}`}>
+                              No directors configured yet. Add partners manually or click "Quick Add Directors A, B, C, D".
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: 2-Column Quick Inter-Director Handover & Director Settlement */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <form
+                  onSubmit={handleQuickDirectorTransfer}
+                  className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}
+                >
+                  <div className="border-b border-slate-500/20 pb-2">
+                    <h4 className="text-sm font-bold">Inter-Director Transfer (e.g. C gives ৳1,500 to D)</h4>
+                    <p className={`text-[11px] ${mutedText}`}>
+                      Adjusts only the two directors' personal ledgers without changing Office Wallets or P&L.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>From Director (Giver)</label>
+                      <select
+                        value={quickDirTransferFrom}
+                        onChange={(e) => setQuickDirTransferFrom(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>To Director (Receiver)</label>
+                      <select
+                        value={quickDirTransferTo}
+                        onChange={(e) => setQuickDirTransferTo(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Amount (BDT)</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={quickDirTransferAmt}
+                        onChange={(e) => setQuickDirTransferAmt(e.target.value)}
+                        placeholder="1500"
+                        required
+                        className={`${inputCls} font-mono tabular-nums`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Date</label>
+                      <input
+                        type="date"
+                        value={quickDirTransferDate}
+                        onChange={(e) => setQuickDirTransferDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Note / Purpose</label>
+                    <input
+                      type="text"
+                      value={quickDirTransferNote}
+                      onChange={(e) => setQuickDirTransferNote(e.target.value)}
+                      placeholder="e.g. Cash handover between directors"
+                      className={inputCls}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={readOnly || directorsList.length < 2}
+                    className="w-full py-2 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold transition"
+                  >
+                    Record Director Handover
+                  </button>
+                </form>
+
+                <form
+                  onSubmit={handleQuickDirectorSettlement}
+                  className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}
+                >
+                  <div className="border-b border-slate-500/20 pb-2">
+                    <h4 className="text-sm font-bold">Director Settlement (Joma to Office / Firm Payout)</h4>
+                    <p className={`text-[11px] ${mutedText}`}>
+                      Move cash between a Director and an Office Wallet when settling held client cash or reimbursements.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Director</label>
+                      <select
+                        value={dirSettleDirectorId}
+                        onChange={(e) => setDirSettleDirectorId(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="">Select...</option>
+                        {directorsList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} ({fmtBdt(directorStatsMap[d.id]?.netBalance || 0)})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Office Wallet</label>
+                      <select
+                        value={dirSettleWalletId}
+                        onChange={(e) => setDirSettleWalletId(e.target.value)}
+                        className={inputCls}
+                      >
+                        {ws.accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-3 sm:col-span-1">
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Direction</label>
+                      <select
+                        value={dirSettleMode}
+                        onChange={(e) => setDirSettleMode(e.target.value as "director_to_firm" | "firm_to_director")}
+                        className={inputCls}
+                      >
+                        <option value="director_to_firm">Director → Office (Joma)</option>
+                        <option value="firm_to_director">Office → Director (Payout)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Amount (BDT)</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={dirSettleAmt}
+                        onChange={(e) => setDirSettleAmt(e.target.value)}
+                        placeholder="0.00"
+                        required
+                        className={`${inputCls} font-mono tabular-nums`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Date</label>
+                      <input
+                        type="date"
+                        value={dirSettleDate}
+                        onChange={(e) => setDirSettleDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Note</label>
+                    <input
+                      type="text"
+                      value={dirSettleNote}
+                      onChange={(e) => setDirSettleNote(e.target.value)}
+                      placeholder="e.g. Monthly settlement or Joma deposit"
+                      className={inputCls}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={readOnly || directorsList.length === 0}
+                    className="w-full py-2 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition"
+                  >
+                    Record Settlement
+                  </button>
+                </form>
+              </div>
+
+              {/* Section 4: Selected Director Personal Ledger Statement */}
+              {selectedDirectorLedger && (
+                <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-500/20 pb-2.5">
+                    <div>
+                      <h4 className="text-sm font-bold">
+                        Director Personal Ledger — {selectedDirectorLedger.director.name}
+                      </h4>
+                      <p className={`text-xs ${mutedText}`}>
+                        {selectedDirectorLedger.director.designation || "Director"} · Share{" "}
+                        {selectedDirectorLedger.director.sharePercent}% · Salary{" "}
+                        {fmtBdt(selectedDirectorLedger.director.salaryAmount)}/mo
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => triggerPrint("director")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold"
+                      >
+                        <Printer className="w-3.5 h-3.5" /> Print Director Statement
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDirectorLedgerId(null)}
+                        className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold ${innerCardBg}`}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                        <tr>
+                          <th className="py-2 px-2.5">Date</th>
+                          <th className="py-2 px-2.5">Description</th>
+                          <th className="py-2 px-2.5 text-right">Credit (+) Firm Owes</th>
+                          <th className="py-2 px-2.5 text-right">Debit (−) Cash Held/Paid</th>
+                          <th className="py-2 px-2.5 text-right">Running Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-500/20 font-mono tabular-nums">
+                        <tr>
+                          <td className="py-2 px-2.5 font-sans">—</td>
+                          <td className="py-2 px-2.5 font-sans font-semibold">Opening Balance</td>
+                          <td className="py-2 px-2.5 text-right">—</td>
+                          <td className="py-2 px-2.5 text-right">—</td>
+                          <td className="py-2 px-2.5 text-right font-bold">
+                            {fmtBdt(selectedDirectorLedger.opening)}
+                          </td>
+                        </tr>
+                        {selectedDirectorLedger.rows.map((r) => (
+                          <tr key={r.id}>
+                            <td className="py-2 px-2.5 whitespace-nowrap">{r.date}</td>
+                            <td className="py-2 px-2.5 font-sans">{r.label}</td>
+                            <td className="py-2 px-2.5 text-right text-emerald-500">
+                              {r.credit > 0 ? fmtBdt(r.credit) : "—"}
+                            </td>
+                            <td className="py-2 px-2.5 text-right text-rose-500">
+                              {r.debit > 0 ? fmtBdt(r.debit) : "—"}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-bold">{fmtBdt(r.running)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 5: Profit & Salary Distribution Engine */}
+              <div className={`rounded-xl border p-4 space-y-4 ${surfaceBg}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-500/20 pb-2.5">
+                  <div>
+                    <h3 className="text-sm font-bold flex items-center gap-1.5">
+                      <Calculator className="w-4 h-4 text-teal-500" />
+                      Profit & Salary Distribution Calculator
+                    </h3>
+                    <p className={`text-xs ${mutedText}`}>
+                      Distribute firm Net Profit across Directors by Salary Amount, Share %, or combined Salary + % of Remaining Profit.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => triggerPrint("profit_sheet")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold ${innerCardBg}`}
+                    >
+                      <Printer className="w-3.5 h-3.5" /> Print Profit Sheet
+                    </button>
+                    <button
+                      type="button"
+                      disabled={readOnly || directorsList.length === 0}
+                      onClick={handlePostProfitDistribution}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Post Distribution to Ledgers
+                    </button>
+                  </div>
+                </div>
+
+                {/* Calculator Controls */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>From Date</label>
+                    <input
+                      type="date"
+                      value={distFrom}
+                      onChange={(e) => setDistFrom(e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>To Date</label>
+                    <input
+                      type="date"
+                      value={distTo}
+                      onChange={(e) => setDistTo(e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Distribution Formula</label>
+                    <select
+                      value={distMode}
+                      onChange={(e) => setDistMode(e.target.value as any)}
+                      className={inputCls}
+                    >
+                      <option value="salary_plus_percent">Salary + % Remaining Profit</option>
+                      <option value="percent_only">Share % of Net Profit Only</option>
+                      <option value="salary_weighted_percent">Salary-Ratio Weighted %</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>Salary Months</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={distSalaryMonths}
+                      onChange={(e) => setDistSalaryMonths(e.target.value)}
+                      className={`${inputCls} font-mono tabular-nums`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-semibold mb-1 ${mutedText}`}>
+                      Profit Pool Override (optional)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={distPoolOverride}
+                      onChange={(e) => setDistPoolOverride(e.target.value)}
+                      placeholder={`Auto: ${Math.round(profitDistCalculation.operatingProfit)}`}
+                      className={`${inputCls} font-mono tabular-nums`}
+                    />
+                  </div>
+                </div>
+
+                {/* Pool Summary */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
+                    <div className={`text-[10px] ${mutedText}`}>Period Operating Profit</div>
+                    <div className="font-mono tabular-nums font-bold text-sm mt-0.5">
+                      {fmtBdt(profitDistCalculation.operatingProfit)}
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
+                    <div className={`text-[10px] ${mutedText}`}>Distributable Pool Used</div>
+                    <div className="font-mono tabular-nums font-bold text-sm text-teal-500 mt-0.5">
+                      {fmtBdt(profitDistCalculation.poolBase)}
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
+                    <div className={`text-[10px] ${mutedText}`}>Total Directors Salary</div>
+                    <div className="font-mono tabular-nums font-bold text-sm mt-0.5">
+                      {fmtBdt(profitDistCalculation.totalSalaryBase)}
+                    </div>
+                  </div>
+                  <div className={`rounded-lg border p-2.5 ${innerCardBg}`}>
+                    <div className={`text-[10px] ${mutedText}`}>Remaining Profit After Salary</div>
+                    <div className="font-mono tabular-nums font-bold text-sm text-emerald-500 mt-0.5">
+                      {fmtBdt(profitDistCalculation.remainingProfitAfterSalary)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Distribution Breakdown Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                      <tr>
+                        <th className="py-2 px-2.5 font-semibold">Director</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Eff. Share %</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Salary Entitlement</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Profit Share</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Total Distribution</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Current Ledger</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Final Net Payable</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-500/20 font-mono tabular-nums">
+                      {profitDistCalculation.rows.map((r) => (
+                        <tr key={r.director.id} className="hover:bg-slate-500/10">
+                          <td className="py-2 px-2.5 font-sans font-bold">{r.director.name}</td>
+                          <td className="py-2 px-2.5 text-right">{r.effectivePct.toFixed(2)}%</td>
+                          <td className="py-2 px-2.5 text-right">{fmtBdt(r.salaryEntitlement)}</td>
+                          <td className="py-2 px-2.5 text-right">{fmtBdt(r.profitShare)}</td>
+                          <td className="py-2 px-2.5 text-right font-bold text-teal-500">
+                            {fmtBdt(r.totalEarned)}
+                          </td>
+                          <td className="py-2 px-2.5 text-right">{fmtBdt(r.currentLedgerBal)}</td>
+                          <td
+                            className={`py-2 px-2.5 text-right font-bold ${
+                              r.projectedNetPayable >= 0 ? "text-emerald-500" : "text-rose-500"
+                            }`}
+                          >
+                            {fmtBdt(r.projectedNetPayable)}
+                          </td>
+                        </tr>
+                      ))}
+                      {profitDistCalculation.rows.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className={`py-6 text-center font-sans ${mutedText}`}>
+                            Add directors above to calculate salary & profit share splits.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -3060,11 +5086,19 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
               <div className="font-bold uppercase tracking-wide text-slate-900">
                 {printTarget === "statement" && selectedPartyStatement
                   ? "Party Ledger Statement"
+                  : printTarget === "director" && selectedDirectorLedger
+                  ? "Director Ledger Statement"
+                  : printTarget === "profit_sheet"
+                  ? "Profit & Salary Distribution Sheet"
                   : "Financial Profit & Loss Report"}
               </div>
               <div className="text-slate-600">
                 {printTarget === "statement" && selectedPartyStatement
                   ? selectedPartyStatement.party.name
+                  : printTarget === "director" && selectedDirectorLedger
+                  ? `${selectedDirectorLedger.director.name} (${selectedDirectorLedger.director.sharePercent}%)`
+                  : printTarget === "profit_sheet"
+                  ? `Period: ${distFrom || "Start"} to ${distTo || todayStr()}`
                   : `Period: ${reportFrom || "Start"} to ${reportTo || todayStr()}`}
               </div>
             </div>
@@ -3077,9 +5111,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   <tr className="border-b-2 border-slate-400 bg-slate-100">
                     <th className="py-2 px-2 text-left">Date</th>
                     <th className="py-2 px-2 text-left">Particulars</th>
-                    <th className="py-2 px-2 text-left">Account</th>
-                    <th className="py-2 px-2 text-right">Paid Out</th>
-                    <th className="py-2 px-2 text-right">Received</th>
+                    <th className="py-2 px-2 text-left">Source</th>
+                    <th className="py-2 px-2 text-right">Baki / Expense</th>
+                    <th className="py-2 px-2 text-right">Paid Baki / Recv</th>
                     <th className="py-2 px-2 text-right">Balance</th>
                   </tr>
                 </thead>
@@ -3100,7 +5134,9 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                       <td className="py-1.5 px-2 font-sans">{r.desc}</td>
                       <td className="py-1.5 px-2 font-sans">{r.acctName}</td>
                       <td className="py-1.5 px-2 text-right">{r.type === "expense" ? fmtBdt(r.amount) : "—"}</td>
-                      <td className="py-1.5 px-2 text-right">{r.type === "income" ? fmtBdt(r.amount) : "—"}</td>
+                      <td className="py-1.5 px-2 text-right">
+                        {r.type === "income" || r.type === "due_settlement" ? fmtBdt(r.amount) : "—"}
+                      </td>
                       <td className="py-1.5 px-2 text-right font-bold">{fmtBdt(r.running)}</td>
                     </tr>
                   ))}
@@ -3109,6 +5145,91 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
               <div className="text-right font-bold text-sm font-mono">
                 Closing Balance: {fmtBdt(selectedPartyStatement.finalBalance)}
               </div>
+            </div>
+          ) : printTarget === "director" && selectedDirectorLedger ? (
+            <div className="space-y-4">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-slate-400 bg-slate-100">
+                    <th className="py-2 px-2 text-left">Date</th>
+                    <th className="py-2 px-2 text-left">Particulars</th>
+                    <th className="py-2 px-2 text-right">Credit (+)</th>
+                    <th className="py-2 px-2 text-right">Debit (−)</th>
+                    <th className="py-2 px-2 text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 font-mono tabular-nums">
+                  <tr>
+                    <td className="py-1.5 px-2 font-sans">—</td>
+                    <td className="py-1.5 px-2 font-sans font-bold">Opening Balance</td>
+                    <td className="py-1.5 px-2 text-right">—</td>
+                    <td className="py-1.5 px-2 text-right">—</td>
+                    <td className="py-1.5 px-2 text-right font-bold">{fmtBdt(selectedDirectorLedger.opening)}</td>
+                  </tr>
+                  {selectedDirectorLedger.rows.map((r) => (
+                    <tr key={r.id}>
+                      <td className="py-1.5 px-2">{r.date}</td>
+                      <td className="py-1.5 px-2 font-sans">{r.label}</td>
+                      <td className="py-1.5 px-2 text-right">{r.credit > 0 ? fmtBdt(r.credit) : "—"}</td>
+                      <td className="py-1.5 px-2 text-right">{r.debit > 0 ? fmtBdt(r.debit) : "—"}</td>
+                      <td className="py-1.5 px-2 text-right font-bold">{fmtBdt(r.running)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-right font-bold text-sm font-mono">
+                Closing Net Balance: {fmtBdt(selectedDirectorLedger.finalBalance)}
+              </div>
+            </div>
+          ) : printTarget === "profit_sheet" ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                <div className="border border-slate-300 rounded p-2.5">
+                  <div className="text-[10px] text-slate-500">Operating Profit</div>
+                  <div className="text-base font-bold font-mono">{fmtBdt(profitDistCalculation.operatingProfit)}</div>
+                </div>
+                <div className="border border-slate-300 rounded p-2.5">
+                  <div className="text-[10px] text-slate-500">Profit Pool Used</div>
+                  <div className="text-base font-bold font-mono">{fmtBdt(profitDistCalculation.poolBase)}</div>
+                </div>
+                <div className="border border-slate-300 rounded p-2.5">
+                  <div className="text-[10px] text-slate-500">Total Salary Base</div>
+                  <div className="text-base font-bold font-mono">{fmtBdt(profitDistCalculation.totalSalaryBase)}</div>
+                </div>
+                <div className="border border-slate-300 rounded p-2.5">
+                  <div className="text-[10px] text-slate-500">Remaining Profit</div>
+                  <div className="text-base font-bold font-mono">
+                    {fmtBdt(profitDistCalculation.remainingProfitAfterSalary)}
+                  </div>
+                </div>
+              </div>
+
+              <table className="w-full text-xs border-collapse font-mono tabular-nums">
+                <thead>
+                  <tr className="border-b-2 border-slate-400 bg-slate-100 font-sans">
+                    <th className="py-2 px-2 text-left">Director</th>
+                    <th className="py-2 px-2 text-right">Share %</th>
+                    <th className="py-2 px-2 text-right">Salary</th>
+                    <th className="py-2 px-2 text-right">Profit Share</th>
+                    <th className="py-2 px-2 text-right">Total Dist.</th>
+                    <th className="py-2 px-2 text-right">Ledger Bal</th>
+                    <th className="py-2 px-2 text-right">Final Payable</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {profitDistCalculation.rows.map((r) => (
+                    <tr key={r.director.id}>
+                      <td className="py-1.5 px-2 font-sans font-bold">{r.director.name}</td>
+                      <td className="py-1.5 px-2 text-right">{r.effectivePct.toFixed(2)}%</td>
+                      <td className="py-1.5 px-2 text-right">{fmtBdt(r.salaryEntitlement)}</td>
+                      <td className="py-1.5 px-2 text-right">{fmtBdt(r.profitShare)}</td>
+                      <td className="py-1.5 px-2 text-right font-bold">{fmtBdt(r.totalEarned)}</td>
+                      <td className="py-1.5 px-2 text-right">{fmtBdt(r.currentLedgerBal)}</td>
+                      <td className="py-1.5 px-2 text-right font-bold">{fmtBdt(r.projectedNetPayable)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="space-y-4">

@@ -557,7 +557,7 @@ export interface AccountWallet {
   notes?: string;
 }
 
-export type AccountingPartyType = "Client" | "Supplier" | "Contractor" | "Staff" | "Other";
+export type AccountingPartyType = "Client" | "Supplier" | "Vendor / Shop" | "Contractor" | "Staff" | "Other";
 
 export interface AccountingParty {
   id: string;
@@ -569,6 +569,24 @@ export interface AccountingParty {
   opening: number;
   direction: "receivable" | "payable";
   notes?: string;
+}
+
+export interface AccountingDirector {
+  id: string;
+  name: string;
+  designation?: string;
+  phone?: string;
+  sharePercent: number;
+  salaryAmount: number;
+  openingBalance?: number; // + = Firm owes director, - = Director owes firm
+  notes?: string;
+}
+
+export interface AccountingDirectorAllocation {
+  directorId: string;
+  amount: number;
+  salaryAmount?: number;
+  profitShareAmount?: number;
 }
 
 export type AccountingProjectStatus = "Active" | "Completed" | "On Hold";
@@ -583,7 +601,17 @@ export interface AccountingProject {
   linkedBoqProjectId?: string;
 }
 
-export type AccountingTxType = "income" | "expense" | "transfer" | "opening";
+export type AccountingTxType =
+  | "income"
+  | "expense"
+  | "transfer"
+  | "opening"
+  | "due_settlement"
+  | "director_transfer"
+  | "director_settlement"
+  | "profit_distribution";
+
+export type AccountingPaidByMode = "wallet" | "credit" | "director";
 
 export interface AccountingTransaction {
   id: string;
@@ -597,6 +625,12 @@ export interface AccountingTransaction {
   partyId?: string | null;
   projectId?: string | null;
   paymentMethod?: string;
+  paidByMode?: AccountingPaidByMode;
+  paidByDirectorId?: string | null;
+  fromDirectorId?: string | null;
+  toDirectorId?: string | null;
+  directorSettlementMode?: "firm_to_director" | "director_to_firm";
+  directorAllocations?: AccountingDirectorAllocation[];
   note?: string;
   linkedVoucherId?: string;
   createdAt?: string;
@@ -620,8 +654,10 @@ export interface AccountingWorkspace {
   accounts: AccountWallet[];
   parties: AccountingParty[];
   projects: AccountingProject[];
+  directors?: AccountingDirector[];
   transactions: AccountingTransaction[];
   createdAt: string;
   updatedAt: string;
 }
+
 

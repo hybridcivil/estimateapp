@@ -2032,6 +2032,7 @@ export function createDefaultAccountingWorkspace(
     ],
     parties: [],
     projects: [],
+    directors: [],
     transactions: [],
     createdAt: now,
     updatedAt: now,
@@ -2140,6 +2141,7 @@ export async function fetchAccountingWorkspace(
     accounts: Array.isArray(latest.accounts) && latest.accounts.length > 0 ? latest.accounts : fallback.accounts,
     parties: Array.isArray(latest.parties) ? latest.parties : [],
     projects: Array.isArray(latest.projects) ? latest.projects : [],
+    directors: Array.isArray(latest.directors) ? latest.directors : [],
     transactions: Array.isArray(latest.transactions) ? latest.transactions : [],
   };
 
