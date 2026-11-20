@@ -70,6 +70,7 @@ interface BusinessAccountsModalProps {
 
 type AccountsTab =
   | "dashboard"
+  | "summary"
   | "transactions"
   | "parties"
   | "directors"
@@ -271,7 +272,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
   const [headerNameDraft, setHeaderNameDraft] = useState("");
 
   // Print Mode Target
-  const [printTarget, setPrintTarget] = useState<"report" | "statement" | "director" | "profit_sheet">("report");
+  const [printTarget, setPrintTarget] = useState<"report" | "statement" | "director" | "profit_sheet" | "summary_hisab">("report");
 
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
@@ -560,6 +561,59 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     });
     return { firmOwesDirectors, directorsOweFirm };
   }, [directorsList, directorStatsMap]);
+
+  // Complete Baki, Credit Expenses & Directors Spend/Taken/Payable Overview
+  const hisabOverview = useMemo(() => {
+    const creditExpenses = [...ws.transactions]
+      .filter((t) => t.type === "expense" && t.paidByMode === "credit")
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+    const directorPaidExpenses = [...ws.transactions]
+      .filter((t) => t.type === "expense" && t.paidByMode === "director")
+      .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+    const payablesList = ws.parties
+      .map((p) => ({ party: p, balance: getPartyBalance(p) }))
+      .filter((x) => x.balance < -0.005)
+      .map((x) => ({ party: x.party, bakiAmount: Math.abs(x.balance) }))
+      .sort((a, b) => b.bakiAmount - a.bakiAmount);
+
+    const receivablesList = ws.parties
+      .map((p) => ({ party: p, balance: getPartyBalance(p) }))
+      .filter((x) => x.balance > 0.005)
+      .map((x) => ({ party: x.party, recvAmount: x.balance }))
+      .sort((a, b) => b.recvAmount - a.recvAmount);
+
+    const directorRows = directorsList.map((d) => {
+      const st = directorStatsMap[d.id] || {
+        opening: Number(d.openingBalance || 0),
+        paidForFirm: 0,
+        givenToDirectors: 0,
+        receivedFromDirectors: 0,
+        clientCashKept: 0,
+        profitSalaryCredited: 0,
+        withdrawnFromFirm: 0,
+        depositedToFirm: 0,
+        netBalance: Number(d.openingBalance || 0),
+      };
+      const totalGivenOrSpent = st.paidForFirm + st.givenToDirectors + st.depositedToFirm;
+      const totalTaken = st.clientCashKept + st.receivedFromDirectors + st.withdrawnFromFirm;
+      return {
+        director: d,
+        ...st,
+        totalGivenOrSpent,
+        totalTaken,
+      };
+    });
+
+    return {
+      creditExpenses,
+      directorPaidExpenses,
+      payablesList,
+      receivablesList,
+      directorRows,
+    };
+  }, [ws.transactions, ws.parties, directorsList, directorStatsMap]);
 
   // Selected Director Ledger Statement Rows
   const selectedDirectorLedger = useMemo(() => {
@@ -1872,7 +1926,7 @@ export const BusinessAccountsModal: React.FC<BusinessAccountsModalProps> = ({
     notify("CSV spreadsheet exported.", "success");
   };
 
-  const triggerPrint = (target: "report" | "statement" | "director" | "profit_sheet") => {
+  const triggerPrint = (target: "report" | "statement" | "director" | "profit_sheet" | "summary_hisab") => {
     setPrintTarget(target);
     document.body.classList.add("accounts-print-active");
     const cleanup = () => {
@@ -2083,6 +2137,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
           {(
             [
               { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+              { id: "summary", label: "Baki & Hisab Summary", icon: FileText },
               { id: "transactions", label: "Transactions", icon: ArrowLeftRight },
               { id: "parties", label: "Clients, Shops & Baki", icon: Users },
               { id: "directors", label: "Directors & Profit Share", icon: Briefcase },
@@ -2326,10 +2381,10 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => setActiveTab("parties")}
-                        className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
+                        onClick={() => setActiveTab("summary")}
+                        className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-0.5"
                       >
-                        Shops/Parties <ChevronRight className="w-3.5 h-3.5" />
+                        Full Baki & Hisab <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -2342,25 +2397,25 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   </div>
                   <div className="divide-y divide-slate-500/20 text-xs">
                     <div className="py-2 flex items-center justify-between">
-                      <span className={mutedText}>Receivable from Clients / Parties</span>
+                      <span className={mutedText}>Receivable from Clients / Parties (Kothay Pabo)</span>
                       <span className="font-mono tabular-nums font-bold text-emerald-500">
                         {fmtBdt(duesTotals.receivable)}
                       </span>
                     </div>
                     <div className="py-2 flex items-center justify-between">
-                      <span className={mutedText}>Payable / Office Baki (Shops, Vendors, Suppliers)</span>
+                      <span className={mutedText}>Payable / Office Baki ({hisabOverview.payablesList.length} places)</span>
                       <span className="font-mono tabular-nums font-bold text-rose-500">
                         {fmtBdt(duesTotals.payable)}
                       </span>
                     </div>
                     <div className="py-2 flex items-center justify-between">
-                      <span className={mutedText}>Firm Owes Directors (Paid Bills / Undrawn Profit)</span>
+                      <span className={mutedText}>Directors Pabe (Paid Bills / Undrawn Profit)</span>
                       <span className="font-mono tabular-nums font-bold text-sky-400">
                         {fmtBdt(directorSummaryTotals.firmOwesDirectors)}
                       </span>
                     </div>
                     <div className="py-2 flex items-center justify-between">
-                      <span className={mutedText}>Directors Hold Firm Cash (To Deposit / Offset)</span>
+                      <span className={mutedText}>Directors Joma Dibe (Cash Held by Directors)</span>
                       <span className="font-mono tabular-nums font-bold text-amber-500">
                         {fmtBdt(directorSummaryTotals.directorsOweFirm)}
                       </span>
@@ -2378,6 +2433,102 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   </div>
                 </div>
               </div>
+
+              {/* At-a-Glance: Kothai Koto Baki & Kon Director Koto Khoroch / Pabe */}
+              {(hisabOverview.payablesList.length > 0 || hisabOverview.directorRows.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className={`rounded-xl border p-4 space-y-2.5 ${surfaceBg}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold">Kothai Baki Ache (Unpaid Shop / Vendor Dues)</h3>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("summary")}
+                        className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
+                      >
+                        See All <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {hisabOverview.payablesList.length === 0 ? (
+                      <p className={`text-xs py-2 ${mutedText}`}>No unpaid shop/supplier Baki.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-500/20 text-xs">
+                        {hisabOverview.payablesList.slice(0, 5).map(({ party, bakiAmount }) => (
+                          <div key={party.id} className="py-2 flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-semibold truncate">{party.name}</div>
+                              <div className={`text-[10px] ${mutedText}`}>{party.type}</div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono tabular-nums font-bold text-rose-500">
+                                {fmtBdt(bakiAmount)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  resetTxForm();
+                                  setTxType("due_settlement");
+                                  setTxPartyId(party.id);
+                                  setTxAmount(String(bakiAmount));
+                                  setTxDesc(`Baki paid to ${party.name}`);
+                                  setActiveTab("transactions");
+                                }}
+                                className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
+                              >
+                                Pay Baki
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`rounded-xl border p-4 space-y-2.5 ${surfaceBg}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold">Directors Khoroch, Niyeche & Pabe/Dibe</h3>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("summary")}
+                        className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
+                      >
+                        Full Sheet <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {hisabOverview.directorRows.length === 0 ? (
+                      <p className={`text-xs py-2 ${mutedText}`}>No directors added yet.</p>
+                    ) : (
+                      <div className="divide-y divide-slate-500/20 text-xs">
+                        {hisabOverview.directorRows.map((row) => (
+                          <div key={row.director.id} className="py-2 flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-semibold truncate">{row.director.name}</div>
+                              <div className={`text-[10px] font-mono tabular-nums ${mutedText}`}>
+                                Khoroch/Given: {fmtBdt(row.totalGivenOrSpent)} · Niyeche: {fmtBdt(row.totalTaken)}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div
+                                className={`font-mono tabular-nums font-bold ${
+                                  row.netBalance > 0
+                                    ? "text-emerald-500"
+                                    : row.netBalance < 0
+                                    ? "text-amber-500"
+                                    : mutedText
+                                }`}
+                              >
+                                {fmtBdt(Math.abs(row.netBalance))}
+                              </div>
+                              <div className={`text-[10px] ${mutedText}`}>
+                                {row.netBalance > 0 ? "Pabe (+)" : row.netBalance < 0 ? "Dibe (−)" : "Settled"}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* 6-Month Cashflow Bar Chart */}
               <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
@@ -2474,6 +2625,426 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         <tr>
                           <td colSpan={5} className={`py-8 text-center ${mutedText}`}>
                             No transactions recorded yet. Add your first transaction or sync from Service Vouchers.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* TAB 1B: BAKI, DIRECTORS & SETTLEMENT SUMMARY ("KE KOTO PABE")  */}
+          {/* ============================================================== */}
+          {activeTab === "summary" && (
+            <div className="space-y-4">
+              {/* Top Action & Print Bar */}
+              <div className={`rounded-xl border p-3.5 flex flex-wrap items-center justify-between gap-3 ${surfaceBg}`}>
+                <div>
+                  <h3 className="text-sm font-bold">Baki, Director Khoroch/Niyeche & Settlement Summary</h3>
+                  <p className={`text-xs ${mutedText}`}>
+                    See every unpaid Baki expense, where money is owed (Kothai Baki), what each Director spent vs took, and who gets paid (Ke Koto Pabe).
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetTxForm();
+                      setTxType("expense");
+                      setTxPaidByMode("credit");
+                      setTxCategory("Tea & Snacks (Cha/Biscuit)");
+                      setActiveTab("transactions");
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                      isLight
+                        ? "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300"
+                        : "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40"
+                    }`}
+                  >
+                    + Add Baki Expense
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => triggerPrint("summary_hisab")}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white transition"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print Full Baki & Hisab</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Total Expenses Baki (Logged)</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-amber-500 mt-1">
+                    {fmtBdt(overallTotals.creditExpenseTotal)}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 ${mutedText}`}>
+                    {hisabOverview.creditExpenses.length} credit bill(s) recorded
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Remaining Payable (Kothai Baki)</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-rose-500 mt-1">
+                    {fmtBdt(duesTotals.payable)}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 ${mutedText}`}>
+                    Owed across {hisabOverview.payablesList.length} shop/supplier(s)
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Directors Pabe (Firm Owes)</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-emerald-500 mt-1">
+                    {fmtBdt(directorSummaryTotals.firmOwesDirectors)}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 ${mutedText}`}>
+                    Bills paid by directors + undrawn profit
+                  </div>
+                </div>
+                <div className={`rounded-xl border p-3.5 ${surfaceBg}`}>
+                  <div className={`text-[11px] font-medium ${mutedText}`}>Directors Dibe / Client Recv</div>
+                  <div className="text-xl font-bold font-mono tabular-nums text-sky-400 mt-1">
+                    {fmtBdt(duesTotals.receivable)}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 ${mutedText}`}>
+                    Dir cash held: {fmtBdt(directorSummaryTotals.directorsOweFirm)}
+                  </div>
+                </div>
+              </div>
+
+              {/* 1. KON DIRECTOR KOTO KHOROCH KORECHE, KOTO NIYECHE, KE KOTO PABE */}
+              <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold">
+                      Kon Director Koto Khoroch Koreche, Koto Niyeche & Ke Koto Pabe
+                    </h4>
+                    <p className={`text-xs ${mutedText}`}>
+                      Positive (+) = Director pabe (Firm owes them) · Negative (−) = Director dibe / Joma (Cash held above their credit)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("directors")}
+                    className="text-xs font-semibold text-teal-500 hover:underline flex items-center gap-0.5"
+                  >
+                    Manage Directors & Profit <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                      <tr>
+                        <th className="py-2 px-2.5 font-semibold">Director</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Bills Paid (Khoroch)</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Given (C→D)</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Joma to Office</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Client Kept (Niyeche)</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Recv (C→D / Payout)</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Profit & Salary</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Net: Pabe / Dibe</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-500/20 font-mono tabular-nums">
+                      {hisabOverview.directorRows.map((r) => (
+                        <tr key={r.director.id} className="hover:bg-slate-500/10 transition">
+                          <td className="py-2.5 px-2.5 font-sans">
+                            <div className="font-bold">{r.director.name}</div>
+                            <div className={`text-[10px] ${mutedText}`}>
+                              {r.director.designation || "Director"} · {r.director.sharePercent}%
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right text-emerald-500 font-semibold">
+                            {fmtBdt(r.paidForFirm)}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right">{fmtBdt(r.givenToDirectors)}</td>
+                          <td className="py-2.5 px-2.5 text-right">{fmtBdt(r.depositedToFirm)}</td>
+                          <td className="py-2.5 px-2.5 text-right text-amber-500 font-semibold">
+                            {fmtBdt(r.clientCashKept)}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right">
+                            {fmtBdt(r.receivedFromDirectors + r.withdrawnFromFirm)}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right text-sky-400">
+                            {fmtBdt(r.profitSalaryCredited)}
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right">
+                            <div
+                              className={`font-bold ${
+                                r.netBalance > 0
+                                  ? "text-emerald-500"
+                                  : r.netBalance < 0
+                                  ? "text-rose-500"
+                                  : ""
+                              }`}
+                            >
+                              {fmtBdt(r.netBalance)}
+                            </div>
+                            <div className={`font-sans text-[10px] ${mutedText}`}>
+                              {r.netBalance > 0 ? "Pabe (+)" : r.netBalance < 0 ? "Joma Dibe (−)" : "Settled"}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-2.5 text-right font-sans whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDirectorLedgerId(r.director.id);
+                                  setActiveTab("directors");
+                                }}
+                                className="px-2 py-1 rounded text-[11px] font-semibold bg-teal-500/15 text-teal-500 hover:bg-teal-500/25"
+                              >
+                                Ledger
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDirSettleDirectorId(r.director.id);
+                                  setDirSettleMode(r.netBalance < 0 ? "director_to_firm" : "firm_to_director");
+                                  setDirSettleAmt(r.netBalance !== 0 ? String(Math.abs(r.netBalance)) : "");
+                                  setActiveTab("directors");
+                                }}
+                                className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
+                              >
+                                Settle
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {hisabOverview.directorRows.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className={`py-6 text-center font-sans ${mutedText}`}>
+                            No directors added yet. Go to Directors & Profit Share to add your partners.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 2. KOTHAI BAKI ACHE (PAYABLES) & KOTHAY PABO (RECEIVABLES) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold">Kothai Baki Ache (Shops / Vendors / Suppliers)</h4>
+                      <p className={`text-[11px] ${mutedText}`}>Total unpaid Baki owed by the firm</p>
+                    </div>
+                    <span className="font-mono tabular-nums font-bold text-sm text-rose-500">
+                      {fmtBdt(duesTotals.payable)}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                        <tr>
+                          <th className="py-2 px-2.5 font-semibold">Kothai / Shop Name</th>
+                          <th className="py-2 px-2.5 font-semibold">Type</th>
+                          <th className="py-2 px-2.5 font-semibold text-right">Baki Amount</th>
+                          <th className="py-2 px-2.5 font-semibold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-500/20">
+                        {hisabOverview.payablesList.map(({ party, bakiAmount }) => (
+                          <tr key={party.id} className="hover:bg-slate-500/10 transition">
+                            <td className="py-2.5 px-2.5">
+                              <div className="font-bold">{party.name}</div>
+                              {party.phone && <div className={`text-[10px] ${mutedText}`}>{party.phone}</div>}
+                            </td>
+                            <td className="py-2.5 px-2.5">{party.type}</td>
+                            <td className="py-2.5 px-2.5 text-right font-mono tabular-nums font-bold text-rose-500">
+                              {fmtBdt(bakiAmount)}
+                            </td>
+                            <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedStatementPartyId(party.id);
+                                    setActiveTab("parties");
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-teal-500/15 text-teal-500 hover:bg-teal-500/25"
+                                >
+                                  Ledger
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    resetTxForm();
+                                    setTxType("due_settlement");
+                                    setTxPartyId(party.id);
+                                    setTxAmount(String(bakiAmount));
+                                    setTxDesc(`Baki paid to ${party.name}`);
+                                    setActiveTab("transactions");
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
+                                >
+                                  Pay Baki
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {hisabOverview.payablesList.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className={`py-6 text-center ${mutedText}`}>
+                              No unpaid Baki anywhere right now.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold">Kothay Taka Pabo (Client Receivables)</h4>
+                      <p className={`text-[11px] ${mutedText}`}>Total pending dues from Clients & Parties</p>
+                    </div>
+                    <span className="font-mono tabular-nums font-bold text-sm text-emerald-500">
+                      {fmtBdt(duesTotals.receivable)}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                        <tr>
+                          <th className="py-2 px-2.5 font-semibold">Client / Party Name</th>
+                          <th className="py-2 px-2.5 font-semibold">Type</th>
+                          <th className="py-2 px-2.5 font-semibold text-right">Pabo (Due)</th>
+                          <th className="py-2 px-2.5 font-semibold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-500/20">
+                        {hisabOverview.receivablesList.map(({ party, recvAmount }) => (
+                          <tr key={party.id} className="hover:bg-slate-500/10 transition">
+                            <td className="py-2.5 px-2.5">
+                              <div className="font-bold">{party.name}</div>
+                              {party.phone && <div className={`text-[10px] ${mutedText}`}>{party.phone}</div>}
+                            </td>
+                            <td className="py-2.5 px-2.5">{party.type}</td>
+                            <td className="py-2.5 px-2.5 text-right font-mono tabular-nums font-bold text-emerald-500">
+                              {fmtBdt(recvAmount)}
+                            </td>
+                            <td className="py-2.5 px-2.5 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedStatementPartyId(party.id);
+                                    setActiveTab("parties");
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-teal-500/15 text-teal-500 hover:bg-teal-500/25"
+                                >
+                                  Ledger
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    resetTxForm();
+                                    setTxType("income");
+                                    setTxPartyId(party.id);
+                                    setTxAmount(String(recvAmount));
+                                    setTxDesc(`Payment received from ${party.name}`);
+                                    setActiveTab("transactions");
+                                  }}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
+                                >
+                                  Recv
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {hisabOverview.receivablesList.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className={`py-6 text-center ${mutedText}`}>
+                              No pending client receivables.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. EXPENSES BAKI REGISTER & DIRECTOR PAID EXPENSES */}
+              <div className={`rounded-xl border p-4 space-y-3 ${surfaceBg}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-bold">
+                      Expenses Baki Register ({hisabOverview.creditExpenses.length} entries)
+                    </h4>
+                    <p className={`text-xs ${mutedText}`}>
+                      All office expenses purchased on credit (e.g. Cha/Biscuit at XYZ Dokan) and their shop status
+                    </p>
+                  </div>
+                  <span className="font-mono tabular-nums text-xs font-bold text-amber-500">
+                    Total Credit Bills: {fmtBdt(overallTotals.creditExpenseTotal)}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className={isLight ? "bg-slate-100 text-slate-600" : "bg-[#1a2b42] text-[#8ba3c1]"}>
+                      <tr>
+                        <th className="py-2 px-2.5 font-semibold">Date</th>
+                        <th className="py-2 px-2.5 font-semibold">Expense Particulars</th>
+                        <th className="py-2 px-2.5 font-semibold">Category</th>
+                        <th className="py-2 px-2.5 font-semibold">Kothai / Shop</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Bill Amount</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Shop Total Baki</th>
+                        <th className="py-2 px-2.5 font-semibold text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-500/20">
+                      {hisabOverview.creditExpenses.map((t) => {
+                        const shop = ws.parties.find((p) => p.id === t.partyId);
+                        const shopBal = shop ? getPartyBalance(shop) : 0;
+                        const shopBaki = shopBal < 0 ? Math.abs(shopBal) : 0;
+                        return (
+                          <tr key={t.id} className="hover:bg-slate-500/10 transition">
+                            <td className="py-2 px-2.5 font-mono tabular-nums whitespace-nowrap">{t.date}</td>
+                            <td className="py-2 px-2.5 font-semibold">{t.desc}</td>
+                            <td className={`py-2 px-2.5 ${mutedText}`}>{t.category}</td>
+                            <td className="py-2 px-2.5 font-medium">{shop?.name || "—"}</td>
+                            <td className="py-2 px-2.5 text-right font-mono tabular-nums font-bold text-rose-500">
+                              {fmtBdt(t.amount)}
+                            </td>
+                            <td className="py-2 px-2.5 text-right font-mono tabular-nums">
+                              {shopBaki > 0 ? (
+                                <span className="font-bold text-amber-500">{fmtBdt(shopBaki)} Due</span>
+                              ) : (
+                                <span className="text-emerald-500 font-semibold">Settled</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-2.5 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleEditTx(t)}
+                                className="px-2 py-1 rounded text-[11px] font-semibold bg-sky-500/15 text-sky-500 hover:bg-sky-500/25"
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {hisabOverview.creditExpenses.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className={`py-6 text-center ${mutedText}`}>
+                            No credit (Baki) expenses recorded yet. Click "+ Add Baki Expense" above to log one.
                           </td>
                         </tr>
                       )}
@@ -3840,9 +4411,11 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                           <th className="py-2 px-2 font-semibold">Director</th>
                           <th className="py-2 px-2 font-semibold text-right">Share %</th>
                           <th className="py-2 px-2 font-semibold text-right">Salary</th>
-                          <th className="py-2 px-2 font-semibold text-right">Paid Bills</th>
-                          <th className="py-2 px-2 font-semibold text-right">Client Kept</th>
-                          <th className="py-2 px-2 font-semibold text-right">Net Balance</th>
+                          <th className="py-2 px-2 font-semibold text-right">Paid Bills (Khoroch)</th>
+                          <th className="py-2 px-2 font-semibold text-right">Given / Joma</th>
+                          <th className="py-2 px-2 font-semibold text-right">Taken (Niyeche)</th>
+                          <th className="py-2 px-2 font-semibold text-right">Profit Credited</th>
+                          <th className="py-2 px-2 font-semibold text-right">Net: Pabe / Dibe</th>
                           <th className="py-2 px-2 font-semibold text-right">Actions</th>
                         </tr>
                       </thead>
@@ -3850,6 +4423,11 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         {directorsList.map((d) => {
                           const st = directorStatsMap[d.id];
                           const net = st?.netBalance || 0;
+                          const givenPlusJoma = (st?.givenToDirectors || 0) + (st?.depositedToFirm || 0);
+                          const takenTotal =
+                            (st?.clientCashKept || 0) +
+                            (st?.receivedFromDirectors || 0) +
+                            (st?.withdrawnFromFirm || 0);
                           return (
                             <tr key={d.id} className="hover:bg-slate-500/10 transition">
                               <td className="py-2.5 px-2 font-sans">
@@ -3861,15 +4439,19 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                               <td className="py-2.5 px-2 text-right text-emerald-500">
                                 {fmtBdt(st?.paidForFirm || 0)}
                               </td>
+                              <td className="py-2.5 px-2 text-right">{fmtBdt(givenPlusJoma)}</td>
                               <td className="py-2.5 px-2 text-right text-amber-500">
-                                {fmtBdt(st?.clientCashKept || 0)}
+                                {fmtBdt(takenTotal)}
+                              </td>
+                              <td className="py-2.5 px-2 text-right text-sky-400">
+                                {fmtBdt(st?.profitSalaryCredited || 0)}
                               </td>
                               <td className="py-2.5 px-2 text-right">
                                 <div className={`font-bold ${net >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
                                   {fmtBdt(net)}
                                 </div>
                                 <div className={`font-sans text-[10px] ${mutedText}`}>
-                                  {net > 0 ? "Firm owes" : net < 0 ? "To deposit" : "Settled"}
+                                  {net > 0 ? "Pabe (+)" : net < 0 ? "Joma Dibe (−)" : "Settled"}
                                 </div>
                               </td>
                               <td className="py-2.5 px-2 text-right font-sans whitespace-nowrap">
@@ -3921,7 +4503,7 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                         })}
                         {directorsList.length === 0 && (
                           <tr>
-                            <td colSpan={7} className={`py-8 text-center font-sans ${mutedText}`}>
+                            <td colSpan={9} className={`py-8 text-center font-sans ${mutedText}`}>
                               No directors configured yet. Add partners manually or click "Quick Add Directors A, B, C, D".
                             </td>
                           </tr>
@@ -5090,6 +5672,8 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   ? "Director Ledger Statement"
                   : printTarget === "profit_sheet"
                   ? "Profit & Salary Distribution Sheet"
+                  : printTarget === "summary_hisab"
+                  ? "Baki, Directors & Settlement Hisab"
                   : "Financial Profit & Loss Report"}
               </div>
               <div className="text-slate-600">
@@ -5099,6 +5683,8 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   ? `${selectedDirectorLedger.director.name} (${selectedDirectorLedger.director.sharePercent}%)`
                   : printTarget === "profit_sheet"
                   ? `Period: ${distFrom || "Start"} to ${distTo || todayStr()}`
+                  : printTarget === "summary_hisab"
+                  ? `As of ${todayStr()}`
                   : `Period: ${reportFrom || "Start"} to ${reportTo || todayStr()}`}
               </div>
             </div>
@@ -5230,6 +5816,112 @@ ${reportData.txs.map((t) => `<tr><td>${t.date}</td><td>${escapeHtml(t.desc)}</td
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : printTarget === "summary_hisab" ? (
+            <div className="space-y-5">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wide mb-2">
+                  1. Directors Khoroch (Spent), Niyeche (Taken) & Net Settlement
+                </h4>
+                <table className="w-full text-xs border-collapse font-mono tabular-nums">
+                  <thead>
+                    <tr className="border-b-2 border-slate-400 bg-slate-100 font-sans">
+                      <th className="py-1.5 px-2 text-left">Director</th>
+                      <th className="py-1.5 px-2 text-right">Bills Paid</th>
+                      <th className="py-1.5 px-2 text-right">Given/Joma</th>
+                      <th className="py-1.5 px-2 text-right">Taken/Kept</th>
+                      <th className="py-1.5 px-2 text-right">Profit/Sal</th>
+                      <th className="py-1.5 px-2 text-right">Net Pabe / Dibe</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {hisabOverview.directorRows.map((r) => (
+                      <tr key={r.director.id}>
+                        <td className="py-1.5 px-2 font-sans font-bold">{r.director.name}</td>
+                        <td className="py-1.5 px-2 text-right">{fmtBdt(r.paidForFirm)}</td>
+                        <td className="py-1.5 px-2 text-right">{fmtBdt(r.givenToDirectors + r.depositedToFirm)}</td>
+                        <td className="py-1.5 px-2 text-right">{fmtBdt(r.totalTaken)}</td>
+                        <td className="py-1.5 px-2 text-right">{fmtBdt(r.profitSalaryCredited)}</td>
+                        <td className="py-1.5 px-2 text-right font-bold">
+                          {fmtBdt(r.netBalance)} ({r.netBalance > 0 ? "Pabe" : r.netBalance < 0 ? "Dibe" : "Settled"})
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wide mb-2">
+                    2. Kothai Baki Ache ({fmtBdt(duesTotals.payable)})
+                  </h4>
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-400 bg-slate-100">
+                        <th className="py-1.5 px-2 text-left">Shop / Vendor</th>
+                        <th className="py-1.5 px-2 text-right">Baki</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {hisabOverview.payablesList.map(({ party, bakiAmount }) => (
+                        <tr key={party.id}>
+                          <td className="py-1.5 px-2">{party.name} ({party.type})</td>
+                          <td className="py-1.5 px-2 text-right font-mono font-bold">{fmtBdt(bakiAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wide mb-2">
+                    3. Client Receivable ({fmtBdt(duesTotals.receivable)})
+                  </h4>
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-400 bg-slate-100">
+                        <th className="py-1.5 px-2 text-left">Client / Party</th>
+                        <th className="py-1.5 px-2 text-right">Due</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {hisabOverview.receivablesList.map(({ party, recvAmount }) => (
+                        <tr key={party.id}>
+                          <td className="py-1.5 px-2">{party.name}</td>
+                          <td className="py-1.5 px-2 text-right font-mono font-bold">{fmtBdt(recvAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wide mb-2">
+                  4. Expenses Bought on Baki ({hisabOverview.creditExpenses.length})
+                </h4>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100">
+                      <th className="py-1.5 px-2 text-left">Date</th>
+                      <th className="py-1.5 px-2 text-left">Particulars</th>
+                      <th className="py-1.5 px-2 text-left">Shop / Vendor</th>
+                      <th className="py-1.5 px-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {hisabOverview.creditExpenses.map((t) => (
+                      <tr key={t.id}>
+                        <td className="py-1.5 px-2 font-mono">{t.date}</td>
+                        <td className="py-1.5 px-2">{t.desc}</td>
+                        <td className="py-1.5 px-2">{ws.parties.find((p) => p.id === t.partyId)?.name || "—"}</td>
+                        <td className="py-1.5 px-2 text-right font-mono">{fmtBdt(t.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
